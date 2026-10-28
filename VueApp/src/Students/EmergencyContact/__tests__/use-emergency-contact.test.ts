@@ -200,6 +200,21 @@ describe("useEmergencyContact — stateful behavior", () => {
     })
 
     describe("isDirty", () => {
+        // The unsaved-changes prompt reads isDirty, so a form that never opened must not claim changes.
+        it("is false before any record has loaded", () => {
+            const c = useEmergencyContact()
+            expect(c.isDirty.value).toBeFalsy()
+        })
+
+        it("stays false when the record cannot be read", async () => {
+            vi.mocked(emergencyContactService.getDetail).mockResolvedValue(null)
+
+            const c = useEmergencyContact()
+            await c.loadDetail(9999)
+
+            expect(c.isDirty.value).toBeFalsy()
+        })
+
         it("is false immediately after populateForm", () => {
             const c = useEmergencyContact()
             c.populateForm(makeDetail())

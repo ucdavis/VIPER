@@ -4,6 +4,7 @@ using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 using Viper.Areas.Students.Models;
 using Viper.Classes.Utilities;
+using static Viper.Classes.Utilities.PdfAccessibilityHelper;
 
 namespace Viper.Areas.Students.Services;
 
@@ -40,33 +41,17 @@ public interface IEmergencyContactExportService
 
 public class EmergencyContactExportService : IEmergencyContactExportService
 {
-    private static string BuildGeneratedLabel(DateTime generatedAt) =>
-        $"Generated {generatedAt:M/d/yyyy h:mm tt}";
-
     public MemoryStream GenerateOverviewExcel(List<StudentContactListItemDto> data)
     {
         using var wb = new XLWorkbook();
-        const string title = "Emergency Contact Overview";
-        ExcelAccessibilityHelper.SetCoreProperties(wb, title,
-            subject: "Student emergency contact overview");
-
-        var ws = wb.Worksheets.Add(title);
-
-        ws.Cell(1, 1).Value = BuildGeneratedLabel(DateTime.Now);
-        ws.Cell(1, 1).Style.Font.Italic = true;
-
         var headers = new[]
         {
             "Name", "Class Level", "Email", "Phone",
             "Student Info", "Local Contact", "Emergency Contact", "Permanent Contact",
             "Last Updated"
         };
-
-        for (int col = 0; col < headers.Length; col++)
-        {
-            ws.Cell(2, col + 1).Value = headers[col];
-            ws.Cell(2, col + 1).Style.Font.Bold = true;
-        }
+        var ws = StudentExportHelper.AddReportWorksheet(wb, "Emergency Contact Overview",
+            "Student emergency contact overview", headers);
 
         for (int i = 0; i < data.Count; i++)
         {
@@ -93,110 +78,59 @@ public class EmergencyContactExportService : IEmergencyContactExportService
 
         ws.Columns().AdjustToContents();
 
-        var stream = new MemoryStream();
-        wb.SaveAs(stream);
-        stream.Position = 0;
-        return stream;
+        return ExcelHelper.SaveToStream(wb);
     }
 
-    public byte[] GenerateOverviewPdf(List<StudentContactListItemDto> data)
-    {
-        // Capture once so per-page header delegates don't drift across pages.
-        var generatedLabel = BuildGeneratedLabel(DateTime.Now);
-        const string title = "Emergency Contact Overview";
-
-        var document = Document.Create(container =>
+    public byte[] GenerateOverviewPdf(List<StudentContactListItemDto> data) =>
+        StudentExportHelper.GenerateTablePdf("Emergency Contact Overview", "Student emergency contact overview", table =>
         {
-            container.Page(page =>
+            table.ColumnsDefinition(columns =>
             {
-                page.Size(PageSizes.A4.Landscape());
-                page.Margin(0.5f, Unit.Inch);
-                page.DefaultTextStyle(x => x.FontSize(8));
-
-                page.Header().Column(col =>
-                {
-                    col.Item().SemanticHeader1().Text(title)
-                        .SemiBold().FontSize(14).AlignCenter();
-                    col.Item().Text(generatedLabel)
-                        .FontSize(8).Italic().AlignCenter();
-                });
-
-                page.Content().SemanticTable().Table(table =>
-                {
-                    table.ColumnsDefinition(columns =>
-                    {
-                        columns.RelativeColumn(2.5f); // Name
-                        columns.RelativeColumn();    // Class
-                        columns.RelativeColumn(2.5f); // Email
-                        columns.RelativeColumn(1.5f); // Phone
-                        columns.RelativeColumn();    // Student Info
-                        columns.RelativeColumn();    // Local
-                        columns.RelativeColumn();    // Emergency
-                        columns.RelativeColumn();    // Permanent
-                        columns.RelativeColumn(1.2f); // Last Updated
-                    });
-
-                    var hdrStyle = TextStyle.Default.FontSize(8).SemiBold();
-                    table.Header(header =>
-                    {
-                        header.Cell().Background(Colors.Grey.Lighten3).BorderBottom(1).Padding(2).Text("Name").Style(hdrStyle);
-                        header.Cell().Background(Colors.Grey.Lighten3).BorderBottom(1).Padding(2).Text("Class").Style(hdrStyle);
-                        header.Cell().Background(Colors.Grey.Lighten3).BorderBottom(1).Padding(2).Text("Email").Style(hdrStyle);
-                        header.Cell().Background(Colors.Grey.Lighten3).BorderBottom(1).Padding(2).Text("Phone").Style(hdrStyle);
-                        header.Cell().Background(Colors.Grey.Lighten3).BorderBottom(1).Padding(2).Text("Student Info").Style(hdrStyle);
-                        header.Cell().Background(Colors.Grey.Lighten3).BorderBottom(1).Padding(2).Text("Local").Style(hdrStyle);
-                        header.Cell().Background(Colors.Grey.Lighten3).BorderBottom(1).Padding(2).Text("Emergency").Style(hdrStyle);
-                        header.Cell().Background(Colors.Grey.Lighten3).BorderBottom(1).Padding(2).Text("Permanent").Style(hdrStyle);
-                        header.Cell().Background(Colors.Grey.Lighten3).BorderBottom(1).Padding(2).Text("Updated").Style(hdrStyle);
-                    });
-
-                    foreach (var d in data)
-                    {
-                        table.Cell().BorderBottom(0.5f).Padding(2).Text(OrDash(d.FullName));
-                        table.Cell().BorderBottom(0.5f).Padding(2).Text(OrDash(d.ClassLevel));
-                        table.Cell().BorderBottom(0.5f).Padding(2).Text(OrDash(d.Email));
-                        table.Cell().BorderBottom(0.5f).Padding(2).Text(OrDash(d.CellPhone));
-                        table.Cell().BorderBottom(0.5f).Padding(2).Text(CompletenessLabel(d.StudentInfoComplete, d.StudentInfoTotal));
-                        table.Cell().BorderBottom(0.5f).Padding(2).Text(CompletenessLabel(d.LocalContactComplete, d.LocalContactTotal));
-                        table.Cell().BorderBottom(0.5f).Padding(2).Text(CompletenessLabel(d.EmergencyContactComplete, d.EmergencyContactTotal));
-                        table.Cell().BorderBottom(0.5f).Padding(2).Text(CompletenessLabel(d.PermanentContactComplete, d.PermanentContactTotal));
-                        table.Cell().BorderBottom(0.5f).Padding(2).Text(d.LastUpdated?.ToString("M/d/yyyy") ?? "—");
-                    }
-                });
-
-                page.Footer().SemanticIgnore().AlignCenter().Text(x =>
-                {
-                    x.Span("Page ");
-                    x.CurrentPageNumber();
-                    x.Span(" of ");
-                    x.TotalPages();
-                });
+                columns.RelativeColumn(2.5f); // Name
+                columns.RelativeColumn();     // Class
+                columns.RelativeColumn(2.5f); // Email
+                columns.RelativeColumn(1.5f); // Phone
+                columns.RelativeColumn();     // Student Info
+                columns.RelativeColumn();     // Local
+                columns.RelativeColumn();     // Emergency
+                columns.RelativeColumn();     // Permanent
+                columns.RelativeColumn(1.2f); // Last Updated
             });
-        })
-        .WithAccessibility(title, subject: "Student emergency contact overview");
 
-        return document.GeneratePdf();
-    }
+            var hdrStyle = TextStyle.Default.FontSize(8).SemiBold();
+            table.Header(header =>
+            {
+                header.Cell().Background(Colors.Grey.Lighten3).BorderBottom(1).Padding(2).Text("Name").Style(hdrStyle);
+                header.Cell().Background(Colors.Grey.Lighten3).BorderBottom(1).Padding(2).Text("Class").Style(hdrStyle);
+                header.Cell().Background(Colors.Grey.Lighten3).BorderBottom(1).Padding(2).Text("Email").Style(hdrStyle);
+                header.Cell().Background(Colors.Grey.Lighten3).BorderBottom(1).Padding(2).Text("Phone").Style(hdrStyle);
+                header.Cell().Background(Colors.Grey.Lighten3).BorderBottom(1).Padding(2).Text("Student Info").Style(hdrStyle);
+                header.Cell().Background(Colors.Grey.Lighten3).BorderBottom(1).Padding(2).Text("Local").Style(hdrStyle);
+                header.Cell().Background(Colors.Grey.Lighten3).BorderBottom(1).Padding(2).Text("Emergency").Style(hdrStyle);
+                header.Cell().Background(Colors.Grey.Lighten3).BorderBottom(1).Padding(2).Text("Permanent").Style(hdrStyle);
+                header.Cell().Background(Colors.Grey.Lighten3).BorderBottom(1).Padding(2).Text("Updated").Style(hdrStyle);
+            });
+
+            foreach (var d in data)
+            {
+                table.Cell().BorderBottom(0.5f).Padding(2).Text(OrDash(d.FullName));
+                table.Cell().BorderBottom(0.5f).Padding(2).Text(OrDash(d.ClassLevel));
+                table.Cell().BorderBottom(0.5f).Padding(2).Text(OrDash(d.Email));
+                table.Cell().BorderBottom(0.5f).Padding(2).Text(OrDash(d.CellPhone));
+                table.Cell().BorderBottom(0.5f).Padding(2).Text(CompletenessLabel(d.StudentInfoComplete, d.StudentInfoTotal));
+                table.Cell().BorderBottom(0.5f).Padding(2).Text(CompletenessLabel(d.LocalContactComplete, d.LocalContactTotal));
+                table.Cell().BorderBottom(0.5f).Padding(2).Text(CompletenessLabel(d.EmergencyContactComplete, d.EmergencyContactTotal));
+                table.Cell().BorderBottom(0.5f).Padding(2).Text(CompletenessLabel(d.PermanentContactComplete, d.PermanentContactTotal));
+                table.Cell().BorderBottom(0.5f).Padding(2).Text(d.LastUpdated?.ToString("M/d/yyyy") ?? "—");
+            }
+        });
 
     public MemoryStream GenerateExcel(List<StudentContactReportDto> data)
     {
         using var wb = new XLWorkbook();
-        const string title = "Emergency Contact Report";
-        ExcelAccessibilityHelper.SetCoreProperties(wb, title,
-            subject: "Student emergency contact report");
-
-        var ws = wb.Worksheets.Add(title);
-
-        ws.Cell(1, 1).Value = BuildGeneratedLabel(DateTime.Now);
-        ws.Cell(1, 1).Style.Font.Italic = true;
-
         var headers = new[] { "Class", "Name", "Student Info", "Local Contact", "Emergency Contact", "Permanent Contact" };
-
-        for (int col = 0; col < headers.Length; col++)
-        {
-            ws.Cell(2, col + 1).Value = headers[col];
-            ws.Cell(2, col + 1).Style.Font.Bold = true;
-        }
+        var ws = StudentExportHelper.AddReportWorksheet(wb, "Emergency Contact Report",
+            "Student emergency contact report", headers);
 
         for (int i = 0; i < data.Count; i++)
         {
@@ -224,80 +158,43 @@ public class EmergencyContactExportService : IEmergencyContactExportService
 
         ws.Columns().AdjustToContents();
 
-        var stream = new MemoryStream();
-        wb.SaveAs(stream);
-        stream.Position = 0;
-        return stream;
+        return ExcelHelper.SaveToStream(wb);
     }
 
-    public byte[] GeneratePdf(List<StudentContactReportDto> data)
-    {
-        var generatedLabel = BuildGeneratedLabel(DateTime.Now);
-        const string title = "Emergency Contact Report";
-
-        var document = Document.Create(container =>
+    public byte[] GeneratePdf(List<StudentContactReportDto> data) =>
+        StudentExportHelper.GenerateTablePdf("Emergency Contact Report", "Student emergency contact report", table =>
         {
-            container.Page(page =>
+            table.ColumnsDefinition(columns =>
             {
-                page.Size(PageSizes.A4.Landscape());
-                page.Margin(0.5f, Unit.Inch);
-                page.DefaultTextStyle(x => x.FontSize(8));
-
-                page.Header().Column(col =>
-                {
-                    col.Item().SemanticHeader1().Text(title)
-                        .SemiBold().FontSize(14).AlignCenter();
-                    col.Item().Text(generatedLabel)
-                        .FontSize(8).Italic().AlignCenter();
-                });
-
-                page.Content().SemanticTable().Table(table =>
-                {
-                    table.ColumnsDefinition(columns =>
-                    {
-                        columns.RelativeColumn();   // Class
-                        columns.RelativeColumn(2);   // Name
-                        columns.RelativeColumn(2.5f); // Student Info
-                        columns.RelativeColumn(2.5f); // Local Contact
-                        columns.RelativeColumn(2.5f); // Emergency Contact
-                        columns.RelativeColumn(2.5f); // Permanent Contact
-                    });
-
-                    var hdrStyle = TextStyle.Default.FontSize(8).SemiBold();
-                    table.Header(header =>
-                    {
-                        header.Cell().Background(Colors.Grey.Lighten3).BorderBottom(1).Padding(2).Text("Class").Style(hdrStyle);
-                        header.Cell().Background(Colors.Grey.Lighten3).BorderBottom(1).Padding(2).Text("Name").Style(hdrStyle);
-                        header.Cell().Background(Colors.Grey.Lighten3).BorderBottom(1).Padding(2).Text("Student Info").Style(hdrStyle);
-                        header.Cell().Background(Colors.Grey.Lighten3).BorderBottom(1).Padding(2).Text("Local Contact").Style(hdrStyle);
-                        header.Cell().Background(Colors.Grey.Lighten3).BorderBottom(1).Padding(2).Text("Emergency Contact").Style(hdrStyle);
-                        header.Cell().Background(Colors.Grey.Lighten3).BorderBottom(1).Padding(2).Text("Permanent Contact").Style(hdrStyle);
-                    });
-
-                    foreach (var d in data)
-                    {
-                        table.Cell().BorderBottom(0.5f).Padding(2).Text(OrDash(d.ClassLevel));
-                        table.Cell().BorderBottom(0.5f).Padding(2).Text(OrDash(d.FullName));
-                        PdfMultiLineCell(table, FormatStudentInfoLines(d));
-                        PdfMultiLineCell(table, FormatContactLines(d.LocalContact));
-                        PdfMultiLineCell(table, FormatContactLines(d.EmergencyContact));
-                        PdfMultiLineCell(table, FormatContactLines(d.PermanentContact));
-                    }
-                });
-
-                page.Footer().SemanticIgnore().AlignCenter().Text(x =>
-                {
-                    x.Span("Page ");
-                    x.CurrentPageNumber();
-                    x.Span(" of ");
-                    x.TotalPages();
-                });
+                columns.RelativeColumn();     // Class
+                columns.RelativeColumn(2);    // Name
+                columns.RelativeColumn(2.5f); // Student Info
+                columns.RelativeColumn(2.5f); // Local Contact
+                columns.RelativeColumn(2.5f); // Emergency Contact
+                columns.RelativeColumn(2.5f); // Permanent Contact
             });
-        })
-        .WithAccessibility(title, subject: "Student emergency contact report");
 
-        return document.GeneratePdf();
-    }
+            var hdrStyle = TextStyle.Default.FontSize(8).SemiBold();
+            table.Header(header =>
+            {
+                header.Cell().Background(Colors.Grey.Lighten3).BorderBottom(1).Padding(2).Text("Class").Style(hdrStyle);
+                header.Cell().Background(Colors.Grey.Lighten3).BorderBottom(1).Padding(2).Text("Name").Style(hdrStyle);
+                header.Cell().Background(Colors.Grey.Lighten3).BorderBottom(1).Padding(2).Text("Student Info").Style(hdrStyle);
+                header.Cell().Background(Colors.Grey.Lighten3).BorderBottom(1).Padding(2).Text("Local Contact").Style(hdrStyle);
+                header.Cell().Background(Colors.Grey.Lighten3).BorderBottom(1).Padding(2).Text("Emergency Contact").Style(hdrStyle);
+                header.Cell().Background(Colors.Grey.Lighten3).BorderBottom(1).Padding(2).Text("Permanent Contact").Style(hdrStyle);
+            });
+
+            foreach (var d in data)
+            {
+                table.Cell().BorderBottom(0.5f).Padding(2).Text(OrDash(d.ClassLevel));
+                table.Cell().BorderBottom(0.5f).Padding(2).Text(OrDash(d.FullName));
+                PdfMultiLineCell(table, FormatStudentInfoLines(d));
+                PdfMultiLineCell(table, FormatContactLines(d.LocalContact));
+                PdfMultiLineCell(table, FormatContactLines(d.EmergencyContact));
+                PdfMultiLineCell(table, FormatContactLines(d.PermanentContact));
+            }
+        });
 
     private static string CompletenessLabel(int complete, int total)
     {
@@ -305,14 +202,6 @@ public class EmergencyContactExportService : IEmergencyContactExportService
         if (complete == 0) return "No";
         return "Partial";
     }
-
-    /// <summary>
-    /// Returns an em-dash placeholder when the value is null or empty so that
-    /// QuestPDF emits the cell as a tagged TD (whitespace-only and empty Text
-    /// elements are dropped from the structure tree, breaking PDF/UA clause 7.2).
-    /// </summary>
-    private static string OrDash(string? value) =>
-        string.IsNullOrWhiteSpace(value) ? "—" : value.Trim();
 
     /// <summary>Formats student info as a multi-line block for Excel cells.</summary>
     private static string FormatStudentInfoBlock(StudentContactReportDto d)

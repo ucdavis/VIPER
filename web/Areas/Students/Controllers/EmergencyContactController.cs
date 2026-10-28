@@ -266,17 +266,8 @@ public class EmergencyContactController : ApiController
     public async Task<ActionResult> ExportOverviewExcel()
     {
         var data = await _service.GetStudentContactListAsync();
-        if (data.Count == 0)
-        {
-            return NoContent();
-        }
-
-        var stream = _exportService.GenerateOverviewExcel(data);
-        var filename = ExcelHelper.BuildExportFilename(new ExportFilenameOptions
-        {
-            ReportName = "EmergencyContactOverview"
-        });
-        return File(stream, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", filename);
+        return FileOrNoContent(data,
+            d => ExcelFile(_exportService.GenerateOverviewExcel(d), "EmergencyContactOverview"));
     }
 
     /// <summary>
@@ -287,13 +278,9 @@ public class EmergencyContactController : ApiController
     public async Task<ActionResult> ExportOverviewPdf()
     {
         var data = await _service.GetStudentContactListAsync();
-        if (data.Count == 0)
-        {
-            return NoContent();
-        }
-
-        var pdfBytes = _exportService.GenerateOverviewPdf(data);
-        return InlineFile(pdfBytes, "application/pdf", $"EmergencyContactOverview_{DateTime.Now:yyyyMMdd}.pdf");
+        return FileOrNoContent(data,
+            d => InlineFile(_exportService.GenerateOverviewPdf(d), "application/pdf",
+                $"EmergencyContactOverview_{DateTime.Now:yyyyMMdd}.pdf"));
     }
 
     /// <summary>
@@ -304,17 +291,8 @@ public class EmergencyContactController : ApiController
     public async Task<ActionResult> ExportExcel()
     {
         var data = await _service.GetStudentContactReportAsync();
-        if (data.Count == 0)
-        {
-            return NoContent();
-        }
-
-        var stream = _exportService.GenerateExcel(data);
-        var filename = ExcelHelper.BuildExportFilename(new ExportFilenameOptions
-        {
-            ReportName = "EmergencyContacts"
-        });
-        return File(stream, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", filename);
+        return FileOrNoContent(data,
+            d => ExcelFile(_exportService.GenerateExcel(d), "EmergencyContacts"));
     }
 
     /// <summary>
@@ -325,12 +303,8 @@ public class EmergencyContactController : ApiController
     public async Task<ActionResult> ExportPdf()
     {
         var data = await _service.GetStudentContactReportAsync();
-        if (data.Count == 0)
-        {
-            return NoContent();
-        }
-
-        var pdfBytes = _exportService.GeneratePdf(data);
-        return InlineFile(pdfBytes, "application/pdf", $"EmergencyContacts_{DateTime.Now:yyyyMMdd}.pdf");
+        return FileOrNoContent(data,
+            d => InlineFile(_exportService.GeneratePdf(d), "application/pdf",
+                $"EmergencyContacts_{DateTime.Now:yyyyMMdd}.pdf"));
     }
 }

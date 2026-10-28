@@ -1,61 +1,67 @@
 <template>
     <div class="q-mb-md">
-        <!-- Desktop: table -->
-        <q-table
+        <!-- Desktop: displays as a table, behaving like SVMPhoneSectionTable. -->
+        <div
+            v-show="loading || editRecords || hasMatches"
             class="gt-sm"
-            :rows="frequentNumbers"
-            :columns="cols"
-            row-key="entryId"
-            dense
-            :hide-pagination="true"
-            v-model:pagination="pagination"
-            :filter="search"
-            :loading="loading"
         >
-            <template
-                v-if="editRecords"
-                #top-left
+            <div class="table-section-header q-mb-xs">
+                <!-- tabindex allows a jump link to land focus here, as on the mobile heading. -->
+                <h2
+                    :id="desktopAnchorId"
+                    class="table-section-heading"
+                    tabindex="-1"
+                >
+                    Frequently Called Numbers
+                </h2>
+                <q-btn
+                    v-if="editRecords"
+                    type="button"
+                    color="primary"
+                    dense
+                    no-caps
+                    aria-label="Add Frequent Number"
+                    @click="$emit('addFrequentNumber')"
+                    icon="add"
+                    size="xs"
+                />
+            </div>
+            <q-table
+                :rows="frequentNumbers"
+                :columns="cols"
+                row-key="entryId"
+                dense
+                :hide-pagination="true"
+                v-model:pagination="pagination"
+                :filter="search"
+                :loading="loading"
             >
-                <div class="row items-center q-gutter-sm">
-                    <div class="q-table__title">
-                        Frequently Called Numbers
-                        <q-btn
-                            type="button"
-                            color="primary"
-                            dense
-                            no-caps
-                            aria-label="Add Frequent Number"
-                            @click="$emit('addFrequentNumber')"
-                            icon="add"
-                            size="xs"
-                        />
-                    </div>
-                </div>
-            </template>
-            <template #body-cell-edit="cell">
-                <RecordActionCell
-                    action="edit"
-                    :cell="cell"
-                    @action="$emit('editFrequentNumber', cell.row)"
-                />
-            </template>
-            <template #body-cell-delete="cell">
-                <RecordActionCell
-                    action="delete"
-                    :cell="cell"
-                    @action="$emit('deleteFrequentNumber', cell.row)"
-                />
-            </template>
-        </q-table>
+                <template #body-cell-edit="cell">
+                    <RecordActionCell
+                        action="edit"
+                        :cell="cell"
+                        @action="$emit('editFrequentNumber', cell.row)"
+                    />
+                </template>
+                <template #body-cell-delete="cell">
+                    <RecordActionCell
+                        action="delete"
+                        :cell="cell"
+                        @action="$emit('deleteFrequentNumber', cell.row)"
+                    />
+                </template>
+            </q-table>
+        </div>
 
         <MobileCardList
             v-model:pagination="pagination"
-            :anchor-id="anchorId"
+            :anchor-id="mobileAnchorId"
             title="Frequently Called Numbers"
             :columns="cols"
             :rows="frequentNumbers"
             :search="search"
             :loading="loading"
+            :keep-when-empty="editRecords"
             row-key="entryId"
             :omit-columns="['label', 'phone', 'edit', 'delete']"
             empty-message="No numbers to display."
@@ -97,13 +103,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue"
 import MobileCardList from "./MobileCardList.vue"
 import RecordActionButton from "./RecordActionButton.vue"
 import RecordActionCell from "./RecordActionCell.vue"
 import { buildFrequentNumberColumns } from "../composables/svm-phone-columns"
-import type { Ref } from "vue"
-import type { QTableProps } from "quasar"
+import { useSectionTable } from "../composables/use-section-table"
 import type { SVMFrequentNumberRecord } from "../types/svm-phone-types"
 
 const props = defineProps<{
@@ -115,7 +119,13 @@ const props = defineProps<{
     anchorId?: string
 }>()
 defineEmits(["addFrequentNumber", "editFrequentNumber", "deleteFrequentNumber"])
-// Bound to the table, and shared with the card list's sort control.
-const pagination: Ref<QTableProps["pagination"]> = ref({ rowsPerPage: 0, sortBy: null, descending: false })
+
 const cols = buildFrequentNumberColumns(props.editRecords)
+
+const { pagination, hasMatches, desktopAnchorId, mobileAnchorId } = useSectionTable({
+    columns: cols,
+    rows: () => props.frequentNumbers,
+    search: () => props.search,
+    anchorId: () => props.anchorId,
+})
 </script>

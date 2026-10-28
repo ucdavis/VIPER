@@ -2,6 +2,8 @@ import { bootstrapSpa } from "@/shared/bootstrap-spa"
 import { router } from "./router"
 import App from "./App.vue"
 
+import "@/Personnel/assets/phone-list.css"
+
 bootstrapSpa({
     areaPath: "/Personnel",
     appComponent: App,

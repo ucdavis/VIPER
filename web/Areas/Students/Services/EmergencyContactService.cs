@@ -18,13 +18,17 @@ public class EmergencyContactService : IEmergencyContactService
     private readonly IUserHelper _userHelper;
     private readonly ILogger<EmergencyContactService> _logger;
     private readonly RAPSAuditService _rapsAuditService;
+    private readonly IStudentAppAccessService _appAccessService;
+    private readonly IDvmStudentLookupService _dvmStudentLookup;
 
     public EmergencyContactService(
         SISContext sisContext,
         RAPSContext rapsContext,
         AAUDContext aaudContext,
         IUserHelper userHelper,
-        ILogger<EmergencyContactService> logger)
+        ILogger<EmergencyContactService> logger,
+        IStudentAppAccessService appAccessService,
+        IDvmStudentLookupService dvmStudentLookup)
     {
         _sisContext = sisContext;
         _rapsContext = rapsContext;
@@ -32,6 +36,8 @@ public class EmergencyContactService : IEmergencyContactService
         _userHelper = userHelper;
         _logger = logger;
         _rapsAuditService = new RAPSAuditService(rapsContext, userHelper);
+        _appAccessService = appAccessService;
+        _dvmStudentLookup = dvmStudentLookup;
     }
 
     public async Task<List<StudentContactListItemDto>> GetStudentContactListAsync()
@@ -56,7 +62,7 @@ public class EmergencyContactService : IEmergencyContactService
                 // View already applies display name logic (display_last_name AS person_last_name)
                 FullName = $"{student.PersonLastName}, {student.PersonFirstName}",
                 ClassLevel = student.StudentsClassLevel ?? string.Empty,
-                Email = FormatEmail(student.IdsMailid)
+                Email = DvmStudentLookupService.FormatEmail(student.IdsMailid)
             };
 
             if (int.TryParse(student.IdsPidm, out var pidm)
@@ -89,46 +95,32 @@ public class EmergencyContactService : IEmergencyContactService
 
     public async Task<StudentContactDetailDto?> GetStudentContactDetailAsync(int personId, bool canEdit)
     {
-        // Use AAUD view (consistent with list/report) instead of VIPER StudentList
-        var studentInfo = await _aaudContext.AaudUsers
-            .Where(u => u.AaudUserId == personId)
-            .Join(_aaudContext.VwDvmStudentsMaxTerms,
-                u => u.MothraId,
-                s => s.IdsMothraId,
-                (u, s) => new { PersonId = u.AaudUserId, s.PersonLastName, s.PersonFirstName, s.StudentsClassLevel })
-            .AsNoTracking()
-            .FirstOrDefaultAsync();
-
-        if (studentInfo == null)
+        var student = await _dvmStudentLookup.GetDvmStudentAsync(personId);
+        if (student == null)
         {
             return null;
         }
 
-        var pidm = await GetCurrentDvmPidmAsync(personId);
+        var dto = new StudentContactDetailDto
+        {
+            PersonId = student.PersonId,
+            FullName = student.FullName,
+            ClassLevel = student.ClassLevel,
+            CanEdit = canEdit
+        };
+
+        var pidm = student.Pidm;
         if (pidm == null)
         {
             // Student exists but has no PIDM mapping — return empty contact shell
-            return new StudentContactDetailDto
-            {
-                PersonId = studentInfo.PersonId,
-                FullName = $"{studentInfo.PersonLastName}, {studentInfo.PersonFirstName}",
-                ClassLevel = studentInfo.StudentsClassLevel ?? string.Empty,
-                CanEdit = canEdit
-            };
+            return dto;
         }
 
+        var studentPidm = pidm.Value;
         var contact = await _sisContext.StudentContacts
             .Include(c => c.EmergencyContacts)
             .AsNoTracking()
-            .FirstOrDefaultAsync(c => c.Pidm == pidm.Value);
-
-        var dto = new StudentContactDetailDto
-        {
-            PersonId = studentInfo.PersonId,
-            FullName = $"{studentInfo.PersonLastName}, {studentInfo.PersonFirstName}",
-            ClassLevel = studentInfo.StudentsClassLevel ?? string.Empty,
-            CanEdit = canEdit
-        };
+            .FirstOrDefaultAsync(c => c.Pidm == studentPidm);
 
         if (contact != null)
         {
@@ -150,16 +142,18 @@ public class EmergencyContactService : IEmergencyContactService
 
     public async Task UpdateStudentContactAsync(int personId, UpdateStudentContactRequest request, string updatedBy)
     {
-        if (!await IsCurrentDvmStudentAsync(personId))
+        if (!await _dvmStudentLookup.IsCurrentDvmStudentAsync(personId))
         {
             throw new InvalidOperationException($"PersonId {personId} is not a current DVM student");
         }
 
-        var pidm = await GetCurrentDvmPidmAsync(personId);
+        var pidm = await _dvmStudentLookup.GetCurrentDvmPidmAsync(personId);
         if (pidm == null)
         {
             throw new InvalidOperationException($"No PIDM found for PersonId {personId}");
         }
+
+        var studentPidm = pidm.Value;
 
         // Validate all phone fields server-side before persisting
         var invalidFields = new List<string>();
@@ -184,11 +178,11 @@ public class EmergencyContactService : IEmergencyContactService
 
         var contact = await _sisContext.StudentContacts
             .Include(c => c.EmergencyContacts)
-            .FirstOrDefaultAsync(c => c.Pidm == pidm.Value);
+            .FirstOrDefaultAsync(c => c.Pidm == studentPidm);
 
         if (contact == null)
         {
-            contact = new StudentContact { Pidm = pidm.Value };
+            contact = new StudentContact { Pidm = studentPidm };
             _sisContext.StudentContacts.Add(contact);
         }
 
@@ -289,57 +283,12 @@ public class EmergencyContactService : IEmergencyContactService
         };
     }
 
-    public async Task<bool> ToggleAppAccessAsync()
-    {
-        var permissionId = await GetStudentPermissionIdAsync();
-        var roleId = await GetStudentRoleIdAsync();
-        var currentLoginId = _userHelper.GetCurrentUser()?.LoginId;
-
-        var rolePermission = await _rapsContext.TblRolePermissions
-            .FirstOrDefaultAsync(rp => rp.RoleId == roleId
-                && rp.PermissionId == permissionId);
-
-        // Closing the app REMOVES the role-permission row rather than setting
-        // Access = 0. In RAPS, a role Deny (Access = 0) overrides an individual
-        // member Allow, which would silently break individual grants.
-        var isCurrentlyOpen = rolePermission != null && rolePermission.Access == 1;
-
-        if (isCurrentlyOpen)
-        {
-            _rapsAuditService.AuditRolePermissionChange(rolePermission!, RAPSAuditService.AuditActionType.Delete);
-            _rapsContext.TblRolePermissions.Remove(rolePermission!);
-            await _rapsContext.SaveChangesAsync();
-            return false;
-        }
-
-        if (rolePermission == null)
-        {
-            rolePermission = new TblRolePermission
-            {
-                RoleId = roleId,
-                PermissionId = permissionId,
-                Access = 1,
-                ModTime = DateTime.Now,
-                ModBy = currentLoginId
-            };
-            _rapsContext.TblRolePermissions.Add(rolePermission);
-            _rapsAuditService.AuditRolePermissionChange(rolePermission, RAPSAuditService.AuditActionType.Create);
-        }
-        else
-        {
-            // Legacy row with Access = 0 from previous toggle behavior — flip to 1.
-            rolePermission.Access = 1;
-            rolePermission.ModTime = DateTime.Now;
-            rolePermission.ModBy = currentLoginId;
-            _rapsAuditService.AuditRolePermissionChange(rolePermission, RAPSAuditService.AuditActionType.Update);
-        }
-        await _rapsContext.SaveChangesAsync();
-        return true;
-    }
+    public Task<bool> ToggleAppAccessAsync() =>
+        _appAccessService.ToggleAppAccessAsync(EmergencyContactPermissions.Student);
 
     public async Task<bool> ToggleIndividualAccessAsync(int personId)
     {
-        if (!await IsCurrentDvmStudentAsync(personId))
+        if (!await _dvmStudentLookup.IsCurrentDvmStudentAsync(personId))
         {
             throw new InvalidOperationException($"PersonId {personId} is not a current DVM student");
         }
@@ -397,6 +346,7 @@ public class EmergencyContactService : IEmergencyContactService
         }
 
         var currentUser = await _aaudContext.AaudUsers
+            .AsNoTracking()
             .FirstOrDefaultAsync(u => u.LoginId == currentLoginId);
         if (currentUser == null)
         {
@@ -437,15 +387,8 @@ public class EmergencyContactService : IEmergencyContactService
         return false;
     }
 
-    public async Task<bool> IsAppOpenAsync()
-    {
-        var permissionId = await GetStudentPermissionIdAsync();
-        var roleId = await GetStudentRoleIdAsync();
-        return await _rapsContext.TblRolePermissions
-            .AnyAsync(rp => rp.RoleId == roleId
-                && rp.PermissionId == permissionId
-                && rp.Access == 1);
-    }
+    public Task<bool> IsAppOpenAsync() =>
+        _appAccessService.IsAppOpenAsync(EmergencyContactPermissions.Student);
 
     #region Completeness Calculation
 
@@ -503,23 +446,8 @@ public class EmergencyContactService : IEmergencyContactService
 
     #region RAPS Lookups
 
-    private async Task<int> GetStudentPermissionIdAsync()
-    {
-        var permission = await _rapsContext.TblPermissions
-            .FirstOrDefaultAsync(p => p.Permission == EmergencyContactPermissions.Student);
-        return permission?.PermissionId
-            ?? throw new InvalidOperationException(
-                $"RAPS permission '{EmergencyContactPermissions.Student}' not found");
-    }
-
-    private async Task<int> GetStudentRoleIdAsync()
-    {
-        var role = await _rapsContext.TblRoles
-            .FirstOrDefaultAsync(r => r.Role == EmergencyContactPermissions.StudentRoleName);
-        return role?.RoleId
-            ?? throw new InvalidOperationException(
-                $"RAPS role '{EmergencyContactPermissions.StudentRoleName}' not found");
-    }
+    private Task<int> GetStudentPermissionIdAsync() =>
+        _appAccessService.GetPermissionIdAsync(EmergencyContactPermissions.Student);
 
     #endregion
 
@@ -532,16 +460,7 @@ public class EmergencyContactService : IEmergencyContactService
     private async Task<(List<VwDvmStudentsMaxTerm> DvmStudents, Dictionary<string, int> MothraToPersonId, Dictionary<int, StudentContact> ContactsByPidm)>
         LoadDvmStudentsWithContactsAsync()
     {
-        var dvmStudents = await _aaudContext.VwDvmStudentsMaxTerms
-            .AsNoTracking()
-            .ToListAsync();
-
-        var mothraIds = dvmStudents.Select(s => s.IdsMothraId).ToList();
-        var mothraToPersonId = await _aaudContext.AaudUsers
-            .Where(u => EF.Parameter(mothraIds).Contains(u.MothraId))
-            .Select(u => new { u.MothraId, u.AaudUserId })
-            .AsNoTracking()
-            .ToDictionaryAsync(u => u.MothraId, u => u.AaudUserId);
+        var (dvmStudents, mothraToPersonId) = await _dvmStudentLookup.LoadDvmStudentsAsync();
 
         var pidms = dvmStudents
             .Select(s => int.TryParse(s.IdsPidm, out var p) ? p : 0)
@@ -557,39 +476,6 @@ public class EmergencyContactService : IEmergencyContactService
         var contactsByPidm = contacts.ToDictionary(c => c.Pidm);
 
         return (dvmStudents, mothraToPersonId, contactsByPidm);
-    }
-
-    private async Task<bool> IsCurrentDvmStudentAsync(int personId)
-    {
-        // Use AAUD view (consistent with list/report) instead of VIPER StudentList
-        return await _aaudContext.AaudUsers
-            .Where(u => u.AaudUserId == personId)
-            .Join(_aaudContext.VwDvmStudentsMaxTerms,
-                u => u.MothraId,
-                s => s.IdsMothraId,
-                (u, s) => u.AaudUserId)
-            .AnyAsync();
-    }
-
-    /// <summary>
-    /// Resolves PIDM for a person through the DVM students view, consistent with
-    /// the list/report paths that read IdsPidm from VwDvmStudentsMaxTerms.
-    /// </summary>
-    private async Task<int?> GetCurrentDvmPidmAsync(int personId)
-    {
-        var pidmStr = await _aaudContext.AaudUsers
-            .Where(u => u.AaudUserId == personId)
-            .Join(_aaudContext.VwDvmStudentsMaxTerms,
-                u => u.MothraId,
-                s => s.IdsMothraId,
-                (_, s) => s.IdsPidm)
-            .FirstOrDefaultAsync();
-
-        if (pidmStr != null && int.TryParse(pidmStr, out var pidm))
-        {
-            return pidm;
-        }
-        return null;
     }
 
     private static void ValidatePhone(string? value, string fieldName, List<string> invalidFields)
@@ -613,16 +499,6 @@ public class EmergencyContactService : IEmergencyContactService
             EmergencyContactMapper.ApplyContactInfoToEntity(dto, newContact);
             contact.EmergencyContacts.Add(newContact);
         }
-    }
-
-    private static string FormatEmail(string? mailId)
-    {
-        if (string.IsNullOrEmpty(mailId))
-        {
-            return string.Empty;
-        }
-
-        return mailId.Contains('@') ? mailId : $"{mailId}@ucdavis.edu";
     }
 
     #endregion

@@ -10,6 +10,7 @@ namespace Viper.Areas.Personnel.Models
         public required int SectionId { get; set; }
         public string? Name { get; set; }
         public string? Abbrv { get; set; }
+        public string? DeptCode { get; set; }
         public int? SortOrder { get; set; }
         public string? Fax { get; set; }
         public string? ModifiedBy { get; set; }

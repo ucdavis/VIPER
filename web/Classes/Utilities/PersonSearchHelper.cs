@@ -27,10 +27,13 @@ public static class PersonSearchHelper
     /// <summary>
     /// Builds the "Last, First" / "First Last" contains-match predicate for a search term.
     /// lastName/firstName must be plain property accessors (e.g. <c>t => t.LastName</c>).
+    /// The selectors accept nullable names so that database views can be searched directly;
+    /// EF coalesces a missing name to an empty string, so a row with only one name still
+    /// matches on the name it has.
     /// </summary>
     public static Expression<Func<T, bool>> NameMatches<T>(
-        Expression<Func<T, string>> lastName,
-        Expression<Func<T, string>> firstName,
+        Expression<Func<T, string?>> lastName,
+        Expression<Func<T, string?>> firstName,
         string search)
     {
         var param = Expression.Parameter(typeof(T), "p");
@@ -59,8 +62,8 @@ public static class PersonSearchHelper
     /// </summary>
     public static IQueryable<T> OrderAndCap<T>(
         IQueryable<T> query,
-        Expression<Func<T, string>> lastName,
-        Expression<Func<T, string>> firstName)
+        Expression<Func<T, string?>> lastName,
+        Expression<Func<T, string?>> firstName)
         => query.OrderBy(lastName).ThenBy(firstName).Take(MaxResults);
 
     /// <summary>
@@ -75,7 +78,7 @@ public static class PersonSearchHelper
         return Expression.Lambda<Func<T, bool>>(Expression.OrElse(predicate.Body, rebound), predicate.Parameters[0]);
     }
 
-    private static string PropertyName<T>(Expression<Func<T, string>> selector)
+    private static string PropertyName<T>(Expression<Func<T, string?>> selector)
     {
         if (selector.Body is MemberExpression member)
         {

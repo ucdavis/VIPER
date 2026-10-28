@@ -85,6 +85,48 @@ public class CspPolicyTests
         Assert.False(http.Response.Headers.ContainsKey(HeaderNames.ContentSecurityPolicy));
     }
 
+    // Which paths run with no CSP at all is a security decision, so it is pinned here rather
+    // than left implicit in a Program.cs predicate nothing can reach.
+    [Theory]
+    [InlineData("/healthchecks")]
+    [InlineData("/healthchecks-api")]
+    [InlineData("/ui/resources")]
+    [InlineData("/healthchecks/some/sub/path")]
+    public void IsExemptPath_HealthUiPaths_AreExempt(string path)
+    {
+        Assert.True(CspPolicy.IsExemptPath(path));
+    }
+
+    // Entra frames this endpoint on its own origin, and the policy sends frame-ancestors 'none',
+    // so leaving it under CSP means the browser refuses the frame and no sign-out ever arrives.
+    [Theory]
+    [InlineData("/frontchannel-logout")]
+    [InlineData("/FrontChannel-Logout")]
+    public void IsExemptPath_FrontChannelLogout_IsExempt(string path)
+    {
+        Assert.True(CspPolicy.IsExemptPath(path));
+    }
+
+    // The logout endpoint is one route, not a subtree. Exempting children too would hand a
+    // future sibling route a CSP-free origin nobody asked for.
+    [Theory]
+    [InlineData("/frontchannel-logout/extra")]
+    [InlineData("/frontchannel-logout-other")]
+    public void IsExemptPath_BelowOrBesideTheLogoutRoute_IsNotExempt(string path)
+    {
+        Assert.False(CspPolicy.IsExemptPath(path));
+    }
+
+    [Theory]
+    [InlineData("/")]
+    [InlineData("/welcome")]
+    [InlineData("/api/cts/assessments")]
+    [InlineData("/vue/index.html")]
+    public void IsExemptPath_OrdinaryPaths_AreNotExempt(string path)
+    {
+        Assert.False(CspPolicy.IsExemptPath(path));
+    }
+
     private static StaticFileResponseContext ResponseContextFor(HttpContext http)
     {
         return new StaticFileResponseContext(http, new NotFoundFileInfo("index.html"));

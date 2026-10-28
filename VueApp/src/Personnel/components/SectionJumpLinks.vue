@@ -13,9 +13,9 @@
         <!--
             A floating menu rather than an inline panel. This component renders inside the sticky
             filter bar, whose measured height is published as --phone-list-filter-height and is what
-            every jump target's scroll-margin is built from. An inline panel changes that height on
-            open, and the republished value always lags the click, so the browser scrolls using a
-            stale margin and lands short of the heading. A portalled menu never enters the bar's
+            the page's scroll padding is built from. An inline panel changes that height on open,
+            and the republished value always lags the click, so the browser scrolls using a stale
+            padding and lands short of the heading. A portalled menu never enters the bar's
             flow, so the height it publishes stays true.
 
             transition-duration 0 because motion is near-absent here by design, and because an
@@ -31,15 +31,15 @@
             auto-close
         >
             <nav aria-label="Phone list sections">
-                <ul class="section-jump-links q-pa-sm q-ma-none">
+                <ul class="section-jump-links q-py-xs q-px-none q-ma-none">
                     <li
                         v-for="target in targets"
                         :key="target.id"
                     >
                         <!-- A plain anchor, not a router-link: the browser's own fragment navigation
-                             honours the scroll-margin that clears the header and filter bar, and moves
+                             honors the scroll padding that clears the header and filter bar, and moves
                              focus to the heading. The router's scrollBehavior would position with
-                             window.scrollTo, which ignores scroll-margin entirely. -->
+                             window.scrollTo, which ignores scroll padding entirely. -->
                         <a
                             :href="`#${target.id}`"
                             class="text-primary"
@@ -59,12 +59,15 @@ defineProps<{ targets: JumpTarget[] }>()
 </script>
 
 <style scoped>
-/* A wrapping row of links rather than a stacked list: a dozen sections stacked would be taller
-   than the content they navigate to. */
+/* One link per line, so every link starts at the same edge. The menu caps its own height and
+   scrolls, so a long list of sections costs no room on the page. */
 .section-jump-links {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.25rem 1rem;
     list-style: none;
+}
+
+/* Block rather than inline, so the whole row is the tap target, not just the words. */
+.section-jump-links a {
+    display: block;
+    padding: 0.5rem 1rem;
 }
 </style>

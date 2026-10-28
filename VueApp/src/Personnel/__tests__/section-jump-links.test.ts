@@ -61,11 +61,11 @@ describe("sectionJumpLinks.vue", () => {
         ])
     })
 
-    it("uses plain anchors, so the browser's own fragment navigation applies the scroll margin", async () => {
+    it("uses plain anchors, so the browser's own fragment navigation applies the scroll padding", async () => {
         expect.hasAssertions()
         const wrapper = await openMenu()
 
-        // A router-link would position with window.scrollTo, which ignores scroll-margin-top and
+        // A router-link would position with window.scrollTo, which ignores scroll padding and
         // would drop the heading under the sticky header and filter bar.
         expect(wrapper.findComponent({ name: "RouterLink" }).exists()).toBeFalsy()
     })

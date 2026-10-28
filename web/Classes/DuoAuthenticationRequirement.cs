@@ -11,13 +11,19 @@ namespace Web.Authorization
     public class DuoAuthenticationRequirement : AuthorizationHandler<DuoAuthenticationRequirement>, IAuthorizationRequirement
     {
         /// <summary>
-        /// Checks if the user has authenticated with Duo 2FA
+        /// Checks if the user completed two-factor authentication.
         /// </summary>
+        /// <remarks>
+        /// CAS reports Duo directly in <c>credentialType</c>. Entra ID has no equivalent attribute
+        /// and reports multifactor in <c>amr</c> instead, which <c>EntraIdClaimMapper</c> translates
+        /// into the credential type accepted below, so both providers satisfy the same policy.
+        /// </remarks>
         public static bool HasDuoAuthentication(ClaimsPrincipal user)
         {
             return user.HasClaim("credentialType", "DuoCredential")
                 || user.HasClaim("credentialType", "DuoSecurityUniversalPromptCredential")
-                || user.HasClaim("credentialType", "DuoSecurityCredential");
+                || user.HasClaim("credentialType", "DuoSecurityCredential")
+                || user.HasClaim("credentialType", EntraIdClaimMapper.MultifactorCredentialType);
         }
 
         protected override Task HandleRequirementAsync(AuthorizationHandlerContext context, DuoAuthenticationRequirement requirement)

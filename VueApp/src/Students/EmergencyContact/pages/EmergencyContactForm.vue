@@ -1,15 +1,17 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed, nextTick, provide } from "vue"
-import { useRoute, useRouter, onBeforeRouteLeave } from "vue-router"
+import { useRoute, useRouter } from "vue-router"
 import { useQuasar } from "quasar"
 import StatusBanner from "@/components/StatusBanner.vue"
 import StatusBadge from "@/components/StatusBadge.vue"
 import ContactSection from "../components/ContactSection.vue"
-import EmergencyContactPageShell from "../components/EmergencyContactPageShell.vue"
+import StudentRecordPageShell from "@/Students/components/StudentRecordPageShell.vue"
+import { EMERGENCY_CONTACT_RECORD_PAGE } from "../constants/record-page"
 import PhoneInput from "../components/PhoneInput.vue"
 import { useEmergencyContact } from "../composables/use-emergency-contact"
 import { emergencyContactService } from "../services/emergency-contact-service"
 import { checkHasOnePermission } from "@/composables/CheckPagePermission"
+import { useConfirmLeave } from "@/composables/use-confirm-leave"
 import { phoneErrorsKey } from "../utils/phone-errors-key"
 import "@/styles/compact-form.css"
 
@@ -201,35 +203,15 @@ onMounted(() => {
     initForm()
 })
 
-onBeforeRouteLeave(() => {
-    if (!isDirty.value) {
-        return true
-    }
-    return new Promise((resolve) => {
-        $q.dialog({
-            title: "Unsaved Changes",
-            message: "You have unsaved changes. Are you sure you want to leave?",
-            cancel: {
-                label: "Keep Editing",
-                flat: true,
-            },
-            ok: {
-                label: "Discard Changes",
-                color: "negative",
-            },
-            persistent: true,
-        })
-            .onOk(() => resolve(true))
-            .onCancel(() => resolve(false))
-            .onDismiss(() => resolve(false))
-    })
-})
+useConfirmLeave(isDirty)
 </script>
 
 <template>
-    <EmergencyContactPageShell
+    <StudentRecordPageShell
+        v-bind="EMERGENCY_CONTACT_RECORD_PAGE"
         :loading="loading"
         :detail="detail"
+        :can-view-list="detail?.isAdmin ?? false"
     >
         <template v-if="detail">
             <h1 class="q-ma-none q-mb-md">
@@ -529,7 +511,7 @@ onBeforeRouteLeave(() => {
                 </div>
             </q-form>
         </template>
-    </EmergencyContactPageShell>
+    </StudentRecordPageShell>
 </template>
 
 <style scoped>

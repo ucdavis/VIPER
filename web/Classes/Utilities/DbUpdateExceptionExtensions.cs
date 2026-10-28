@@ -34,4 +34,17 @@ public static class DbUpdateExceptionExtensions
     /// </summary>
     public static bool IsDataRejectionNumber(int number) =>
         number is 2601 or 2627 or 547 or 8152 or 2628;
+
+    /// <summary>
+    /// True when the insert lost a race for a unique key (2601 or 2627), the one rejection a
+    /// caller can resolve by re-reading the row that won and saving over it.
+    /// </summary>
+    public static bool IsUniqueKeyViolation(this DbUpdateException ex) =>
+        ex.InnerException is SqlException sqlException && IsUniqueKeyViolationNumber(sqlException.Number);
+
+    /// <summary>
+    /// The number set on its own, split out for the same reason as <see cref="IsDataRejectionNumber"/>.
+    /// </summary>
+    public static bool IsUniqueKeyViolationNumber(int number) =>
+        number is 2601 or 2627;
 }

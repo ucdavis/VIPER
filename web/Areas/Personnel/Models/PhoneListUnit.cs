@@ -13,6 +13,8 @@ namespace Viper.Areas.Personnel.Models
         public required int PhoneListId { get; set; }
         public required string Name { get; set; }
         public int? SortOrder { get; set; }
+        public string? ListProcName { get; set; }
+        public int? LegacyUnitId { get; set; }
 
         public virtual PhoneList PhoneList { get; set; } = null!;
         public virtual ICollection<PhoneListUnitPerson> PhoneListUnitPersons { get; set; } = [];

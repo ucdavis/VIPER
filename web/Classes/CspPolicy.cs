@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Net.Http.Headers;
+using Viper.Classes.HealthChecks;
+using Web.Authorization;
 
 namespace Viper.Classes
 {
@@ -10,6 +12,23 @@ namespace Viper.Classes
     public static class CspPolicy
     {
         private const string UnsafeEval = "'unsafe-eval'";
+
+        /// <summary>
+        /// True for paths served without any Content Security Policy.
+        /// </summary>
+        /// <remarks>
+        /// HealthChecks.UI bundles inline scripts and data: fonts the strict policy would block;
+        /// those paths are already IP-gated to trusted SVM admin subnets. The front-channel logout
+        /// endpoint is exempt because the policy sends frame-ancestors 'none' and Entra delivers
+        /// that notification by framing the URL on its own page, so under the policy the browser
+        /// refuses the frame and the sign-out never arrives. Nothing is given up by exempting it:
+        /// it renders no markup, runs no script and returns an empty 200. Matched exactly, unlike
+        /// the health-UI prefixes, because it is a single route rather than a subtree.
+        /// </remarks>
+        public static bool IsExemptPath(PathString path) =>
+            HealthCheckExtensions.IsUIPath(path)
+            || path.Equals(
+                EntraIdSettings.FrontChannelLogoutPath, StringComparison.OrdinalIgnoreCase);
 
         /// <summary>Drops the allowance from a built SPA response with precompiled templates.</summary>
         public static void TightenForBuiltSpa(StaticFileResponseContext ctx)

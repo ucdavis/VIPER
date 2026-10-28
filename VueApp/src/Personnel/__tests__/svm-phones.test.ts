@@ -4,6 +4,7 @@ import SVMPhones from "../pages/SVMPhones.vue"
 import { getFrequentlyCalledNumbers, getSVMData } from "../composables/svm-data-fetch"
 import { svmModifiedDateService } from "../services/svm-modified-date-service.ts"
 import type { SVMFrequentNumberRecord, SVMPhoneDisplayRecord, SVMPhoneSection } from "../types/svm-phone-types"
+import { linkTargets, openJumpLinks, trackAttached, unmountAttached } from "./test-utils"
 
 /**
  * SVMPhones hides its "Updated" line while the initial fetch is in flight (v-if="!loading").
@@ -25,25 +26,17 @@ function neverResolves<T>(): Promise<T> {
     return new Promise<T>(() => {})
 }
 
-// The jump links render through a portal, so they only reach the document when the page is
-// attached to it, and they outlive the wrapper unless it is unmounted.
-const mounted: ReturnType<typeof mount>[] = []
-
+// Attached, so the jump links' portalled menu reaches the document.
 function mountPage() {
-    const wrapper = mount(SVMPhones, {
-        global: { plugins: [Quasar] },
-        attachTo: document.body,
-    })
-    mounted.push(wrapper)
-    return wrapper
+    return trackAttached(
+        mount(SVMPhones, {
+            global: { plugins: [Quasar] },
+            attachTo: document.body,
+        }),
+    )
 }
 
-afterEach(() => {
-    for (const wrapper of mounted.splice(0)) {
-        wrapper.unmount()
-    }
-    document.body.innerHTML = ""
-})
+afterEach(unmountAttached)
 
 function stubDataServices(): void {
     vi.mocked(getFrequentlyCalledNumbers).mockResolvedValue({ rows: [], error: null })
@@ -79,23 +72,6 @@ describe("sVMPhones.vue - loading", () => {
         expect(wrapper.text()).toContain("Updated")
     })
 })
-
-/**
- * The links sit behind a menu trigger, out of the sticky bar's flow, so they have to be opened
- * before they exist anywhere to query. No trigger means too few sections to navigate between.
- */
-async function openJumpLinks(wrapper: ReturnType<typeof mountPage>): Promise<HTMLAnchorElement[]> {
-    const trigger = wrapper.findComponent({ name: "SectionJumpLinks" }).find("button")
-    if (trigger.exists()) {
-        await trigger.trigger("click")
-    }
-    return [...document.querySelectorAll<HTMLAnchorElement>(".q-menu a[href^='#']")]
-}
-
-async function linkTargets(wrapper: ReturnType<typeof mountPage>): Promise<string[]> {
-    const links = await openJumpLinks(wrapper)
-    return links.map((link) => link.textContent?.trim() ?? "")
-}
 
 const sectionCols = [
     { name: "unitName", label: "Unit", field: "unitName", align: "left" as const },
@@ -176,11 +152,30 @@ describe("sVMPhones.vue - section jump links", () => {
             ],
         })
 
-        // The filtered-out sections still render, carrying their "no records" line, so a link to
-        // one would send the reader somewhere empty.
+        // A section the search empties is hidden, so a link to one would go nowhere.
         await wrapper.findComponent({ name: "QInput" }).setValue("room 100")
 
         await expect(linkTargets(wrapper)).resolves.toStrictEqual(["VMDO", "VMTH"])
+    })
+
+    it("says once, below the filter, when a search leaves every section empty", async () => {
+        expect.hasAssertions()
+        const wrapper = await mountWithData({
+            sections: [section(1, "VMDO", { unitName: "Dean's Office" })],
+            frequentNumbers: [{ label: "Front Desk", phone: "530-555-1000", entryId: 7 }],
+        })
+        const status = () => wrapper.find("[role='status']").text()
+
+        expect(status()).toBe("")
+
+        await wrapper.findComponent({ name: "QInput" }).setValue("nobody")
+
+        expect(status()).toBe('No records match "nobody".')
+
+        // Matching only a frequent number still counts as a match.
+        await wrapper.findComponent({ name: "QInput" }).setValue("front desk")
+
+        expect(status()).toBe("")
     })
 
     it("keeps the frequently called numbers link when the search matches one of its numbers", async () => {
@@ -248,5 +243,16 @@ describe("sVMPhones.vue - partial load failure", () => {
         const links = await openJumpLinks(wrapper)
 
         expect(links.map((link) => link.textContent?.trim())).toStrictEqual(["VMDO", "VMTH"])
+    })
+
+    it("does not blame the search for an empty page after a failed load", async () => {
+        expect.hasAssertions()
+        const wrapper = await mountWithFailedFrequentNumbers()
+
+        await wrapper.findComponent({ name: "QInput" }).setValue("nobody")
+
+        // The error banner explains what is missing; "no records match" would suggest the search
+        // was the reason.
+        expect(wrapper.find("[role='status']").text()).toBe("")
     })
 })

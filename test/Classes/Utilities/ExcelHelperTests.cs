@@ -1,6 +1,6 @@
 using Viper.Classes.Utilities;
 
-namespace Viper.test.Effort;
+namespace Viper.test.Classes.Utilities;
 
 /// <summary>
 /// Unit tests for ExcelHelper utility methods.
@@ -31,6 +31,29 @@ public sealed class ExcelHelperTests
     public void SanitizeStringCell_PrefixesAtSign()
     {
         Assert.Equal("'@SUM", ExcelHelper.SanitizeStringCell("@SUM"));
+    }
+
+    [Theory]
+    [InlineData("\t=SUM(A1)")]
+    [InlineData("\r=SUM(A1)")]
+    [InlineData("\n+cmd")]
+    [InlineData("\r\n-calculation")]
+    [InlineData("   @SUM")]
+    [InlineData(" \t\r\n=HYPERLINK(\"x\")")]
+    public void SanitizeStringCell_PrefixesFormulaBehindLeadingWhitespace(string value)
+    {
+        Assert.Equal("'" + value, ExcelHelper.SanitizeStringCell(value));
+    }
+
+    [Theory]
+    [InlineData("  Normal text")]
+    [InlineData("\tIndented")]
+    [InlineData("\r\nSecond line")]
+    [InlineData("   ")]
+    [InlineData("Ends with =")]
+    public void SanitizeStringCell_LeavesNonFormulaTextUnchanged(string value)
+    {
+        Assert.Equal(value, ExcelHelper.SanitizeStringCell(value));
     }
 
     [Fact]

@@ -1,5 +1,5 @@
 import { mount } from "@vue/test-utils"
-import { Quasar } from "quasar"
+import { Quasar, Screen } from "quasar"
 import PhoneListUnitTable from "../components/PhoneListUnitTable.vue"
 import type { PhoneListDisplayRecord, PhoneListUnit } from "../types/phone-list-phone-types"
 
@@ -50,16 +50,20 @@ function makeUnit(rows: PhoneListDisplayRecord[]): PhoneListUnit {
     return { name: "Dean's Office", id: 10, cols, rows }
 }
 
-function mountTable(props: { unit: PhoneListUnit; loading: boolean; isMaintain: boolean; search: string }) {
+function mountTable(props: {
+    unit: PhoneListUnit
+    loading: boolean
+    isMaintain: boolean
+    search: string
+    anchorId?: string
+}) {
     return mount(PhoneListUnitTable, {
         props,
         global: { plugins: [Quasar] },
     })
 }
 
-// QTable always renders a .q-table__title element from its own :title prop, so it can't
-// distinguish the custom top-left slot (the "add" button) from the base title - check for the
-// button itself instead.
+// The add button is found by its icon: its only text is an aria-label, so there is no label to find it by.
 function hasAddButton(wrapper: ReturnType<typeof mountTable>): boolean {
     return wrapper.findAllComponents({ name: "QBtn" }).some((btn) => btn.props("icon") === "add")
 }
@@ -106,6 +110,19 @@ describe("phoneListUnitTable.vue - isMaintain gating", () => {
         expect(wrapper.text()).toContain("Smith, Amy")
     })
 
+    it("keeps the add button out of the unit headings, so its label is not part of their name", () => {
+        expect.hasAssertions()
+        const wrapper = mountTable({ unit: makeUnit([makeRow()]), loading: false, isMaintain: true, search: "" })
+        const headings = wrapper.findAll("h2")
+
+        // One for the desktop table, one for the mobile list.
+        expect(headings).toHaveLength(2)
+        for (const heading of headings) {
+            expect(heading.text()).toBe("Dean's Office")
+            expect(heading.find("button").exists()).toBeFalsy()
+        }
+    })
+
     it("shows a check icon only on the row where listFirst is true", () => {
         expect.hasAssertions()
         const wrapper = mountTable({
@@ -120,6 +137,87 @@ describe("phoneListUnitTable.vue - isMaintain gating", () => {
 
         const checkIcons = wrapper.findAllComponents({ name: "QIcon" }).filter((icon) => icon.props("name") === "check")
         expect(checkIcons).toHaveLength(1)
+    })
+})
+
+/** Whether the desktop table and its heading are left showing, rather than hidden by v-show. */
+function desktopShown(wrapper: ReturnType<typeof mountTable>): boolean {
+    return (wrapper.find(".gt-sm").element as HTMLElement).style.display !== "none"
+}
+
+describe("phoneListUnitTable.vue - desktop table visibility", () => {
+    it("shows the table while the search matches one of its rows", () => {
+        expect.hasAssertions()
+        const wrapper = mountTable({ unit: makeUnit([makeRow()]), loading: false, isMaintain: false, search: "smith" })
+
+        expect(desktopShown(wrapper)).toBeTruthy()
+    })
+
+    it("hides the table once a search leaves it with no rows, as the list does", () => {
+        expect.hasAssertions()
+        const wrapper = mountTable({
+            unit: makeUnit([makeRow()]),
+            loading: false,
+            isMaintain: false,
+            search: "no match",
+        })
+
+        expect(desktopShown(wrapper)).toBeFalsy()
+    })
+
+    it("hides a unit with no rows before any search", () => {
+        expect.hasAssertions()
+        const wrapper = mountTable({ unit: makeUnit([]), loading: false, isMaintain: false, search: "" })
+
+        expect(desktopShown(wrapper)).toBeFalsy()
+    })
+
+    it("keeps the emptied table in maintain mode, where it carries the add button", () => {
+        expect.hasAssertions()
+        const wrapper = mountTable({
+            unit: makeUnit([makeRow()]),
+            loading: false,
+            isMaintain: true,
+            search: "no match",
+        })
+
+        expect(desktopShown(wrapper)).toBeTruthy()
+    })
+})
+
+describe("phoneListUnitTable.vue - jump link anchor", () => {
+    const initialLtMd = Screen.lt.md
+
+    afterEach(() => {
+        Screen.lt.md = initialLtMd
+    })
+
+    function anchoredHeadings(ltMd: boolean) {
+        Screen.lt.md = ltMd
+        const wrapper = mountTable({
+            unit: makeUnit([makeRow()]),
+            loading: false,
+            isMaintain: false,
+            search: "",
+            anchorId: "phone-unit-10",
+        })
+        return wrapper.findAll("h2#phone-unit-10")
+    }
+
+    it("anchors the desktop heading at desktop widths, where the mobile one is hidden", () => {
+        expect.hasAssertions()
+        const headings = anchoredHeadings(false)
+
+        expect(headings).toHaveLength(1)
+        expect(headings[0].element.closest(".gt-sm")).not.toBeNull()
+    })
+
+    it("anchors the mobile heading below 1024px, where the desktop one is hidden", () => {
+        expect.hasAssertions()
+        const headings = anchoredHeadings(true)
+
+        expect(headings).toHaveLength(1)
+        expect(headings[0].element.closest(".lt-md")).not.toBeNull()
     })
 })
 
