@@ -1,6 +1,7 @@
 using System;
 using System.Globalization;
 using System.Linq;
+using Viper.Scripts.LegacyMigration.Analysis;
 
 namespace Viper.Scripts.LegacyMigration
 {
@@ -9,6 +10,8 @@ namespace Viper.Scripts.LegacyMigration
     /// Routes to different operations based on command line args:
     /// - schema-export: Export a legacy database's schema and object definitions (no table data)
     /// - schema-compare: Compare two environments' schema exports (no database connection)
+    /// - analysis: Check a legacy database's data quality (reads table data, never changes it; the report holds counts and keys only)
+    /// - suggestions: Suggest declarations analysis.json lacks, guessed from the schema export (no table data)
     /// </summary>
     public class Program
     {
@@ -36,6 +39,12 @@ namespace Viper.Scripts.LegacyMigration
                 case "schema-compare":
                     return SchemaCompare.Run(commandArgs);
 
+                case "analysis":
+                    return DataAnalysis.Run(commandArgs);
+
+                case "suggestions":
+                    return Suggestions.Run(commandArgs);
+
                 default:
                     Console.WriteLine($"Unknown command: {command}");
                     ShowUsage();
@@ -50,11 +59,15 @@ namespace Viper.Scripts.LegacyMigration
             Console.WriteLine("Usage:");
             Console.WriteLine("  RunSchemaExport.bat <ConnectionName> <Development|Test|Production>");
             Console.WriteLine("  RunSchemaCompare.bat <ConnectionName> <Environment> <Environment>");
+            Console.WriteLine("  RunAnalysis.bat <ConnectionName> <Development|Test|Production> [Project]");
+            Console.WriteLine("  RunSuggestions.bat <ConnectionName> <Development|Test|Production> [Project]");
             Console.WriteLine();
             Console.WriteLine("Commands:");
             Console.WriteLine("  schema-export --connection <name>                  Export schema and object definitions (no table data)");
             Console.WriteLine("  schema-compare --connection <name> --left <env> --right <env>");
             Console.WriteLine("                                                     Compare two exports (no database connection)");
+            Console.WriteLine("  analysis --connection <name> [--project <name>]    Refresh the schema export, then check data quality");
+            Console.WriteLine("  suggestions --connection <name> [--project <name>] Refresh the schema export, then suggest what analysis.json lacks");
             Console.WriteLine();
             Console.WriteLine("Examples:");
             Console.WriteLine("  RunSchemaExport.bat ClinicalScheduler Test");

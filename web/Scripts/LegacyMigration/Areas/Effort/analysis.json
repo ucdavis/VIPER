@@ -1,0 +1,391 @@
+// Declarations for Effort, analyzed on Production (already migrated to VIPER's effort schema). The
+// whole database belongs to Effort, so there is no include.
+//
+// Begun from the suggestions generated 2026-10-26, then extended by hand to express what the migration's
+// own analysis (web/Areas/Effort/Scripts/EffortDataAnalysis.cs) checks, phase by phase. That script's
+// remediation (EffortDataRemediation.cs) changed this database directly, so where it ran, some of the
+// findings it was written for are already fixed. What no check expresses yet stays in that script:
+// matching unmapped people to VIPER by name, and the audit rows' "mappable" categories (see the
+// reference's "What stays in per-area scripts"). Blank CRNs and NULL academic years counted only on
+// the rows that matter are customSql checks, with their queries in the .sql files beside this one.
+// The database has no foreign keys and names its columns differently in each table, so the suggestions
+// found no relationships; every one below was declared by hand.
+{
+  "exclude": [
+    "[dbo].[tblSabbatic_backup_2017_08_25]" // name word "backup" and a date
+  ],
+
+  "dateColumns": {
+    "[dbo].[tblAudit]": "audit_ModTime",
+    "[dbo].[tblPercent]": "percent_modifiedOn" // percent_start and percent_end date the appointment, not the row
+  },
+
+  // Columns whose values the report may show.
+  "safeColumns": [
+    { "table": "[dbo].[tblCourseRelationships]", "column": "cr_Relationship", "reason": "Relationship types, codes rather than anything personal." },
+    { "table": "[dbo].[tblAudit]", "column": "audit_CRN", "reason": "Course reference numbers, shared by everyone in a course." },
+    { "table": "[dbo].[tblAudit]", "column": "audit_TermCode", "reason": "Term codes, shared by everyone in a term." },
+    { "table": "[dbo].[tblPerson]", "column": "person_TermCode", "reason": "Term codes, shared by everyone in a term." }
+  ],
+
+  "checks": [
+    // Phase 1: people, against VIPER. The migration maps each MothraId to a VIPER PersonId.
+    {
+      "check": "identifiesOnePerson",
+      "description": "Every person must map to a VIPER PersonId.",
+      "table": "[dbo].[tblPerson]",
+      "column": "person_MothraID",
+      "idType": "MothraId",
+      "lookIn": "VIPER.users.Person"
+    },
+    {
+      "check": "identifiesOnePerson",
+      "description": "Every effort record's person must map to a VIPER PersonId.",
+      "table": "[dbo].[tblEffort]",
+      "column": "effort_MothraID",
+      "idType": "MothraId",
+      "lookIn": "VIPER.users.Person"
+    },
+    {
+      "check": "identifiesOnePerson",
+      "description": "Every percentage's person must map to a VIPER PersonId.",
+      "table": "[dbo].[tblPercent]",
+      "column": "percent_MothraID",
+      "idType": "MothraId",
+      "lookIn": "VIPER.users.Person"
+    },
+    {
+      "check": "identifiesOnePerson",
+      "description": "Every sabbatical's person must map to a VIPER PersonId.",
+      "table": "[dbo].[tblSabbatic]",
+      "column": "sab_MothraID",
+      "idType": "MothraId",
+      "lookIn": "VIPER.users.Person"
+    },
+    {
+      "check": "identifiesOnePerson",
+      "description": "Every audit row's subject should be a person in VIPER. Not in the migration's own analysis, which checks it against tblPerson (below).",
+      "table": "[dbo].[tblAudit]",
+      "column": "audit_MothraID",
+      "idType": "MothraId",
+      "lookIn": "VIPER.users.Person"
+    },
+    {
+      "check": "identifiesOnePerson",
+      "description": "Every user with department access should be a person in VIPER. Not in the migration's own analysis.",
+      "table": "[dbo].[userAccess]",
+      "column": "mothraID",
+      "idType": "MothraId",
+      "lookIn": "VIPER.users.Person"
+    },
+    {
+      "check": "identifiesOnePerson",
+      "description": "Every reviewer should be a person in VIPER. Not in the migration's own analysis.",
+      "table": "[dbo].[tblReviewYears]",
+      "column": "rvw_MothraID",
+      "idType": "MothraId",
+      "lookIn": "VIPER.users.Person"
+    },
+
+    // Phase 7: who made each change. The migration's analysis found MothraIds and LoginIds mixed in
+    // audit_ModBy, and its remediation rewrote LoginIds to MothraIds; LoginIds still here show as
+    // "Found as a different ID type".
+    {
+      "check": "identifiesOnePerson",
+      "description": "Every change should be by a person in VIPER, identified by MothraId.",
+      "table": "[dbo].[tblAudit]",
+      "column": "audit_ModBy",
+      "idType": "MothraId",
+      "lookIn": "VIPER.users.Person"
+    },
+    {
+      "check": "identifiesOnePerson",
+      "description": "Every percentage change should be by a person in VIPER. Not in the migration's own analysis; the column is varchar(50), so it may hold LoginIds or names.",
+      "table": "[dbo].[tblPercent]",
+      "column": "percent_modifiedBy",
+      "idType": "MothraId",
+      "lookIn": "VIPER.users.Person"
+    },
+
+    // Phase 2: relationships with no foreign key.
+    {
+      "check": "valuesMustExistIn",
+      "description": "Every course's term must be in tblStatus, Effort's own term table.",
+      "table": "[dbo].[tblCourses]",
+      "severity": "critical",
+      "columns": ["course_TermCode"],
+      "otherTable": "[dbo].[tblStatus]",
+      "otherColumns": ["status_TermCode"]
+    },
+    {
+      "check": "valuesMustExistIn",
+      "description": "Every person's term must be in tblStatus.",
+      "table": "[dbo].[tblPerson]",
+      "severity": "critical",
+      "columns": ["person_TermCode"],
+      "otherTable": "[dbo].[tblStatus]",
+      "otherColumns": ["status_TermCode"]
+    },
+    {
+      "check": "valuesMustExistIn",
+      "description": "Every effort record's term must be in tblStatus.",
+      "table": "[dbo].[tblEffort]",
+      "severity": "critical",
+      "columns": ["effort_termCode"],
+      "otherTable": "[dbo].[tblStatus]",
+      "otherColumns": ["status_TermCode"]
+    },
+    {
+      "check": "valuesMustExistIn",
+      "description": "Every effort record must belong to a course; the migration skips those that do not.",
+      "table": "[dbo].[tblEffort]",
+      "columns": ["effort_CourseID"],
+      "otherTable": "[dbo].[tblCourses]",
+      "otherColumns": ["course_id"]
+    },
+    {
+      "check": "valuesMustExistIn",
+      "description": "Every effort record's role must be in tblRoles (char(1) here, int there).",
+      "table": "[dbo].[tblEffort]",
+      "columns": ["effort_Role"],
+      "otherTable": "[dbo].[tblRoles]",
+      "otherColumns": ["Role_ID"]
+    },
+    {
+      "check": "valuesMustExistIn",
+      "description": "Every effort record's person should be in tblPerson.",
+      "table": "[dbo].[tblEffort]",
+      "columns": ["effort_MothraID"],
+      "otherTable": "[dbo].[tblPerson]",
+      "otherColumns": ["person_MothraID"]
+    },
+    {
+      "check": "valuesMustExistIn",
+      "description": "Every alternate title should be used by a person.",
+      "table": "[dbo].[tblAltTitles]",
+      "columns": ["JobGrpID"],
+      "otherTable": "[dbo].[tblPerson]",
+      "otherColumns": ["person_JobGrpID"]
+    },
+    {
+      "check": "valuesMustExistIn",
+      "description": "Every percentage's effort type must be in tblEffortType_LU; the new schema adds this foreign key.",
+      "table": "[dbo].[tblPercent]",
+      "columns": ["percent_TypeID"],
+      "otherTable": "[dbo].[tblEffortType_LU]",
+      "otherColumns": ["type_ID"]
+    },
+    {
+      "check": "valuesMustExistIn",
+      "description": "Both courses of a relationship must exist; the new schema adds these foreign keys.",
+      "table": "[dbo].[tblCourseRelationships]",
+      "columns": ["cr_ParentID"],
+      "otherTable": "[dbo].[tblCourses]",
+      "otherColumns": ["course_id"]
+    },
+    {
+      "check": "valuesMustExistIn",
+      "description": "Both courses of a relationship must exist; the new schema adds these foreign keys.",
+      "table": "[dbo].[tblCourseRelationships]",
+      "columns": ["cr_ChildID"],
+      "otherTable": "[dbo].[tblCourses]",
+      "otherColumns": ["course_id"]
+    },
+    {
+      "check": "valuesMustExistIn",
+      "description": "Every audit row's term should be in tblStatus; the migration links audit rows to their record.",
+      "table": "[dbo].[tblAudit]",
+      "columns": ["audit_TermCode"],
+      "otherTable": "[dbo].[tblStatus]",
+      "otherColumns": ["status_TermCode"]
+    },
+    {
+      "check": "valuesMustExistIn",
+      "description": "Every audit row's CRN should be a course in that term.",
+      "table": "[dbo].[tblAudit]",
+      "columns": ["audit_CRN", "audit_TermCode"],
+      "otherTable": "[dbo].[tblCourses]",
+      "otherColumns": ["course_CRN", "course_TermCode"]
+    },
+    {
+      "check": "valuesMustExistIn",
+      "description": "Every audit row's subject should be in tblPerson.",
+      "table": "[dbo].[tblAudit]",
+      "columns": ["audit_MothraID"],
+      "otherTable": "[dbo].[tblPerson]",
+      "otherColumns": ["person_MothraID"]
+    },
+
+    // Phase 3: business rules the new schema enforces.
+    {
+      "check": "notBlank",
+      "description": "Required in the new schema. Counts only; names are never shown.",
+      "table": "[dbo].[tblPerson]",
+      "severity": "critical",
+      "columns": ["person_FirstName", "person_LastName", "person_EffortDept"]
+    },
+    {
+      "check": "notBlank",
+      "description": "Required in the new schema. The migration's analysis counts blank CRNs only on courses used by effort records.",
+      "table": "[dbo].[tblCourses]",
+      "severity": "critical",
+      "columns": ["course_SubjCode", "course_CRN"]
+    },
+    {
+      "check": "notBlank",
+      "description": "Required in the new schema.",
+      "table": "[dbo].[tblEffort]",
+      "severity": "critical",
+      "columns": ["effort_Role", "effort_SessionType"]
+    },
+    {
+      "check": "notBlank",
+      "description": "Legacy procedures filter on the academic year, so a percentage without one silently drops out of their results. The migration's analysis counts only those with a start date.",
+      "table": "[dbo].[tblPercent]",
+      "severity": "critical",
+      "columns": ["percent_AcademicYear"]
+    },
+    {
+      "check": "matchesPattern",
+      "description": "The new schema's AcademicYear is char(9) in the form 2019-2020, and legacy procedures read its first and last four characters as years.",
+      "table": "[dbo].[tblPercent]",
+      "severity": "critical",
+      "column": "percent_AcademicYear",
+      "patterns": ["[12][0-9][0-9][0-9]-[12][0-9][0-9][0-9]"]
+    },
+    {
+      "check": "customSql",
+      "name": "Percentages with a start date but no academic year",
+      "description": "The rows the migration's analysis counts: those the legacy procedures' filter on the academic year silently skips.",
+      "file": "null-academic-year-with-start.sql",
+      "keyColumns": ["percent_ID"],
+      "occurredAtColumn": "percent_modifiedOn",
+      "severity": "critical"
+    },
+    {
+      "check": "customSql",
+      "name": "Blank CRNs on courses effort records use",
+      "description": "The rows the migration's analysis counts: a blank CRN matters only on a course that effort records use.",
+      "file": "blank-crn-on-used-courses.sql",
+      "keyColumns": ["course_id"],
+      "severity": "critical"
+    },
+    {
+      "check": "withinRange",
+      "description": "A percentage between 0 and 100.",
+      "table": "[dbo].[tblPerson]",
+      "severity": "critical",
+      "column": "person_PercentAdmin",
+      "min": 0,
+      "max": 100
+    },
+    {
+      "check": "withinRange",
+      "description": "A percentage between 0 and 100.",
+      "table": "[dbo].[tblPerson]",
+      "severity": "critical",
+      "column": "person_PercentClinical",
+      "min": 0,
+      "max": 100
+    },
+    {
+      "check": "withinRange",
+      "description": "A percentage between 0 and 100.",
+      "table": "[dbo].[tblPercent]",
+      "severity": "critical",
+      "column": "percent_Percent",
+      "min": 0,
+      "max": 100
+    },
+    {
+      "check": "withinRange",
+      "description": "The new schema allows 0 to 2,500 hours; the migration skips records outside it.",
+      "table": "[dbo].[tblEffort]",
+      "severity": "critical",
+      "column": "effort_Hours",
+      "min": 0,
+      "max": 2500
+    },
+    {
+      "check": "withinRange",
+      "description": "Weeks within an academic year.",
+      "table": "[dbo].[tblEffort]",
+      "severity": "critical",
+      "column": "effort_Weeks",
+      "min": 0,
+      "max": 52
+    },
+    {
+      "check": "withinRange",
+      "description": "The new schema requires units of 0 or more; the migration skips courses below it.",
+      "table": "[dbo].[tblCourses]",
+      "severity": "critical",
+      "column": "course_Units",
+      "min": 0
+    },
+    {
+      "check": "canConvertTo",
+      "description": "Roles are char(1) here and become an int foreign key.",
+      "table": "[dbo].[tblEffort]",
+      "severity": "critical",
+      "column": "effort_Role",
+      "type": "int"
+    },
+    {
+      "check": "listValues",
+      "description": "Session types the new schema accepts (EffortScriptHelper.ValidSessionTypes).",
+      "table": "[dbo].[tblEffort]",
+      "severity": "critical",
+      "column": "effort_SessionType",
+      "allowedValues": [
+        "ACT", "AUT", "CBL", "CLI", "CON", "D/L", "DIS", "DSL", "EXM", "FAS",
+        "FWK", "IND", "INT", "JLC", "L/D", "LAB", "LEC", "LED", "LIS", "LLA",
+        "PBL", "PER", "PRA", "PRB", "PRJ", "PRS", "SEM", "STD", "T-D", "TBL",
+        "TMP", "TUT", "VAR", "WED", "WRK", "WVL"
+      ],
+      "ignoreCase": true
+    },
+    {
+      "check": "listValues",
+      "description": "Relationship types: Parent, Child, CrossList, Section, and Cross, the spelling legacy uses for cross-listed courses. The migration also accepts any other value containing \"cross\" or \"list\"; here those are flagged, to be reviewed.",
+      "table": "[dbo].[tblCourseRelationships]",
+      "column": "cr_Relationship",
+      "allowedValues": ["Parent", "Child", "CrossList", "Section", "Cross"],
+      "ignoreCase": true
+    },
+    {
+      "check": "matchesPattern",
+      "description": "The migration's own rule: Parent, Child, CrossList, or Section, or any value containing \"cross\" or \"list\", which it maps to CrossList. Values matching none of these cannot be migrated.",
+      "table": "[dbo].[tblCourseRelationships]",
+      "severity": "critical",
+      "column": "cr_Relationship",
+      "patterns": ["Parent", "Child", "CrossList", "Section", "%cross%", "%list%"]
+    },
+    {
+      "check": "noDuplicates",
+      "description": "The new schema makes (CRN, term, units) unique; legacy allows several courses per CRN and term for variable-unit courses.",
+      "table": "[dbo].[tblCourses]",
+      "severity": "critical",
+      "columns": ["course_CRN", "course_TermCode", "course_Units"]
+    },
+
+    // Phase 4: data quality. The migration's analysis counts people whose first or last name looks like
+    // test data. Counts and keys only; names are never shown.
+    {
+      "check": "doesNotMatchPattern",
+      "description": "First names that look like test data.",
+      "table": "[dbo].[tblPerson]",
+      "column": "person_FirstName",
+      "patterns": ["%test%", "%demo%", "%xxx%", "%delete%"]
+    },
+    {
+      "check": "doesNotMatchPattern",
+      "description": "Last names that look like test data.",
+      "table": "[dbo].[tblPerson]",
+      "column": "person_LastName",
+      "patterns": ["%test%", "%demo%", "%xxx%", "%delete%"]
+    }
+    // tblPerson's (person_MothraID, person_TermCode), which the migration's analysis also checks for
+    // duplicates, is the table's primary key, so it cannot hold any.
+  ]
+}
