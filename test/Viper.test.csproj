@@ -44,6 +44,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\web\Viper.csproj" />
+    <ProjectReference Include="..\web\Scripts\LegacyMigration\LegacyMigration.csproj" />
   </ItemGroup>
 
 </Project>
