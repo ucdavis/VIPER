@@ -740,7 +740,7 @@ The `keyColumns` values are shown as those columns' values are, and described by
 
 **Which lookup to use.** `VIPER.users.Person` asks whether the migration can link each row to a person in VIPER, which is usually the question before migrating: an ID that is fine in AAUD but missing from `users.Person` still breaks the migration. `AAUD.dbo.aaudUser` asks whether each ID names a real person by the source most legacy apps use, which is a legacy data integrity question.
 
-**Reaching the lookup table.** `VIPER.users.Person` is read over VIPER's own connection (`ConnectionStrings:VIPER`, for the same environment as the analysis), since legacy logins cannot be assumed to read VIPER; the PhoneLists login cannot. It opens only when a check needs it, read-only like the legacy connection. `AAUD.dbo.aaudUser` is read by three-part name (`[AAUD].[dbo].[aaudUser]`) over the legacy connection, so AAUD must be on the same server and readable by the legacy login. Each result says where it looked.
+**Reaching the lookup table.** Each lookup table is read over its own database's connection, for the same environment as the analysis: `VIPER.users.Person` over VIPER's (`ConnectionStrings:VIPER`), and `AAUD.dbo.aaudUser` over AAUD's (`ConnectionStrings:AAUD`), since legacy logins cannot be assumed to read either; the PhoneLists login cannot read VIPER. Each connection opens only when a check needs it, read-only like the legacy connection. Each result says where it looked.
 
 **Shapes.** Each ID type has a shape, checked after trimming spaces:
 

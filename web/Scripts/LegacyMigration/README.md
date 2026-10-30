@@ -191,7 +191,7 @@ What results may hold, in short (the [output and privacy rules](docs/ANALYSIS-RE
 
 ### Connections
 
-The analysis reads the legacy database over its own connection, read-only. `identifiesOnePerson` checks that look people up in `VIPER.users.Person` also open the VIPER connection for the same environment (`ConnectionStrings:VIPER`), read-only, only when needed. Legacy logins usually cannot read VIPER, so the lookup does not go through the legacy connection. `AAUD.dbo.aaudUser` lookups go by three-part name over the legacy connection, so they need AAUD on the same server and readable by the legacy login.
+The analysis reads the legacy database over its own connection, read-only. `identifiesOnePerson` checks also open the connection of the database they look people up in, for the same environment, read-only, only when needed: VIPER (`ConnectionStrings:VIPER`) for `VIPER.users.Person`, and AAUD (`ConnectionStrings:AAUD`) for `AAUD.dbo.aaudUser`. Legacy logins cannot be assumed to read either, so the lookups do not go through the legacy connection.
 
 ### Suggesting declarations
 
