@@ -68,6 +68,23 @@ public class IdentifiesOnePersonCheckTests
     }
 
     [Fact]
+    public void Run_LookInAaudUser_LooksUpOverTheAaudConnection()
+    {
+        var plan = TestSchema.Plan("""
+            { "checks": [{ "check": "identifiesOnePerson", "table": "[dbo].[visitor]", "column": "mothraid", "idType": "MothraId", "lookIn": "AAUD.dbo.aaudUser" }] }
+            """);
+        var legacy = new FakeDatabase().Answer("COUNT_BIG(*)\nFROM [dbo].[visitor]", ["00123456", 10L]);
+        var aaud = new FakeDatabase().AnswerWith("l.[mothraID] IN", p => Matches(p, new() { ["00123456"] = ["1001"] }));
+
+        var result = Assert.Single(Assert.Single(plan.DeclaredChecks).Run(TestSchema.Context(plan, legacy, new() { ["AAUD"] = aaud })));
+
+        Assert.Equal(CheckStatus.NoProblemsFound, result.Status);
+        Assert.Contains("Looked up in [dbo].[aaudUser] over the AAUD connection.", result.Details);
+        Assert.Contains("FROM [dbo].[aaudUser] AS l", Assert.Single(aaud.Queries).Sql, StringComparison.Ordinal);
+        Assert.DoesNotContain("aaudUser", legacy.AllSql, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Run_ValueFoundAsALoginId_IsNeverShownOrWrittenIntoSql()
     {
         var legacy = new FakeDatabase()

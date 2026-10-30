@@ -48,6 +48,14 @@
       "columns": ["PIDM"]
     },
     {
+      "check": "matchesPattern",
+      "description": "A PIDM of only zeros migrates as PIDM 0, a selection tied to no student; identifiesOnePerson counts it as a placeholder.",
+      "table": "[dbo].[tb_CareerSelection]",
+      "severity": "critical",
+      "column": "PIDM",
+      "patterns": ["%[1-9]%"]
+    },
+    {
       "check": "identifiesOnePerson",
       "description": "Every PIDM should be a person the app can look up. Not in the migration's own analysis.",
       "table": "[dbo].[tb_CareerSelection]",

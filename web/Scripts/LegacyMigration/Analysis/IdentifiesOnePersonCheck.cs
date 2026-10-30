@@ -132,20 +132,19 @@ namespace Viper.Scripts.LegacyMigration.Analysis
         private const int BatchSize = 1000;
 
         /// <summary>
-        /// Connection names the connection that reaches the table, for the analysis's environment; null
-        /// means the legacy connection, by three-part name, which needs the lookup database on the same
-        /// server and readable by the legacy login. Columns holds the column for each PersonIdType name.
+        /// Connection names the connection that reaches the table, for the analysis's environment.
+        /// Columns holds the column for each PersonIdType name.
         /// </summary>
-        public sealed record LookupTable(string? Connection, string Table, IReadOnlyDictionary<string, string> Columns);
+        public sealed record LookupTable(string Connection, string Table, IReadOnlyDictionary<string, string> Columns);
 
         /// <summary>
-        /// Where people can be looked up. users.Person is what migrations into VIPER link people to, so it
-        /// is reached over VIPER's own connection: legacy logins cannot be assumed to read VIPER. It has no
-        /// PIDM, so PIDMs are looked up in aaudUser only.
+        /// Where people can be looked up, each over its own database's connection, since legacy logins
+        /// cannot be assumed to read VIPER or AAUD. users.Person is what migrations into VIPER link people
+        /// to. It has no PIDM, so PIDMs are looked up in aaudUser only.
         /// </summary>
         public static readonly IReadOnlyDictionary<string, LookupTable> LookupTables = new Dictionary<string, LookupTable>(StringComparer.Ordinal)
         {
-            ["AAUD.dbo.aaudUser"] = new(null, "[AAUD].[dbo].[aaudUser]", new Dictionary<string, string>
+            ["AAUD.dbo.aaudUser"] = new("AAUD", "[dbo].[aaudUser]", new Dictionary<string, string>
             {
                 ["MothraId"] = "[mothraID]",
                 ["IamId"] = "[iam_id]",
@@ -189,9 +188,7 @@ namespace Viper.Scripts.LegacyMigration.Analysis
         {
             var result = NewResult(Name);
             var ids = ReadIds(context, out var nullRows);
-            result.Details.Add(Lookup.Connection != null
-                ? $"Looked up in {Lookup.Table} over the {Lookup.Connection} connection."
-                : $"Looked up in {Lookup.Table} over the legacy connection.");
+            result.Details.Add($"Looked up in {Lookup.Table} over the {Lookup.Connection} connection.");
             if (Column.IsPadded)
             {
                 result.Details.Add($"{Column.Summary.Type} pads values shorter than the column with spaces, so IDs were matched without " +
@@ -379,7 +376,7 @@ namespace Viper.Scripts.LegacyMigration.Analysis
                 : values.Where(v => v.Trim().Length > 0);
 
             var found = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
-            var database = Lookup.Connection != null ? context.LookupDatabase(Lookup.Connection) : context.Database;
+            var database = context.LookupDatabase(Lookup.Connection);
             // Typed to match the lookup column, so the comparison can use its index (except through a
             // LookupKey expression, which scans).
             var batches = usable.Chunk(BatchSize).Select(batch => batch.Select((v, i) => type.IsNumber
