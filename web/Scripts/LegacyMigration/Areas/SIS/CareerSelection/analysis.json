@@ -1,0 +1,153 @@
+// Declarations for the CareerSelection project in SIS, analyzed on Production (already migrated to
+// students.CareerSelection). SIS holds student records covered by FERPA and several projects' tables,
+// so the automatic checks are limited to the tables this migration moves.
+//
+// Begun from the suggestions generated 2026-10-23, then extended by hand to express what the migration's
+// own analysis (web/Areas/Students/Scripts/CareerSelectionDataAnalysis.cs) checks. How option columns
+// record "Other", the catch-all row, lengths against the destination, and the current affiliate and
+// student checks stay in that script (see the reference's "What stays in per-area scripts").
+// The option columns' foreign keys are trusted, so SQL Server already guarantees every option exists;
+// the automatic Unenforced foreign keys check would report them if that changed.
+{
+  "include": [
+    "[dbo].[tb_CareerSelection]",
+    "[dbo].[LK_careers]",
+    "[dbo].[LK_species]",
+    "[dbo].[LK_PostGrad]"
+  ],
+
+  "dateColumns": {
+    "[dbo].[tb_CareerSelection]": "dateAdded" // named for creation; dateModified is the other
+  },
+
+  "checks": [
+    // PIDM becomes an int keyed by a unique index (UQ_CareerSelection_Pidm), and the app builds its
+    // lookup with ToDictionary on it.
+    {
+      "check": "noDuplicates",
+      "description": "One career selection per student: the destination's PIDM is unique, and two PIDMs differing only by spaces or leading zeros collide once stored as an int.",
+      "table": "[dbo].[tb_CareerSelection]",
+      "severity": "critical",
+      "columns": ["PIDM"],
+      "ignoreSurroundingSpaces": true,
+      "ignoreLeadingZeros": true
+    },
+    {
+      "check": "canConvertTo",
+      "description": "PIDM is stored as varchar(8) and migrates to an int; a non-numeric PIDM cannot be migrated.",
+      "table": "[dbo].[tb_CareerSelection]",
+      "severity": "critical",
+      "column": "PIDM",
+      "type": "int"
+    },
+    {
+      "check": "notBlank",
+      "description": "Every selection needs a PIDM: the migration refuses a NULL or blank one, which canConvertTo and identifiesOnePerson do not report.",
+      "table": "[dbo].[tb_CareerSelection]",
+      "severity": "critical",
+      "columns": ["PIDM"]
+    },
+    {
+      "check": "identifiesOnePerson",
+      "description": "Every PIDM should be a person the app can look up. Not in the migration's own analysis.",
+      "table": "[dbo].[tb_CareerSelection]",
+      "column": "PIDM",
+      "idType": "Pidm",
+      "lookIn": "AAUD.dbo.aaudUser"
+    },
+
+    // The mentor migrates as stored; the app resolves it through aaudUser.
+    {
+      "check": "identifiesOnePerson",
+      "description": "Every mentor should be a person the app can look up; one it cannot find shows as no mentor. Blanks and all zeros mean no mentor.",
+      "table": "[dbo].[tb_CareerSelection]",
+      "column": "facultyMothraID",
+      "idType": "MothraId",
+      "lookIn": "AAUD.dbo.aaudUser"
+    },
+
+    // The destination's option labels are NOT NULL and unique; legacy enforces neither.
+    {
+      "check": "notBlank",
+      "description": "The destination's career label is NOT NULL.",
+      "table": "[dbo].[LK_careers]",
+      "severity": "critical",
+      "columns": ["career"]
+    },
+    {
+      "check": "notBlank",
+      "description": "The destination's species label is NOT NULL.",
+      "table": "[dbo].[LK_species]",
+      "severity": "critical",
+      "columns": ["species"]
+    },
+    {
+      "check": "notBlank",
+      "description": "The destination's post-graduation label is NOT NULL.",
+      "table": "[dbo].[LK_PostGrad]",
+      "severity": "critical",
+      "columns": ["postgrad_text"]
+    },
+    {
+      "check": "noDuplicates",
+      "description": "The destination's career labels are unique; merging two would mean remapping the selections that use them.",
+      "table": "[dbo].[LK_careers]",
+      "severity": "critical",
+      "columns": ["career"],
+      "ignoreCase": true,
+      "ignoreSurroundingSpaces": true
+    },
+    {
+      "check": "noDuplicates",
+      "description": "The destination's species labels are unique; merging two would mean remapping the selections that use them.",
+      "table": "[dbo].[LK_species]",
+      "severity": "critical",
+      "columns": ["species"],
+      "ignoreCase": true,
+      "ignoreSurroundingSpaces": true
+    },
+    {
+      "check": "noDuplicates",
+      "description": "The destination's post-graduation labels are unique; merging two would mean remapping the selections that use them.",
+      "table": "[dbo].[LK_PostGrad]",
+      "severity": "critical",
+      "columns": ["postgrad_text"],
+      "ignoreCase": true,
+      "ignoreSurroundingSpaces": true
+    },
+
+    // The labels are option text shown to every student, so listing them reveals nothing personal.
+    {
+      "check": "listValues",
+      "description": "The career options, to find the catch-all \"Other\" row; legacy has none, so the migration creates one.",
+      "table": "[dbo].[LK_careers]",
+      "column": "career"
+    },
+    {
+      "check": "listValues",
+      "description": "The species options, to find the catch-all \"Other\" row; legacy has none, so the migration creates one.",
+      "table": "[dbo].[LK_species]",
+      "column": "species"
+    },
+    {
+      "check": "listValues",
+      "description": "The post-graduation options, to find the catch-all \"Other\" row, which the migration renames to \"Other\".",
+      "table": "[dbo].[LK_PostGrad]",
+      "column": "postgrad_text"
+    },
+
+    {
+      "check": "listValues",
+      "description": "classYear has no destination column because it is expected to be NULL or blank; any other value means it was dropped against different data.",
+      "table": "[dbo].[tb_CareerSelection]",
+      "column": "classYear"
+    },
+    {
+      "check": "startBeforeEnd",
+      "description": "A selection cannot be modified before it was added. Not in the migration's own analysis.",
+      "table": "[dbo].[tb_CareerSelection]",
+      "startColumn": "dateAdded",
+      "endColumn": "dateModified"
+    }
+  ]
+}
