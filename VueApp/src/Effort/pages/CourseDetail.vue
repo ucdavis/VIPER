@@ -350,7 +350,6 @@
             :course-id="evalDialogProps.courseId"
             :instructor-name="evalDialogProps.instructorName"
             :course-name="evalDialogProps.courseName"
-            :crn="evalDialogProps.crn"
             :mothra-id="evalDialogProps.mothraId"
             :existing-data="evalDialogProps.existingData"
             :max-rating-count="evaluationData.maxRatingCount"
@@ -440,7 +439,6 @@ type EvalDialogProps = {
     courseId: number
     instructorName: string
     courseName: string
-    crn: string
     mothraId: string
     existingData: CourseEvalEntryDto | null
 }
@@ -707,7 +705,6 @@ function openAddEvalDialog(entry: {
         courseId: entry.courseId,
         instructorName: entry.instructorName,
         courseName: entry.courseName,
-        crn: entry.crn,
         mothraId: entry.mothraId,
         existingData: null,
     }
@@ -726,7 +723,6 @@ function openEditEvalDialog(entry: {
         courseId: entry.courseId,
         instructorName: entry.instructorName,
         courseName: entry.courseName,
-        crn: entry.crn,
         mothraId: entry.mothraId,
         existingData: entry.data,
     }

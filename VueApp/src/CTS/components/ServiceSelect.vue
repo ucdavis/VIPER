@@ -14,17 +14,6 @@ interface ScheduledService {
 
 const userStore = useUserStore()
 
-withDefaults(
-    defineProps<{
-        forScheduledStudent?: boolean
-        forScheduledInstructor?: boolean
-    }>(),
-    {
-        forScheduledStudent: false,
-        forScheduledInstructor: false,
-    },
-)
-
 const emit = defineEmits<{
     serviceChange: [serviceId: number]
 }>()
