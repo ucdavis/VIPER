@@ -226,13 +226,12 @@
                                 <!-- Students grid for this group -->
                                 <div class="row q-col-gutter-xs">
                                     <div
-                                        v-for="(student, index) in students"
+                                        v-for="student in students"
                                         :key="student.mailId"
                                         class="student-grid-item"
                                     >
                                         <StudentPhotoCard
                                             :student="student"
-                                            :current-index="index"
                                             @click="handleStudentClickByMailId(student.mailId)"
                                         />
                                     </div>
