@@ -58,6 +58,11 @@ function runJscpd(label, scanDir, minLines, extraArgs) {
 // C# uses min-lines=15 to filter boilerplate (controller headers, attribute blocks, property lists)
 // that dominate its 10-14 line bucket; Vue/TS stays at 10 since its clones cluster at 20+ lines.
 runJscpd("vue", path.join(PROJECT_ROOT, "VueApp", "src"), "10", [])
-runJscpd("csharp", path.join(PROJECT_ROOT, "web", "Areas"), "15", ["--format", "csharp", "--pattern", "**/*.cs"])
+runJscpd("csharp", path.join(PROJECT_ROOT, "web", "Areas"), "15", [
+    "--format",
+    "csharp,razor",
+    "--pattern",
+    "**/*.{cs,cshtml}",
+])
 
 console.log(`\n✅ Reports written to ${path.relative(PROJECT_ROOT, OUT_DIR)}/`)

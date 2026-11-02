@@ -6,7 +6,7 @@ on:
 
 # Detects whether a PR *adds* new dead code or duplication compared to main.
 # - fallow covers VueApp (dead code, unused exports, complexity, duplication)
-# - jscpd covers C# (web/Areas/**/*.cs) since fallow is JS/TS-only
+# - jscpd covers C# and Razor (web/Areas/**/*.{cs,cshtml}) since fallow is JS/TS-only
 # - resharper-pr-gate covers C# inspections (dead-conditional, NRT-contract, and
 #   redundancy findings the Roslyn build doesn't catch); PR-scoped so pre-existing
 #   issues are not blocking — only NEW findings at lines this PR added/modified fail.
@@ -63,7 +63,7 @@ jobs:
         run: npx fallow audit --root VueApp --base origin/${{ github.base_ref }} --health-baseline "$RUNNER_TEMP/fallow-health-baseline.json"
 
   jscpd-regression-csharp:
-    name: JSCPD regression (C#)
+    name: JSCPD regression (C#/Razor)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout PR head
@@ -92,11 +92,11 @@ jobs:
         run: |
           BASE_TREE="$(mktemp -d)"
           git worktree add --detach "$BASE_TREE" "origin/$BASE_REF"
-          node scripts/audit-jscpd-regression.js --save .jscpd-baseline-cs.json "$BASE_TREE/web/Areas" --format csharp --pattern '**/*.cs' --min-lines 15
+          node scripts/audit-jscpd-regression.js --save .jscpd-baseline-cs.json "$BASE_TREE/web/Areas" --format csharp,razor --pattern '**/*.{cs,cshtml}' --min-lines 15
           git worktree remove --force "$BASE_TREE"
 
       - name: Check jscpd regression on PR
-        run: node scripts/audit-jscpd-regression.js --check .jscpd-baseline-cs.json web/Areas --format csharp --pattern '**/*.cs' --min-lines 15
+        run: node scripts/audit-jscpd-regression.js --check .jscpd-baseline-cs.json web/Areas --format csharp,razor --pattern '**/*.{cs,cshtml}' --min-lines 15
 
   jscpd-regression-vue:
     name: JSCPD regression (Vue/TS)
