@@ -45,6 +45,7 @@ When I ask a question or make an observation, respond with an answer - do NOT ju
 
 ## Testing & Git
 
+- **No VMACS production calls**: Unit tests, local environments, and test environments must NEVER send requests to the VMACS production server. All external HTTP requests (e.g., VMACS, Instinct, IAM API) must be mocked using in-memory databases and mock HTTP clients/factories to prevent production spam.
 - **UI**: Test UI changes with Playwright MCP (modals, forms, keyboard nav)
 - **API**: Use Playwright MCP to visit endpoints, APIs require browser auth, `curl` fails
 - **Frontend mocks**: Vitest clears mock call history before every test (`clearMocks` default), so `vi.clearAllMocks()` in a `beforeEach` is redundant. Clear a mock explicitly only mid-test, when an assertion must ignore calls made earlier in the same test.
@@ -53,4 +54,5 @@ When I ask a question or make an observation, respond with an answer - do NOT ju
 - **Never branch off `Development`**: it is a merge/deploy target, never a base. A branch being "behind `Development`" is expected and not a concern (you never sync or rebase from it). Its history is messy by design and never rewritten.
 - **Squash during review**: If a branch is still unmerged and worked by a single developer, squash code-review fixes into the relevant existing commit for cleaner history rather than stacking "address review" commits.
 - **Plan/smoketest notes**: `PLAN-*.md` and `SMOKETEST-*.md` at the repo root are local working notes, gitignored by design.
+- **Code-review self-check**: If `PLAN-code-review-lessons.md` exists at the repo root (a personal, gitignored note — may not exist on every machine or for every developer; skip silently if absent), read it and run its pre-flight checklist before saying a change is ready to build, test, or commit.
 - **Commit messages**: Conventional Commits `type(scope): subject` (`feat`|`fix`|`refactor`|`docs`|`test`|`chore`; prefer `feat` for new behavior), ticket ID from branch as prefix (e.g. `VPR-104 fix(a11y): ...`). Subject: imperative, max 72 chars, no trailing period, intent not implementation. Body only when the subject is insufficient: `-` bullets that each earn their place (skip plumbing/helpers/test scaffolding), wrapped at 72.
