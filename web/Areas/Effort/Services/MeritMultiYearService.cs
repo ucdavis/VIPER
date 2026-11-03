@@ -938,7 +938,7 @@ public class MeritMultiYearService : BaseReportService, IMeritMultiYearService
                         row.RelativeItem().AlignRight().Text(DateTime.Now.ToString("d MMMM yyyy")).Bold().FontSize(11);
                     });
                     col.Item().PaddingVertical(4)
-                        .SemanticHeader1().Text(reportTitle).SemiBold().FontSize(12);
+                        .SemanticHeading1().Text(reportTitle).SemiBold().FontSize(12);
                     var yearTypeLabel = report.UseAcademicYear ? "Academic Year" : "Calendar Year";
                     col.Item().Text($"{yearLabel} ({yearTypeLabel})").SemiBold().FontSize(10);
                 });
@@ -1083,7 +1083,7 @@ public class MeritMultiYearService : BaseReportService, IMeritMultiYearService
                             row.RelativeItem().Text("UCD School of Veterinary Medicine").Bold().FontSize(11);
                             row.RelativeItem().AlignRight().Text(DateTime.Now.ToString("d MMMM yyyy")).Bold().FontSize(11);
                         });
-                        col.Item().PaddingVertical(4).SemanticHeader2().Text("Multi-Year Evaluation Report").SemiBold().FontSize(12);
+                        col.Item().PaddingVertical(4).SemanticHeading2().Text("Multi-Year Evaluation Report").SemiBold().FontSize(12);
                         col.Item().Row(row =>
                         {
                             row.RelativeItem().Text($"{report.Instructor} ({report.Department})").SemiBold().FontSize(10);
@@ -1194,7 +1194,7 @@ public class MeritMultiYearService : BaseReportService, IMeritMultiYearService
                             row.RelativeItem().Text("UCD School of Veterinary Medicine").Bold().FontSize(11);
                             row.RelativeItem().AlignRight().Text(DateTime.Now.ToString("d MMMM yyyy")).Bold().FontSize(11);
                         });
-                        col.Item().PaddingVertical(4).SemanticHeader2().Text("Multi-Year Evaluation Report").SemiBold().FontSize(12);
+                        col.Item().PaddingVertical(4).SemanticHeading2().Text("Multi-Year Evaluation Report").SemiBold().FontSize(12);
                         col.Item().Row(row =>
                         {
                             row.RelativeItem().Text($"{report.Instructor} ({report.Department})").SemiBold().FontSize(10);
