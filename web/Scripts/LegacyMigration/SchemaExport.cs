@@ -201,12 +201,13 @@ namespace Viper.Scripts.LegacyMigration
                     fk => fk.IsSystemNamed, fk => ForeignKeyContent(fk, catalog));
                 var checks = InStableOrder(catalog.ChecksByParent.GetValueOrDefault(table.ObjectId, []),
                     c => c.IsSystemNamed, c => c.Definition);
-                var hasPrimaryKey = indexes.Any(i => i.IsPrimaryKey);
-                // As for UniqueKeys: a filtered unique index guarantees uniqueness only within its filter.
+                // The summary counts only keys SQL Server enforces: a disabled index enforces nothing, and a
+                // filtered unique index guarantees uniqueness only within its filter. The script shows every key.
+                var hasPrimaryKey = indexes.Any(i => i.IsPrimaryKey && !i.IsDisabled);
                 var hasUniqueKey = indexes.Any(i => i.IsUnique && !i.IsDisabled && i.FilterDefinition == null);
                 var qualified = Qualified(table);
 
-                folder.Write(table.Schema, table.Name, ScriptTable(table, catalog, indexes, foreignKeys, checks, hasPrimaryKey));
+                folder.Write(table.Schema, table.Name, ScriptTable(table, catalog, indexes, foreignKeys, checks));
 
                 summary.Tables.Add(new TableSummary(
                     qualified,
@@ -214,7 +215,7 @@ namespace Viper.Scripts.LegacyMigration
                     hasPrimaryKey,
                     hasUniqueKey,
                     catalog.TriggerCountByParent.GetValueOrDefault(table.ObjectId),
-                    indexes.Where(i => i.IsPrimaryKey).Select(i => KeyColumnNames(i, catalog)).FirstOrDefault() ?? [],
+                    indexes.Where(i => i.IsPrimaryKey && !i.IsDisabled).Select(i => KeyColumnNames(i, catalog)).FirstOrDefault() ?? [],
                     indexes.Where(i => i.IsUnique && !i.IsPrimaryKey && !i.IsDisabled && i.FilterDefinition == null)
                         .Select(i => KeyColumnNames(i, catalog)).ToList(),
                     catalog.ColumnsByObject.GetValueOrDefault(table.ObjectId, []).Select(SummarizeColumn).ToList()));
@@ -292,13 +293,13 @@ namespace Viper.Scripts.LegacyMigration
                 .Where(c => !c.IsIncluded).Select(c => c.Name).ToList();
 
         private static string ScriptTable(DbObject table, Catalog catalog, List<IndexInfo> indexes,
-            List<ForeignKeyInfo> foreignKeys, List<CheckInfo> checks, bool hasPrimaryKey)
+            List<ForeignKeyInfo> foreignKeys, List<CheckInfo> checks)
         {
             var qualified = Qualified(table);
             var sb = new StringBuilder();
 
             sb.AppendLine($"-- Table: {qualified}");
-            if (!hasPrimaryKey)
+            if (!indexes.Exists(i => i.IsPrimaryKey))
             {
                 sb.AppendLine("-- No primary key");
             }
@@ -346,7 +347,13 @@ namespace Viper.Scripts.LegacyMigration
                 sb.AppendLine("GO");
             }
 
-            foreach (var index in indexes.Where(i => !i.IsPrimaryKey && !i.IsUniqueConstraint))
+            AppendIndexes(sb, qualified, indexes.Where(i => !i.IsPrimaryKey && !i.IsUniqueConstraint), catalog);
+            return sb.ToString();
+        }
+
+        private static void AppendIndexes(StringBuilder sb, string qualified, IEnumerable<IndexInfo> indexes, Catalog catalog)
+        {
+            foreach (var index in indexes)
             {
                 sb.AppendLine();
                 sb.AppendLine(ScriptIndex(qualified, index, catalog));
@@ -356,8 +363,6 @@ namespace Viper.Scripts.LegacyMigration
                 }
                 sb.AppendLine("GO");
             }
-
-            return sb.ToString();
         }
 
         /// <summary>
@@ -529,8 +534,11 @@ namespace Viper.Scripts.LegacyMigration
 
                 if (type.IsTableType && type.TableObjectId is { } tableObjectId)
                 {
-                    var lines = ColumnAndKeyLines(tableObjectId, catalog,
-                        OrderedIndexes(catalog.IndexesByObject.GetValueOrDefault(tableObjectId, []), catalog));
+                    var indexes = OrderedIndexes(catalog.IndexesByObject.GetValueOrDefault(tableObjectId, []), catalog);
+                    var lines = ColumnAndKeyLines(tableObjectId, catalog, indexes);
+                    // A table type cannot be altered, so its other indexes are declared inline.
+                    lines.AddRange(indexes.Where(i => !i.IsPrimaryKey && !i.IsUniqueConstraint).Select(i =>
+                        $"INDEX {Quote(i.Name)} {(i.IsUnique ? "UNIQUE " : "")}{ClusterKeyword(i.Type)} ({KeyColumnList(i, catalog)})"));
                     lines.AddRange(InStableOrder(catalog.ChecksByParent.GetValueOrDefault(tableObjectId, []), c => c.IsSystemNamed, c => c.Definition)
                         .Select(c => $"CHECK {c.Definition}"));
                     script = $"CREATE TYPE {qualified} AS TABLE (\n{string.Join(",\n", lines.Select(l => "    " + l))}\n);\nGO\n";
@@ -574,7 +582,8 @@ namespace Viper.Scripts.LegacyMigration
                 var disabled = catalog.DisabledTriggers.Contains(obj.ObjectId) ? "-- DISABLED trigger\n" : "";
                 var header = $"-- {obj.TypeDesc}: {Qualified(obj)}\n{onTable}{disabled}";
 
-                folder.Write(obj.Schema, obj.Name, ScriptModule(header, Qualified(obj), obj.TypeDesc, module, ClrModuleTypes.Contains(obj.Type), summary));
+                var script = ScriptModule(header, Qualified(obj), obj.TypeDesc, module, ClrModuleTypes.Contains(obj.Type), summary);
+                folder.Write(obj.Schema, obj.Name, obj.Type == "V" ? script + ViewIndexes(obj, catalog) : script);
                 RecordLinkedServerMentions(Qualified(obj), module?.Definition, summary);
             }
 
@@ -589,6 +598,19 @@ namespace Viper.Scripts.LegacyMigration
             {
                 summary.ObjectCounts[name] = folder.Count;
             }
+        }
+
+        /// <summary>
+        /// An indexed view's indexes, after its definition: the unique clustered index that stores its rows
+        /// first, since the others need it.
+        /// </summary>
+        private static string ViewIndexes(DbObject view, Catalog catalog)
+        {
+            var sb = new StringBuilder();
+            var indexes = OrderedIndexes(catalog.IndexesByObject.GetValueOrDefault(view.ObjectId, []), catalog)
+                .OrderByDescending(i => i.Type == 1);
+            AppendIndexes(sb, Qualified(view), indexes, catalog);
+            return sb.ToString();
         }
 
         private static string ModuleFolder(string type) => type switch

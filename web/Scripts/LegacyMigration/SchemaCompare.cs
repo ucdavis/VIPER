@@ -117,6 +117,7 @@ namespace Viper.Scripts.LegacyMigration
             var different = new List<string>();
             var whitespaceOnly = new List<string>();
             var permissionGaps = new List<string>();
+            var hiddenInBoth = new List<string>();
             var viewColumns = ViewColumnDifferences(leftSummary, rightSummary);
             var columnsOnly = 0;
             var identical = 0;
@@ -128,7 +129,15 @@ namespace Viper.Scripts.LegacyMigration
                 var leftMissing = leftText.Contains(MissingDefinitionMarker);
                 var rightMissing = rightText.Contains(MissingDefinitionMarker);
 
-                if (leftText == rightText)
+                if (leftMissing && rightMissing)
+                {
+                    // Neither file holds a definition, so matching files say nothing about whether the objects match.
+                    var (leftReason, rightReason) = (MissingReason(leftText), MissingReason(rightText));
+                    hiddenInBoth.Add(leftReason == rightReason
+                        ? $"{key} ({leftReason})"
+                        : $"{key} ({_left}: {leftReason}; {_right}: {rightReason})");
+                }
+                else if (leftText == rightText)
                 {
                     // A view's columns are fixed when it is created or refreshed, so the same definition can
                     // still return different columns; such a view is not identical.
@@ -161,6 +170,7 @@ namespace Viper.Scripts.LegacyMigration
             WriteHeader(leftSummary, rightSummary);
             WriteEnvironment(leftSummary, rightSummary);
             WritePermissionGaps(leftSummary, rightSummary, permissionGaps);
+            WriteList("HIDDEN IN BOTH, NOT COMPARED", hiddenInBoth);
             WriteList($"OBJECTS ONLY IN {_left.ToUpperInvariant()}", onlyLeft);
             WriteList($"OBJECTS ONLY IN {_right.ToUpperInvariant()}", onlyRight);
             WriteDifferences(different, leftFiles, rightFiles);
@@ -177,6 +187,7 @@ namespace Viper.Scripts.LegacyMigration
                 ("Whitespace-only", whitespaceOnly.Count.ToString()),
                 ("Same definition, different view columns", columnsOnly.ToString()),
                 ("Possible permission gaps", permissionGaps.Count.ToString()),
+                ("Hidden in both, not compared", hiddenInBoth.Count.ToString()),
                 ($"Only in {_left}", onlyLeft.Count.ToString()),
                 ($"Only in {_right}", onlyRight.Count.ToString())
             ]);
