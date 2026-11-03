@@ -40,6 +40,8 @@ using Viper.Areas.Effort.Data;
 using Viper.Areas.Effort.Services.Harvest;
 using Viper.Areas.Personnel;
 using Viper.Areas.RAPS.Services;
+using Viper.Areas.ReportBuilder;
+using Viper.Areas.ReportBuilder.Services;
 using Viper.Areas.Reports;
 using Viper.Classes;
 using Viper.Classes.HealthChecks;
@@ -313,6 +315,8 @@ try
     RegisterDbContext<EffortDbContext>("VIPER");
     // Phone tables are in the VIPER database's [phones] schema.
     RegisterDbContext<PhonesDbContext>("VIPER");
+    // Report Builder definitions are in the VIPER database's [reportbuilder] schema.
+    RegisterDbContext<ReportBuilderDbContext>("VIPER");
     RegisterDbContext<EvalHarvestDbContext>("EvalHarvest");
 
     // Register UserHelper service (must be before Scrutor to take precedence)
@@ -320,6 +324,9 @@ try
 
     // Code-defined reports (IReportDefinition) and the registry that indexes them
     builder.Services.AddReports(typeof(Program).Assembly);
+
+    // Report Builder: reads the [reports] schema's shape. Not a *Service, so Scrutor skips it.
+    builder.Services.AddScoped<IReportSourceMetadataReader, ReportSourceMetadataReader>();
 
     // Shared HTML sanitizer for user-authored content (CMS, CTS, ...). Thread-safe singleton.
     builder.Services.AddSingleton<IHtmlSanitizerService, HtmlSanitizerService>();
@@ -343,6 +350,7 @@ try
                 "Viper.Areas.Curriculum.Services",
                 "Viper.Areas.Effort.Services",
                 "Viper.Areas.Personnel.Services",
+                "Viper.Areas.ReportBuilder.Services",
                 "Viper.Areas.Reports.Services",
                 "Viper.Areas.CMS.Services"
             )
