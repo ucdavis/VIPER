@@ -185,4 +185,19 @@ public interface IInstructorService
     /// <returns>Dictionary mapping MothraID to resolved department code (at least "UNK").</returns>
     Task<Dictionary<string, string>> BatchResolveDepartmentsAsync(
         List<string> mothraIds, int termCode, CancellationToken ct = default);
+
+    /// <summary>
+    /// Whether the person has an AAUD job in the CAHFS department (072200) for the term.
+    /// </summary>
+    Task<bool> HasCahfsAppointmentAsync(string mothraId, int termCode, CancellationToken ct = default);
+
+    /// <summary>
+    /// The subset of the given MothraIds with an AAUD job in the CAHFS department (072200) for the term.
+    /// </summary>
+    Task<IReadOnlySet<string>> GetCahfsMothraIdsAsync(IReadOnlyCollection<string> mothraIds, int termCode, CancellationToken ct = default);
+
+    /// <summary>
+    /// All MothraIds with an AAUD job in the CAHFS department (072200) for the term.
+    /// </summary>
+    Task<IReadOnlySet<string>> GetCahfsMothraIdsAsync(int termCode, CancellationToken ct = default);
 }

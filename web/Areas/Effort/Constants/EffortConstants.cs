@@ -114,6 +114,17 @@ public static class EffortConstants
     public const string ClinicalCustodialDept = "DVM";
 
     /// <summary>
+    /// AAUD department code for CAHFS. Harvested instructors with a job in this
+    /// department get the CAHFS report unit.
+    /// </summary>
+    public const string CahfsDeptCode = "072200";
+
+    /// <summary>
+    /// Report unit code for CAHFS (effort.ReportUnits.UnitCode).
+    /// </summary>
+    public const string CahfsReportUnit = "CAHFS";
+
+    /// <summary>
     /// Default units for clinical courses.
     /// </summary>
     public const int DefaultClinicalUnits = 15;
