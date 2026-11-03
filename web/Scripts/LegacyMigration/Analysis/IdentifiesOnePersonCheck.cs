@@ -261,6 +261,10 @@ namespace Viper.Scripts.LegacyMigration.Analysis
             }
 
             AddDifferentTypes(context, result, categorized, foundAs);
+            // For the report's masked-columns lists: values withheld as another ID type that the column's own
+            // origin would also hide, such as LoginIds in a MothraId column.
+            categorized.Where(c => c.Category is Category.DifferentIdType or Category.DifferentIdTypeSeveral && !ResultSql.CanShow(Column, c.Raw))
+                .ToList().ForEach(c => Column.NoteMasked(c.Raw));
 
             result.Status = categorized.Exists(c => Categories.Any(k => k.Category == c.Category && k.IsProblem))
                 ? CheckStatus.ProblemsFound
@@ -484,6 +488,9 @@ namespace Viper.Scripts.LegacyMigration.Analysis
                 line += listed.Count > 0 ? $" ({notShown})" : $" {notShown}";
             }
             result.Details.Add(line);
+            // For the report's masked-columns lists: the values the column's own origin would also hide, such as
+            // LoginIds in a MothraId column.
+            unshaped.Where(u => !ResultSql.CanShow(Column, u.Raw)).ToList().ForEach(u => Column.NoteMasked(u.Raw));
 
             if (unshaped.Count > 0)
             {

@@ -242,6 +242,29 @@ namespace Viper.Scripts.LegacyMigration.Analysis
                     var name = string.Join(".", target.MultiPartIdentifier.Identifiers.Select(i => i.Value).Append(node.FunctionName.Value));
                     Refuse(node, $"{name} is a user-defined function or a method, whose code cannot be checked. Write what it does into the query.");
                 }
+                else if (node.CallTarget is UserDefinedTypeCallTarget { SchemaObjectName: var type } && !IsBuiltInType(type))
+                {
+                    RefuseTypeMember(node, type, node.FunctionName.Value);
+                }
+            }
+
+            public override void Visit(UserDefinedTypePropertyAccess node)
+            {
+                if (node.CallTarget is UserDefinedTypeCallTarget { SchemaObjectName: var type } && !IsBuiltInType(type))
+                {
+                    RefuseTypeMember(node, type, node.PropertyName.Value);
+                }
+            }
+
+            // Type::Member reaches a CLR type's code, which cannot be checked, unless the type is one SQL Server
+            // ships with.
+            private static bool IsBuiltInType(SchemaObjectName type) =>
+                type.SchemaIdentifier == null && type.BaseIdentifier.Value.ToLowerInvariant() is "hierarchyid" or "geography" or "geometry";
+
+            private void RefuseTypeMember(TSqlFragment node, SchemaObjectName type, string member)
+            {
+                var name = string.Join(".", type.Identifiers.Select(i => i.Value));
+                Refuse(node, $"{name}::{member} belongs to a user-defined type, whose code cannot be checked. Write what it does into the query.");
             }
 
             public override void Visit(SchemaObjectFunctionTableReference node)

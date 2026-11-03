@@ -258,18 +258,24 @@ namespace Viper.Scripts.LegacyMigration.Analysis
         private string? Exactness(ColumnRef column) =>
             column.IsText && !IgnoreSurroundingSpaces ? $"DATALENGTH({Normalized(column)})" : null;
 
-        private string Normalized(ColumnRef column)
+        internal string Normalized(ColumnRef column)
         {
             var value = column.ComparableSql("t");
             if (IgnoreSurroundingSpaces)
             {
                 value = $"LTRIM(RTRIM({value}))";
             }
+            else if (IgnoreLeadingZeros && column.IsPadded)
+            {
+                // Padding is not data, and stripping zeros would leave '01' and '001' padded differently.
+                value = $"RTRIM({value})";
+            }
             if (IgnoreLeadingZeros)
             {
-                // Blanks stay blank; all zeros become a single 0.
+                // Blanks stay blank; all zeros become a single 0. DATALENGTH, unlike LEN, counts trailing
+                // spaces, so they are kept; a length past the end is fine for SUBSTRING.
                 value = $"(CASE WHEN {value} = '' THEN {value} WHEN {value} NOT LIKE '%[^0]%' THEN '0' " +
-                        $"ELSE SUBSTRING({value}, PATINDEX('%[^0]%', {value}), LEN({value})) END)";
+                        $"ELSE SUBSTRING({value}, PATINDEX('%[^0]%', {value}), DATALENGTH({value})) END)";
             }
             return value;
         }

@@ -513,4 +513,25 @@ public class DeclaredCheckTests
 
         Assert.Equal("Failed to run: the query returns no column named id.", result.Message);
     }
+
+    [Fact]
+    public void CustomSql_KeyNameTheQueryReturnsTwice_FailsToRunWithoutReadingRows()
+    {
+        // As from SELECT t.*, t.id AS MOTHRAID: the key was traced to one column, but the reader finds the other.
+        var database = new FakeDatabase().AnswerReader("FROM dbo.visitor", () =>
+        {
+            var table = new DataTable();
+            table.Columns.Add("mothraid", typeof(string));
+            table.Columns.Add("addDate", typeof(DateTime));
+            table.Columns.Add("MOTHRAID", typeof(string));
+            table.Rows.Add(LoginId, new DateTime(2020, 1, 2, 0, 0, 0, DateTimeKind.Local), "00123456");
+            return table;
+        });
+
+        var result = Assert.Single(CustomSql().Run(TestSchema.Context(TestSchema.Plan("{}"), database)));
+
+        Assert.Equal(CheckStatus.FailedToRun, result.Status);
+        Assert.Equal("Failed to run: the query returns more than one column named mothraid. Give each column a unique name.", result.Message);
+        Assert.Empty(result.Examples);
+    }
 }

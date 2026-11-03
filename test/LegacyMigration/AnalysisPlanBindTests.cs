@@ -427,4 +427,25 @@ public class AnalysisPlanBindTests
 
         Assert.Equal(Severity.Critical, Assert.Single(plan.DeclaredChecks).Severity);
     }
+
+    [Theory]
+    [InlineData("""{ "check": "valuesMustExistIn", "table": "[dbo].[Legacy]", "columns": ["memo"], "otherTable": "[dbo].[Status]", "otherColumns": ["Label"] }""", "columns", "memo", "text")]
+    [InlineData("""{ "check": "valuesMustExistIn", "table": "[dbo].[Status]", "columns": ["Label"], "otherTable": "[dbo].[Legacy]", "otherColumns": ["wide"] }""", "otherColumns", "wide", "ntext")]
+    [InlineData("""{ "check": "sameKeysAs", "table": "[dbo].[Legacy]", "columns": ["picture"], "otherTable": "[dbo].[visitor]", "otherColumns": ["notes"] }""", "columns", "picture", "image")]
+    [InlineData("""{ "check": "oneValuePerKey", "table": "[dbo].[Legacy]", "keyColumns": ["memo"], "columns": ["id"] }""", "keyColumns", "memo", "text")]
+    public void Bind_LegacyLargeTypeInAComparedColumn_IsRefused(string check, string field, string column, string type)
+    {
+        var summary = TestSchema.Summary();
+        summary.Tables.Add(new TableSummary("[dbo].[Legacy]", 10, true, false, 0, ["id"], [],
+        [
+            new ColumnSummary("id", "int", null, null, false, false, null, null),
+            new ColumnSummary("memo", "text", null, null, true, false, null, null),
+            new ColumnSummary("wide", "ntext", null, null, true, false, null, null),
+            new ColumnSummary("picture", "image", null, null, true, false, null, null)
+        ]));
+
+        var ex = Assert.Throws<DeclarationException>(() => TestSchema.Plan($$"""{ "checks": [{{check}}] }""", summary));
+
+        Assert.Contains($"\"{field}\" has {column}, which is {type}: SQL Server cannot compare or group by", Assert.Single(ex.Errors), StringComparison.Ordinal);
+    }
 }

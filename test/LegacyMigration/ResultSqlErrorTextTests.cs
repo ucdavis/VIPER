@@ -24,6 +24,12 @@ public class ResultSqlErrorTextTests
     [InlineData("Unable to cast object of type 'System.jsmith' to type 'System.Int32'.",
         "Unable to cast object of type <letters and other characters, 13 chars> to type 'System.Int32'.")]
     [InlineData("Value 'jsmith, System.Private.CoreLib' is not valid.", "Value <letters, spaces and other characters, 30 chars> is not valid.")]
+    [InlineData("Converting the varchar value 'Jones' house' to data type int.",
+        "Converting the varchar value <letters, spaces and other characters, 12 chars> to data type int.")]
+    [InlineData("Converting the varchar value 'Smiths' and Jones' house.' to data type int.",
+        "Converting the varchar value <letters, spaces and other characters, 25 chars> to data type int.")]
+    [InlineData("Converting the varchar value 'a' 'b' to data type int.",
+        "Converting the varchar value <letters only, 1 chars> <letters only, 1 chars> to data type int.")]
     public void ErrorText_QuotedValue_IsDescribedByShape(string message, string expected)
     {
         Assert.Equal(expected, ErrorText(message));
