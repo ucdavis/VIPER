@@ -473,7 +473,10 @@ public class InstructorService : IInstructorService
             PercentAdmin = 0,
             PercentClinical = null,
             VolunteerWos = null,
-            ReportUnit = null,
+            ReportUnit = !string.IsNullOrEmpty(person.MothraId)
+                && await HasCahfsAppointmentAsync(person.MothraId, request.TermCode, ct)
+                ? EffortConstants.CahfsReportUnit
+                : null,
             Title = null,
             AdminUnit = null,
             EffortVerified = null
@@ -492,7 +495,8 @@ public class InstructorService : IInstructorService
                 instructor.FirstName,
                 instructor.LastName,
                 instructor.EffortDept,
-                instructor.EffortTitleCode
+                instructor.EffortTitleCode,
+                instructor.ReportUnit
             });
         await _context.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
@@ -842,6 +846,39 @@ public class InstructorService : IInstructorService
         }
 
         return result;
+    }
+
+    public async Task<bool> HasCahfsAppointmentAsync(string mothraId, int termCode, CancellationToken ct = default)
+    {
+        return (await GetCahfsMothraIdsAsync([mothraId], termCode, ct)).Count > 0;
+    }
+
+    /// <inheritdoc />
+    public Task<IReadOnlySet<string>> GetCahfsMothraIdsAsync(IReadOnlyCollection<string> mothraIds, int termCode, CancellationToken ct = default)
+    {
+        return QueryCahfsMothraIdsAsync(_aaudContext.Ids.Where(i => EF.Parameter(mothraIds).Contains(i.IdsMothraid!)), termCode, ct);
+    }
+
+    /// <inheritdoc />
+    public Task<IReadOnlySet<string>> GetCahfsMothraIdsAsync(int termCode, CancellationToken ct = default)
+    {
+        return QueryCahfsMothraIdsAsync(_aaudContext.Ids, termCode, ct);
+    }
+
+    private async Task<IReadOnlySet<string>> QueryCahfsMothraIdsAsync(IQueryable<Id> candidates, int termCode, CancellationToken ct)
+    {
+        var termCodeStr = termCode.ToString();
+        var matches = await _aaudContext.Jobs
+            .AsNoTracking()
+            .Where(job => job.JobTermCode == termCodeStr && job.JobDepartmentCode == EffortConstants.CahfsDeptCode)
+            .Join(
+                candidates.Where(i => i.IdsTermCode == termCodeStr && i.IdsMothraid != null),
+                job => job.JobPKey,
+                ids => ids.IdsPKey,
+                (job, ids) => ids.IdsMothraid!)
+            .Distinct()
+            .ToListAsync(ct);
+        return matches.ToHashSet(StringComparer.OrdinalIgnoreCase);
     }
 
     /// <summary>
