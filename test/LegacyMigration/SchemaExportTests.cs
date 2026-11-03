@@ -25,8 +25,9 @@ public sealed class SchemaExportTests : IDisposable
             null, false, type == "int" ? null : "SQL_Latin1_General_CP1_CI_AS", false, false, null, null, false, type, null);
 
     private static IndexInfo Index(int id, string name, bool primaryKey = false, bool uniqueConstraint = false,
-        bool unique = false, bool systemNamed = false, string? filter = null, bool disabled = false) =>
-        new(Table, id, name, (byte)(primaryKey ? 1 : 2), primaryKey ? "CLUSTERED" : "NONCLUSTERED",
+        bool unique = false, bool systemNamed = false, string? filter = null, bool disabled = false, int objectId = Table,
+        bool clustered = false) =>
+        new(objectId, id, name, (byte)(primaryKey || clustered ? 1 : 2), primaryKey || clustered ? "CLUSTERED" : "NONCLUSTERED",
             primaryKey || uniqueConstraint || unique, primaryKey, uniqueConstraint, systemNamed, filter, disabled, false);
 
     private static CheckInfo Check(string name, string definition, bool systemNamed = true, bool untrusted = false, bool disabled = false) =>
@@ -36,19 +37,21 @@ public sealed class SchemaExportTests : IDisposable
         new(id, Table, name, "dbo", "tblOther", untrusted, false, false, systemNamed, "NO_ACTION", "NO_ACTION");
 
     /// <summary>
-    /// A catalog of dbo.tblAudit (id, code, otherId) and dbo.tblOther (id), plus the given parts.
+    /// A catalog of dbo.tblAudit (id, code, otherId, unless tableColumns replaces them) and dbo.tblOther (id),
+    /// plus the given parts. columns adds other objects' columns, such as a view's or a table type's.
     /// </summary>
     private static Catalog NewCatalog(List<IndexInfo>? indexes = null, Dictionary<(int, int), List<IndexColumn>>? indexColumns = null,
         List<CheckInfo>? checks = null, List<ForeignKeyInfo>? foreignKeys = null,
         Dictionary<int, List<ForeignKeyColumn>>? foreignKeyColumns = null, List<DbObject>? modules = null,
         Dictionary<int, ModuleInfo>? definitions = null, HashSet<int>? disabledTriggers = null,
-        List<DatabaseTrigger>? databaseTriggers = null, string? referencesError = null, string otherName = "tblOther") => new()
+        List<DatabaseTrigger>? databaseTriggers = null, string? referencesError = null, string otherName = "tblOther",
+        List<ColumnInfo>? tableColumns = null, Dictionary<int, List<ColumnInfo>>? columns = null, List<TypeInfo>? types = null) => new()
         {
             Info = new DatabaseInfo("test-sql", "Legacy", "13.0", 130, "SQL_Latin1_General_CP1_CI_AS", true),
             Objects = [Object(Table, "tblAudit", "U", "USER_TABLE"), Object(Other, otherName, "U", "USER_TABLE"), .. modules ?? []],
-            ColumnsByObject = new()
+            ColumnsByObject = new Dictionary<int, List<ColumnInfo>>(columns ?? [])
             {
-                [Table] = [Column(Table, "id"), Column(Table, "code", "varchar"), Column(Table, "otherId")],
+                [Table] = tableColumns ?? [Column(Table, "id"), Column(Table, "code", "varchar"), Column(Table, "otherId")],
                 [Other] = [Column(Other, "id")]
             },
             IndexesByObject = (indexes ?? []).GroupBy(i => i.ObjectId).ToDictionary(g => g.Key, g => g.ToList()),
@@ -61,7 +64,7 @@ public sealed class SchemaExportTests : IDisposable
             DisabledTriggers = disabledTriggers ?? [],
             TriggerCountByParent = [],
             DatabaseTriggers = databaseTriggers ?? [],
-            Types = [],
+            Types = types ?? [],
             Synonyms = [],
             ExternalReferences = [],
             UnresolvedReferences = [],
@@ -201,14 +204,127 @@ public sealed class SchemaExportTests : IDisposable
     }
 
     [Fact]
-    public void DisabledKey_IsMarkedInItsLine()
+    public void DisabledPrimaryKey_IsScriptedAndMarked_ButIsNoKeyInTheSummary()
     {
-        Write(NewCatalog(
+        var summary = Write(NewCatalog(
             indexes: [Index(1, "PK_tblAudit", primaryKey: true, disabled: true)],
             indexColumns: new() { [(Table, 1)] = [new IndexColumn("id", false, false)] }));
 
-        Assert.Contains("    /* DISABLED index */ CONSTRAINT [PK_tblAudit] PRIMARY KEY CLUSTERED ([id] ASC)", Read("Test", "Tables/dbo.tblAudit.sql"),
-            StringComparison.Ordinal);
+        var script = Read("Test", "Tables/dbo.tblAudit.sql");
+        Assert.Contains("    /* DISABLED index */ CONSTRAINT [PK_tblAudit] PRIMARY KEY CLUSTERED ([id] ASC)", script, StringComparison.Ordinal);
+        Assert.DoesNotContain("-- No primary key", script, StringComparison.Ordinal);
+        var table = summary.Tables.Single(t => t.Name == "[dbo].[tblAudit]");
+        Assert.Equal((false, false), (table.HasPrimaryKey, table.HasUniqueKey));
+        Assert.Empty(table.PrimaryKeyColumns);
+        Assert.Contains("[dbo].[tblAudit]", summary.TablesWithoutPrimaryKey);
+        Assert.Contains("[dbo].[tblAudit]", summary.TablesWithoutUniqueKey);
+    }
+
+    [Fact]
+    public void Columns_AreScriptedWithTheirTypeDetailsIdentityComputationDefaultAndCollation()
+    {
+        Write(NewCatalog(tableColumns:
+        [
+            Column(Table, "id") with { IsIdentity = true, IdentitySeed = "1", IdentityIncrement = "1" },
+            Column(Table, "name", "nvarchar") with { MaxLength = 100 },
+            Column(Table, "notes", "nvarchar") with { MaxLength = -1, IsNullable = true },
+            Column(Table, "amount", "decimal") with { Precision = 10, Scale = 2, CollationName = null },
+            Column(Table, "stamp", "datetime2") with { Scale = 3, CollationName = null },
+            Column(Table, "total") with { ComputedDefinition = "([amount]*(2))", IsPersisted = true },
+            Column(Table, "active", "bit") with { CollationName = null, DefaultName = "DF_active", DefaultDefinition = "((1))" },
+            Column(Table, "flag", "bit") with { CollationName = null, IsNullable = true, DefaultName = "DF__tblAudit__flag__1A2B", DefaultDefinition = "((0))", DefaultIsSystemNamed = true },
+            Column(Table, "code", "varchar") with { CollationName = "Latin1_General_CS_AS" }
+        ]));
+
+        var script = Read("Test", "Tables/dbo.tblAudit.sql");
+        Assert.Contains("CREATE TABLE [dbo].[tblAudit] (\n" +
+                        "    [id] int IDENTITY(1,1) NOT NULL,\n" +
+                        "    [name] nvarchar(50) NOT NULL,\n" +
+                        "    [notes] nvarchar(max) NULL,\n" +
+                        "    [amount] decimal(10,2) NOT NULL,\n" +
+                        "    [stamp] datetime2(3) NOT NULL,\n" +
+                        "    [total] AS ([amount]*(2)) PERSISTED,\n" +
+                        "    [active] bit NOT NULL CONSTRAINT [DF_active] DEFAULT ((1)),\n" +
+                        "    [flag] bit NULL DEFAULT ((0)),\n" +
+                        "    [code] varchar(20) COLLATE Latin1_General_CS_AS NOT NULL\n" +
+                        ");", script, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SysnameColumn_KeepsItsNameInTheScript_AndIsTextInTheSummary()
+    {
+        var summary = Write(NewCatalog(tableColumns: [Column(Table, "owner", "nvarchar") with { TypeName = "sysname", MaxLength = 256 }]));
+
+        Assert.Contains("    [owner] sysname NOT NULL\n", Read("Test", "Tables/dbo.tblAudit.sql"), StringComparison.Ordinal);
+        var column = Assert.Single(summary.Tables.Single(t => t.Name == "[dbo].[tblAudit]").Columns);
+        Assert.Equal(("nvarchar(128)", 128), (column.Type, column.MaxLength));
+    }
+
+    [Fact]
+    public void Indexes_AreScriptedWithIncludedColumnsFilterDirectionAndDisabledState()
+    {
+        Write(NewCatalog(
+            indexes: [Index(2, "IX_covering", filter: "([code] IS NOT NULL)"), Index(3, "IX_off", disabled: true)],
+            indexColumns: new()
+            {
+                [(Table, 2)] = [new IndexColumn("code", true, false), new IndexColumn("otherId", false, true)],
+                [(Table, 3)] = [new IndexColumn("otherId", false, false)]
+            }));
+
+        var script = Read("Test", "Tables/dbo.tblAudit.sql");
+        Assert.Contains("CREATE NONCLUSTERED INDEX [IX_covering] ON [dbo].[tblAudit] ([code] DESC) INCLUDE ([otherId]) WHERE ([code] IS NOT NULL);\nGO\n",
+            script, StringComparison.Ordinal);
+        Assert.Contains("CREATE NONCLUSTERED INDEX [IX_off] ON [dbo].[tblAudit] ([otherId] ASC);\nALTER INDEX [IX_off] ON [dbo].[tblAudit] DISABLE;\nGO\n",
+            script, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void IndexedView_ScriptsItsIndexesAfterItsDefinition_ClusteredFirst()
+    {
+        const int view = 3;
+        Write(NewCatalog(
+            modules: [Object(view, "vIndexed", "V", "VIEW")],
+            definitions: new() { [view] = new ModuleInfo("CREATE VIEW dbo.vIndexed WITH SCHEMABINDING AS SELECT id, code FROM dbo.tblAudit", true, true, false) },
+            columns: new() { [view] = [Column(view, "id"), Column(view, "code", "varchar")] },
+            indexes: [Index(2, "IX_vIndexed_code", objectId: view), Index(1, "UCX_vIndexed", unique: true, clustered: true, objectId: view)],
+            indexColumns: new()
+            {
+                [(view, 1)] = [new IndexColumn("id", false, false)],
+                [(view, 2)] = [new IndexColumn("code", false, false)]
+            }));
+
+        Assert.Equal("-- VIEW: [dbo].[vIndexed]\nSET ANSI_NULLS ON\nGO\nSET QUOTED_IDENTIFIER ON\nGO\n" +
+                     "CREATE VIEW dbo.vIndexed WITH SCHEMABINDING AS SELECT id, code FROM dbo.tblAudit\nGO\n\n" +
+                     "CREATE UNIQUE CLUSTERED INDEX [UCX_vIndexed] ON [dbo].[vIndexed] ([id] ASC);\nGO\n\n" +
+                     "CREATE NONCLUSTERED INDEX [IX_vIndexed_code] ON [dbo].[vIndexed] ([code] ASC);\nGO\n",
+            Read("Test", "Views/dbo.vIndexed.sql"));
+    }
+
+    [Fact]
+    public void TableType_ScriptsItsKeysAndItsOtherIndexesInline()
+    {
+        const int tableType = 5;
+        Write(NewCatalog(
+            types: [new TypeInfo("dbo", "ttCodes", null, -1, 0, 0, false, true, false, tableType)],
+            columns: new() { [tableType] = [Column(tableType, "code", "varchar"), Column(tableType, "rank")] },
+            indexes:
+            [
+                Index(1, "PK__ttCodes__1A2B", primaryKey: true, systemNamed: true, objectId: tableType),
+                Index(2, "IX_rank", objectId: tableType)
+            ],
+            indexColumns: new()
+            {
+                [(tableType, 1)] = [new IndexColumn("code", false, false)],
+                [(tableType, 2)] = [new IndexColumn("rank", true, false)]
+            }));
+
+        Assert.Equal("CREATE TYPE [dbo].[ttCodes] AS TABLE (\n" +
+                     "    [code] varchar(20) NOT NULL,\n" +
+                     "    [rank] int NOT NULL,\n" +
+                     "    PRIMARY KEY CLUSTERED ([code] ASC),\n" +
+                     "    INDEX [IX_rank] NONCLUSTERED ([rank] DESC)\n" +
+                     ");\nGO\n",
+            Read("Test", "Types/dbo.ttCodes.sql"));
     }
 
     [Fact]

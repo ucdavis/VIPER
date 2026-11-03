@@ -47,7 +47,13 @@ namespace Viper.Scripts.LegacyMigration
         /// <summary>
         /// Reads a required "--name value" or "--name=value" argument.
         /// </summary>
-        public static string GetRequiredArg(string[] args, string name)
+        public static string GetRequiredArg(string[] args, string name) =>
+            TryGetArg(args, name) ?? throw new ArgumentException($"Missing required --{name} <value> argument.");
+
+        /// <summary>
+        /// The value of a "--name value" or "--name=value" argument, or null when the flag is absent or has no value after it.
+        /// </summary>
+        private static string? TryGetArg(string[] args, string name)
         {
             var flag = $"--{name}";
             for (var i = 0; i < args.Length; i++)
@@ -61,8 +67,7 @@ namespace Viper.Scripts.LegacyMigration
                     return args[i + 1];
                 }
             }
-
-            throw new ArgumentException($"Missing required {flag} <value> argument.");
+            return null;
         }
 
         /// <summary>
@@ -80,18 +85,8 @@ namespace Viper.Scripts.LegacyMigration
         /// <summary>
         /// Reads an optional "--name value" or "--name=value" argument; null when absent or blank.
         /// </summary>
-        public static string? GetOptionalArg(string[] args, string name)
-        {
-            try
-            {
-                var value = GetRequiredArg(args, name);
-                return string.IsNullOrWhiteSpace(value) ? null : value;
-            }
-            catch (ArgumentException)
-            {
-                return null;
-            }
-        }
+        public static string? GetOptionalArg(string[] args, string name) =>
+            TryGetArg(args, name) is { } value && !string.IsNullOrWhiteSpace(value) ? value : null;
 
         /// <summary>
         /// Connection names become output folder names, so only plain identifiers are accepted.
