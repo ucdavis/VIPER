@@ -37,16 +37,14 @@ const OVERVIEW_COLUMNS: CareerColumn[] = [
     { name: "classLevel", label: "Class", field: "classLevel", align: "center", sortable: true },
     { name: "fullName", label: "Name", field: "fullName", align: "left", sortable: true },
     { name: "email", label: "Email", field: "email", align: "left", sortable: true },
-    ...CAREER_FIELDS.map(
-        (f): CareerColumn => ({
-            name: f.name,
-            label: f.label,
-            field: f.completedField ?? f.valueField,
-            align: f.completedField ? "center" : "left",
-            sortable: true,
-            searchable: f.completedField === undefined,
-        }),
-    ),
+    ...CAREER_FIELDS.map((f): CareerColumn => ({
+        name: f.name,
+        label: f.label,
+        field: f.completedField ?? f.valueField,
+        align: f.completedField ? "center" : "left",
+        sortable: true,
+        searchable: f.completedField === undefined,
+    })),
     LAST_UPDATED_COLUMN,
 ]
 
@@ -54,22 +52,31 @@ const REPORT_COLUMNS: CareerColumn[] = [
     { name: "classLevel", label: "Class", field: "classLevel", align: "left", sortable: true },
     { name: "fullName", label: "Name", field: "fullName", align: "left", sortable: true },
     { name: "email", label: "Email", field: "email", align: "left", sortable: true },
-    ...CAREER_FIELDS.map(
-        (f): CareerColumn => ({
-            name: f.name,
-            label: f.label,
-            field: f.valueField,
-            align: "left",
-            // Paragraphs of free text have no useful order to sort by.
-            sortable: !f.statement,
-        }),
-    ),
+    ...CAREER_FIELDS.map((f): CareerColumn => ({
+        name: f.name,
+        label: f.label,
+        field: f.valueField,
+        align: "left",
+        // Paragraphs of free text have no useful order to sort by.
+        sortable: !f.statement,
+    })),
     LAST_UPDATED_COLUMN,
 ]
 
+/** The value QTable reads for a cell. A column with no field renders only through its slot. */
+function fieldValue(column: CareerColumn, row: Record<string, unknown>) {
+    if (typeof column.field === "function") {
+        return column.field(row)
+    }
+    if (column.field === undefined) {
+        return
+    }
+    return row[column.field]
+}
+
 /** A cell's text as the grid shows it: the column's field, through its format if it has one. */
 function cellText(column: CareerColumn, row: Record<string, unknown>): string {
-    const value = typeof column.field === "function" ? column.field(row) : row[column.field]
+    const value = fieldValue(column, row)
     const shown = column.format ? column.format(value, row) : value
     return shown === null || shown === undefined ? "" : String(shown)
 }
