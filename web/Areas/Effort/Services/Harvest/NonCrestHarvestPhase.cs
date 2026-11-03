@@ -151,11 +151,18 @@ public sealed class NonCrestHarvestPhase : HarvestPhaseBase
             });
         }
 
-        // Get instructors and effort records
+        // Get instructors and effort records. Effort belongs to the CRN, not a unit
+        // variant, so a POA CREST already supplies effort for on that CRN (at any units)
+        // only feeds the director dept fallback.
+        var crestCrns = context.Preview.CrestCourses.Select(c => c.Crn).ToHashSet();
+        var crestEffortKeys = context.Preview.CrestEffort
+            .Where(e => crestCrns.Contains(e.Crn))
+            .Select(e => (e.Crn, e.MothraId))
+            .ToHashSet();
         var courseData = allNonCrestCourses
             .Select(c => new NonCrestCourseData(c.Crn, c.SubjCode, c.CrseNumb))
             .ToList();
-        await BuildNonCrestInstructorsAndEffortAsync(context, courseData, ct);
+        await BuildNonCrestInstructorsAndEffortAsync(context, courseData, crestEffortKeys, ct);
     }
 
     /// <summary>
@@ -216,6 +223,7 @@ public sealed class NonCrestHarvestPhase : HarvestPhaseBase
     private async Task BuildNonCrestInstructorsAndEffortAsync(
         HarvestContext context,
         List<NonCrestCourseData> allNonCrestCourses,
+        HashSet<(string Crn, string MothraId)> crestEffortKeys,
         CancellationToken ct)
     {
         var termCodeStr = context.TermCode.ToString();
@@ -305,6 +313,7 @@ public sealed class NonCrestHarvestPhase : HarvestPhaseBase
         var excludedMothraIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var excludedInstructors = new List<string>();
         var addedInstructorMothraIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var directorRows = new List<HarvestRecordPreview>();
 
         foreach (var poa in poaEntries)
         {
@@ -329,12 +338,13 @@ public sealed class NonCrestHarvestPhase : HarvestPhaseBase
             var dept = batchDepts.GetValueOrDefault(mothraId, "UNK");
 
             var titleDesc = context.TitleLookup.TryGetValue(titleCode, out var desc) ? desc : titleCode;
+            var inCrest = crestEffortKeys.Contains((poa.PoaCrn, mothraId));
 
             // Exclude emeritus/recall appointments from harvest (skips both the instructor
             // and the effort record built below).
             if (excludedTitleCodes.Contains(titleCode))
             {
-                if (excludedMothraIds.Add(mothraId))
+                if (!inCrest && excludedMothraIds.Add(mothraId))
                 {
                     excludedInstructors.Add($"{fullName} ({titleDesc})");
                 }
@@ -342,7 +352,7 @@ public sealed class NonCrestHarvestPhase : HarvestPhaseBase
             }
 
             // Add instructor if not already added - skip if no valid VIPER person record
-            if (!addedInstructorMothraIds.Contains(mothraId))
+            if (!inCrest && !addedInstructorMothraIds.Contains(mothraId))
             {
                 if (!viperPersonLookup.TryGetValue(mothraId, out var personId))
                 {
@@ -371,7 +381,7 @@ public sealed class NonCrestHarvestPhase : HarvestPhaseBase
             var isResearchCourse = course.CrseNumb?.EndsWith('R') ?? false;
             var effortType = isResearchCourse ? EffortConstants.ResearchEffortType : EffortConstants.VariableEffortType;
 
-            context.Preview.NonCrestEffort.Add(new HarvestRecordPreview
+            var effortRow = new HarvestRecordPreview
             {
                 MothraId = mothraId,
                 PersonName = fullName,
@@ -383,7 +393,12 @@ public sealed class NonCrestHarvestPhase : HarvestPhaseBase
                 Hours = 0,
                 Weeks = null,
                 Source = EffortConstants.SourceNonCrest
-            });
+            };
+            directorRows.Add(effortRow);
+            if (!inCrest)
+            {
+                context.Preview.NonCrestEffort.Add(effortRow);
+            }
         }
 
         AddEmeritusExclusionWarning(context, PhaseName, excludedInstructors);
@@ -393,7 +408,7 @@ public sealed class NonCrestHarvestPhase : HarvestPhaseBase
         // inherit the custodial dept from its Director/IOR when that instructor's resolved
         // department is academic. Without this, such courses harvest as "UNK".
         ApplyDirectorCustodialDeptFallback(
-            context.Preview.NonCrestCourses, context.Preview.NonCrestEffort, batchDepts);
+            context.Preview.NonCrestCourses, directorRows, batchDepts);
 
         // Sort instructors
         var sortedInstructors = context.Preview.NonCrestInstructors.OrderBy(i => i.FullName).ToList();
