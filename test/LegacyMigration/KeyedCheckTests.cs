@@ -284,4 +284,42 @@ public class KeyedCheckTests
         Assert.Contains(("Groups whose other columns also differ in case or trailing spaces", 1L), result.Counts.Select(c => (c.Label, c.Value)));
         Assert.Contains("  5, 7; differ only in case or trailing spaces, in notes", result.Details);
     }
+
+    private static string LeadingZerosNormalized(string table, string column, bool ignoreSurroundingSpaces = false)
+    {
+        var plan = TestSchema.Plan($$"""
+            { "checks": [{ "check": "noDuplicates", "table": "{{table}}", "columns": ["{{column}}"], "ignoreLeadingZeros": true,
+              "ignoreSurroundingSpaces": {{(ignoreSurroundingSpaces ? "true" : "false")}} }] }
+            """);
+        var check = Assert.IsType<NoDuplicatesCheck>(Assert.Single(plan.DeclaredChecks));
+        return check.Normalized(check.Columns[0]);
+    }
+
+    [Fact]
+    public void NoDuplicates_IgnoreLeadingZerosOnVarchar_KeepsTrailingSpaces()
+    {
+        // LEN would drop the trailing spaces it ignores, so '01 ' and '01   ' would both become '1 '.
+        var normalized = LeadingZerosNormalized(TestSchema.Visitor, "mothraid");
+
+        Assert.Contains("SUBSTRING(t.[mothraid], PATINDEX('%[^0]%', t.[mothraid]), DATALENGTH(t.[mothraid]))", normalized, StringComparison.Ordinal);
+        Assert.DoesNotContain("LEN(", normalized, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void NoDuplicates_IgnoreLeadingZerosOnChar_DropsPaddingFirst()
+    {
+        // Padded to char(5), '01' and '001' keep different padding once their zeros are stripped.
+        var normalized = LeadingZerosNormalized(TestSchema.Status, "Abbrev");
+
+        Assert.Contains("SUBSTRING(RTRIM(t.[Abbrev]), PATINDEX('%[^0]%', RTRIM(t.[Abbrev])), DATALENGTH(RTRIM(t.[Abbrev])))", normalized, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void NoDuplicates_IgnoreLeadingZerosAndSurroundingSpacesOnChar_TrimsOnce()
+    {
+        var normalized = LeadingZerosNormalized(TestSchema.Status, "Abbrev", ignoreSurroundingSpaces: true);
+
+        Assert.StartsWith("(CASE WHEN LTRIM(RTRIM(t.[Abbrev])) = ''", normalized, StringComparison.Ordinal);
+        Assert.DoesNotContain("RTRIM(RTRIM(", normalized, StringComparison.Ordinal);
+    }
 }

@@ -43,14 +43,14 @@ public sealed class SchemaCompareTests : IDisposable
             ("Tables/dbo.Same.sql", "CREATE TABLE dbo.Same (id int)"),
             ("Tables/dbo.Changed.sql", "CREATE TABLE dbo.Changed (id int)"),
             ("Views/dbo.Spaced.sql", "CREATE VIEW dbo.Spaced AS\r\nSELECT 1 AS x"),
-            ("Procedures/dbo.Hidden.sql", "CREATE PROCEDURE dbo.Hidden AS SELECT 1"),
+            ("StoredProcedures/dbo.Hidden.sql", "CREATE PROCEDURE dbo.Hidden AS SELECT 1"),
             ("Tables/dbo.OnlyTest.sql", "CREATE TABLE dbo.OnlyTest (id int)"));
         Export("Production",
             new SchemaSummary { Server = "prod-sql", Database = "CS", CompatibilityLevel = 120, HasViewDefinition = false },
             ("Tables/dbo.Same.sql", "CREATE TABLE dbo.Same (id int)"),
             ("Tables/dbo.Changed.sql", "CREATE TABLE dbo.Changed (id bigint)"),
             ("Views/dbo.Spaced.sql", "CREATE VIEW dbo.Spaced AS\r\n    SELECT 1 AS x   "),
-            ("Procedures/dbo.Hidden.sql", $"{SchemaExport.MissingDefinitionMarker} no VIEW DEFINITION permission\r\n"),
+            ("StoredProcedures/dbo.Hidden.sql", $"{SchemaExport.MissingDefinitionMarker} no VIEW DEFINITION permission\r\n"),
             ("Tables/dbo.OnlyProduction.sql", "CREATE TABLE dbo.OnlyProduction (id int)"));
     }
 
@@ -77,7 +77,28 @@ public sealed class SchemaCompareTests : IDisposable
 
         Assert.Contains("POSSIBLE PERMISSION GAPS (2)", lines);
         Assert.Contains(lines, l => l.StartsWith("  The Production login lacks VIEW DEFINITION.", StringComparison.Ordinal));
-        Assert.Contains("  Procedures/dbo.Hidden: definition not visible in Production (no VIEW DEFINITION permission)", lines);
+        Assert.Contains("  StoredProcedures/dbo.Hidden: definition not visible in Production (no VIEW DEFINITION permission)", lines);
+    }
+
+    [Fact]
+    public void Report_DefinitionHiddenInBoth_IsListedApartAndNotCountedAsIdentical()
+    {
+        Export("Test", new SchemaSummary(),
+            ("StoredProcedures/dbo.Locked.sql", $"-- SQL_STORED_PROCEDURE: [dbo].[Locked]\n{SchemaExport.MissingDefinitionMarker} created WITH ENCRYPTION\n"),
+            ("StoredProcedures/dbo.Mixed.sql", $"{SchemaExport.MissingDefinitionMarker} created WITH ENCRYPTION\n"));
+        Export("Production", new SchemaSummary(),
+            ("StoredProcedures/dbo.Locked.sql", $"-- SQL_STORED_PROCEDURE: [dbo].[Locked]\n{SchemaExport.MissingDefinitionMarker} created WITH ENCRYPTION\n"),
+            ("StoredProcedures/dbo.Mixed.sql", $"{SchemaExport.MissingDefinitionMarker} definition not visible\n"));
+
+        var report = Report();
+
+        Assert.Contains("HIDDEN IN BOTH, NOT COMPARED (2)\r\n" +
+                        "  StoredProcedures/dbo.Locked (created WITH ENCRYPTION)\r\n" +
+                        "  StoredProcedures/dbo.Mixed (Test: created WITH ENCRYPTION; Production: definition not visible)\r\n",
+            report, StringComparison.Ordinal);
+        Assert.Matches(new Regex(@"  Identical:\s+0\r\n"), report);
+        Assert.Matches(new Regex(@"  Hidden in both, not compared:\s+2\r\n"), report);
+        Assert.Contains("POSSIBLE PERMISSION GAPS (0)", report, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -298,9 +298,10 @@ namespace Viper.Scripts.LegacyMigration.Analysis
 
         // Quoted text in an error message: it opens after a space, bracket, or the start, and closes at the same
         // quote followed by a space, punctuation, or the end, so a value holding an apostrophe (O'Brien) is one
-        // match. An opening quote with no close matches to the end of the message.
+        // match. A close counts only when the next such quote could open a value, so a possessive ('Jones' house')
+        // stays inside the value. An opening quote with no close matches to the end of the message.
         private static readonly Regex QuotedText = new(
-            """(?<=^|[\s(\[])(?:(['"])(.*?)\1(?=$|[\s.,;:)\]])|['"].*$)""",
+            """(?<=^|[\s(\[])(?:(['"])(.*?)\1(?=$|[\s.,;:)\]])(?!(?:(?!\1).)*(?<![\s(\[])\1)|['"].*$)""",
             RegexOptions.Compiled | RegexOptions.Singleline, TimeSpan.FromSeconds(1));
 
         /// <summary>

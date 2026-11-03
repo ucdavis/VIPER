@@ -13,7 +13,7 @@ namespace Viper.Scripts.LegacyMigration.Analysis
         public override DeclaredCheck? Bind(SchemaBinder binder, string where)
         {
             var table = binder.Object(where, "table", Table);
-            var keys = binder.Columns(where, "keyColumns", table, KeyColumns);
+            var keys = binder.ComparedColumns(where, "keyColumns", table, KeyColumns);
             var columns = binder.Columns(where, "columns", table, Columns);
             if (table == null || keys == null || columns == null)
             {

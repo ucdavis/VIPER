@@ -42,6 +42,8 @@ cd web\Scripts\LegacyMigration
 .\RunAnalysis.bat ClinicalScheduler Production
 ```
 
+Steps 3 and 4 use Production because it holds the data being migrated. The analysis scans whole tables without taking locks; a recent Test copy works too and keeps that load off Production (see "About cost" under [Column profile](docs/ANALYSIS-REFERENCE.md#column-profile)).
+
 The first run restores packages and builds the tool, so it takes longer.
 
 ## Exporting a schema
@@ -71,11 +73,11 @@ Each export writes to `Output\<ConnectionName>\<Environment>\` in this folder. A
 ```
 Output\ClinicalScheduler\Test\
   Tables\            one CREATE TABLE script per table, with its constraints and indexes
-  Views\
+  Views\             each view's definition, then its indexes, if any
   StoredProcedures\
   Functions\
   Triggers\
-  Types\             user-defined alias and table types
+  Types\             user-defined alias and table types, table types with their keys and indexes
   Synonyms\
   summary.json
 ```
@@ -93,7 +95,7 @@ Files are named `<schema>.<object>.sql`. Within each name, a dot and any charact
 | `server`, `database`, `productVersion`, `compatibilityLevel`, `databaseCollation` | Environment facts |
 | `hasViewDefinition` | Whether the login had `VIEW DEFINITION` |
 | `objectCounts` | Objects exported per type |
-| `tables` | Each table's approximate row count (from metadata, not `COUNT(*)`), whether it has a primary key or any enforced, unfiltered unique key (a disabled one enforces nothing, and a filtered one guarantees uniqueness only within its filter), its trigger count, its primary key and enforced, unfiltered unique key columns, and its columns: type (and alias type), length in characters for text, nullability, computed or not, collation, and identity seed, increment, and current value |
+| `tables` | Each table's approximate row count (from metadata, not `COUNT(*)`), whether it has an enforced primary key or any enforced, unfiltered unique key (a disabled one enforces nothing, and a filtered one guarantees uniqueness only within its filter), its trigger count, the columns of those keys, and its columns: type (and alias type), length in characters for text, nullability, computed or not, collation, and identity seed, increment, and current value |
 | `views` | Each view's columns, in the same form as table columns. They are the columns SQL Server recorded when the view was created or last refreshed: a view written as `SELECT *` keeps that list even after its tables change |
 | `personIdColumns` | Columns that may hold a person's ID, from names and foreign keys only (no data read). Category `idType`: the name contains a word for an ID type (`mothra`, `iam`, `pidm`), or a foreign key references such a column. Category `review`: the name says who did something (`ModBy`, `CreatedBy`, `UpdatedBy`, `addUser`, `Who_Mod`) but not with which ID. Each comes with the reason it matched. Names are split into words, and only whole words count, so `iam` does not flag `William` and `SortBy` is not flagged |
 | `tablesWithoutPrimaryKey`, `tablesWithoutUniqueKey` | Candidates for duplicate-row checks |
@@ -127,10 +129,21 @@ The report lists:
 
 - **Environment facts** side by side, with differences starred. A collation difference matters most, since it changes how keys compare and join.
 - **Possible permission gaps**: a definition visible in one environment only, or `VIEW DEFINITION` differing.
+- **Hidden in both, not compared**: objects neither environment shows the definition of (encrypted, CLR, or not visible to the login), with why. Their files match, but that says nothing about the objects, so they are not counted as identical.
 - **Objects only in one environment.**
 - **Definitions that differ**, each with a `git diff --no-index` command for a line-by-line view.
-- **Whitespace-only differences**, listed apart so they do not hide real ones. Only whitespace between T-SQL tokens counts: a change inside a string, a bracketed name, or a comment is a difference.
+- **Whitespace-only differences**, listed apart so they do not hide real ones. Only whitespace between T-SQL tokens counts: a change inside a string, a bracketed name, or a comment is a difference (except line endings; see [What the compare does not see](#what-the-compare-does-not-see)).
 - **View columns that differ**: a view's columns, from `summary.json`, compared in order by name and type. SQL Server fixes a view's columns when it is created or refreshed, so a `SELECT *` view refreshed in only one environment can differ here while its definition is identical; such a view is counted under "Same definition, different view columns" rather than as identical. Views whose names differ only in case, possible under a case-sensitive collation, are left out of this check, since the second one's file name gets a `~2` suffix.
+
+### What the compare does not see
+
+"Identical" means identical as the export scripts it, which leaves out what a migration rarely depends on:
+
+- **Storage options** of tables and indexes: `FILLFACTOR`, compression, filegroups, and partition schemes.
+- **XML, spatial, and columnstore indexes**: named in their table's script, but not scripted.
+- **Sequences**: listed under unscripted object types, but their definitions are not compared.
+- **Temporal and memory-optimized tables**: scripted as plain tables.
+- **Line endings inside strings**: every file is written with CRLF line endings, including line breaks inside string literals, so a literal whose line endings alone differ between environments compares as the same.
 
 ### Viewing line-by-line differences
 
