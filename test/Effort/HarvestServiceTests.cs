@@ -221,6 +221,85 @@ public sealed class HarvestServiceTests : IDisposable
         _termServiceMock.Received(1).GetTermName(TestTermCode);
     }
 
+    [Theory]
+    [InlineData(false, null)]
+    [InlineData(true, EffortConstants.CahfsReportUnit)]
+    public async Task ImportPerson_SetsCahfsReportUnit_WhenPersonHasCahfsJob(bool hasCahfsJob, string? expectedReportUnit)
+    {
+        // Arrange
+        var ct = TestContext.Current.CancellationToken;
+        IReadOnlySet<string> cahfsIds = new HashSet<string>(hasCahfsJob ? ["00193236"] : []);
+        _instructorServiceMock
+            .GetCahfsMothraIdsAsync(TestTermCode, Arg.Any<CancellationToken>())
+            .Returns(cahfsIds);
+        var context = new HarvestContext
+        {
+            TermCode = TestTermCode,
+            EffortContext = _context,
+            CrestContext = _crestContext,
+            CoursesContext = _coursesContext,
+            ViperContext = _viperContext,
+            AaudContext = _aaudContext,
+            DictionaryContext = _dictionaryContext,
+            AuditService = _auditServiceMock,
+            InstructorService = _instructorServiceMock,
+            TermService = _termServiceMock,
+            Logger = _loggerMock
+        };
+        context.Preview.NonCrestInstructors.Add(new HarvestPersonPreview
+        {
+            MothraId = "00193236",
+            PersonId = 25756,
+            FirstName = "Linda",
+            LastName = "Barter",
+            Department = "VSR",
+            TitleCode = "001917"
+        });
+
+        // Act
+        await new NonCrestHarvestPhase().ExecuteAsync(context, ct);
+
+        // Assert
+        var person = Assert.Single(_context.Persons.Local);
+        Assert.Equal(expectedReportUnit, person.ReportUnit);
+        _auditServiceMock.Received(1).AddHarvestPersonAudit(25756, TestTermCode, "Linda", "Barter", "VSR", expectedReportUnit);
+    }
+
+    [Fact]
+    public async Task ImportPerson_LoadsCahfsIdsOnce_ForMultiplePeople()
+    {
+        // Arrange
+        var ct = TestContext.Current.CancellationToken;
+        IReadOnlySet<string> cahfsIds = new HashSet<string> { "00193236" };
+        _instructorServiceMock
+            .GetCahfsMothraIdsAsync(TestTermCode, Arg.Any<CancellationToken>())
+            .Returns(cahfsIds);
+        var context = new HarvestContext
+        {
+            TermCode = TestTermCode,
+            EffortContext = _context,
+            CrestContext = _crestContext,
+            CoursesContext = _coursesContext,
+            ViperContext = _viperContext,
+            AaudContext = _aaudContext,
+            DictionaryContext = _dictionaryContext,
+            AuditService = _auditServiceMock,
+            InstructorService = _instructorServiceMock,
+            TermService = _termServiceMock,
+            Logger = _loggerMock
+        };
+        context.Preview.NonCrestInstructors.Add(new HarvestPersonPreview { MothraId = "00193236", PersonId = 25756, FirstName = "Linda", LastName = "Barter", Department = "VSR" });
+        context.Preview.NonCrestInstructors.Add(new HarvestPersonPreview { MothraId = "00999999", PersonId = 25757, FirstName = "Other", LastName = "Person", Department = "VSR" });
+
+        // Act
+        await new NonCrestHarvestPhase().ExecuteAsync(context, ct);
+
+        // Assert
+        await _instructorServiceMock.Received(1).GetCahfsMothraIdsAsync(TestTermCode, Arg.Any<CancellationToken>());
+        Assert.Equal(EffortConstants.CahfsReportUnit, _context.Persons.Local.Single(p => p.PersonId == 25756).ReportUnit);
+        Assert.Null(_context.Persons.Local.Single(p => p.PersonId == 25757).ReportUnit);
+    }
+
     #endregion
 
     #region ExecuteHarvestAsync Tests
