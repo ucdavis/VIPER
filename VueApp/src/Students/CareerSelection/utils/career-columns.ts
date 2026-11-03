@@ -37,16 +37,14 @@ const OVERVIEW_COLUMNS: CareerColumn[] = [
     { name: "classLevel", label: "Class", field: "classLevel", align: "center", sortable: true },
     { name: "fullName", label: "Name", field: "fullName", align: "left", sortable: true },
     { name: "email", label: "Email", field: "email", align: "left", sortable: true },
-    ...CAREER_FIELDS.map(
-        (f): CareerColumn => ({
-            name: f.name,
-            label: f.label,
-            field: f.completedField ?? f.valueField,
-            align: f.completedField ? "center" : "left",
-            sortable: true,
-            searchable: f.completedField === undefined,
-        }),
-    ),
+    ...CAREER_FIELDS.map((f): CareerColumn => ({
+        name: f.name,
+        label: f.label,
+        field: f.completedField ?? f.valueField,
+        align: f.completedField ? "center" : "left",
+        sortable: true,
+        searchable: f.completedField === undefined,
+    })),
     LAST_UPDATED_COLUMN,
 ]
 
@@ -54,16 +52,14 @@ const REPORT_COLUMNS: CareerColumn[] = [
     { name: "classLevel", label: "Class", field: "classLevel", align: "left", sortable: true },
     { name: "fullName", label: "Name", field: "fullName", align: "left", sortable: true },
     { name: "email", label: "Email", field: "email", align: "left", sortable: true },
-    ...CAREER_FIELDS.map(
-        (f): CareerColumn => ({
-            name: f.name,
-            label: f.label,
-            field: f.valueField,
-            align: "left",
-            // Paragraphs of free text have no useful order to sort by.
-            sortable: !f.statement,
-        }),
-    ),
+    ...CAREER_FIELDS.map((f): CareerColumn => ({
+        name: f.name,
+        label: f.label,
+        field: f.valueField,
+        align: "left",
+        // Paragraphs of free text have no useful order to sort by.
+        sortable: !f.statement,
+    })),
     LAST_UPDATED_COLUMN,
 ]
 

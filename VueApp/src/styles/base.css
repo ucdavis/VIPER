@@ -30,15 +30,8 @@
    macOS/iOS, Segoe on Windows, Noto on Android/Linux). */
 body {
     font-family:
-        Roboto,
-        -apple-system,
-        "Helvetica Neue",
-        Helvetica,
-        Arial,
-        "Apple Color Emoji",
-        "Segoe UI Emoji",
-        "Noto Color Emoji",
-        sans-serif;
+        Roboto, -apple-system, "Helvetica Neue", Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji",
+        "Noto Color Emoji", sans-serif;
     margin-bottom: 60px;
 }
 
