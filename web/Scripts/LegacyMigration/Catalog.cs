@@ -17,8 +17,9 @@ namespace Viper.Scripts.LegacyMigration
         int ParentObjectId, bool IsToolObject);
 
     /// <summary>
-    /// SystemTypeName is the built-in type underneath an alias type (nvarchar for sysname), so checks
-    /// can classify a column without resolving alias types themselves.
+    /// SystemTypeName is the built-in type a column stores: an alias type's base type, and nvarchar for
+    /// sysname, so checks can classify a column without resolving alias types themselves. CLR types keep
+    /// their own name.
     /// </summary>
     public sealed record ColumnInfo(int ObjectId, string Name, string TypeName, string TypeSchema, bool IsUserDefinedType,
         short MaxLength, byte Precision, byte Scale, bool IsNullable, bool IsIdentity, string? IdentitySeed,
@@ -133,7 +134,7 @@ namespace Viper.Scripts.LegacyMigration
                     CAST(ic.seed_value AS nvarchar(40)), CAST(ic.increment_value AS nvarchar(40)), ic.is_not_for_replication,
                     cc.definition, cc.is_persisted, c.collation_name, c.is_sparse, c.is_rowguidcol,
                     dc.name, dc.definition, dc.is_system_named,
-                    CASE WHEN t.is_user_defined = 1 AND t.is_assembly_type = 0 THEN TYPE_NAME(c.system_type_id) ELSE t.name END,
+                    CASE WHEN t.is_assembly_type = 0 THEN TYPE_NAME(c.system_type_id) ELSE t.name END,
                     CAST(ic.last_value AS nvarchar(40))
                 FROM sys.columns c
                 INNER JOIN sys.objects o ON o.object_id = c.object_id AND o.type IN ('U', 'TT', 'V') AND o.is_ms_shipped = 0
@@ -152,7 +153,7 @@ namespace Viper.Scripts.LegacyMigration
                 SELECT i.object_id, i.index_id, i.name, i.type, i.type_desc, i.is_unique, i.is_primary_key,
                     i.is_unique_constraint, kc.is_system_named, i.filter_definition, i.is_disabled, i.ignore_dup_key
                 FROM sys.indexes i
-                INNER JOIN sys.objects o ON o.object_id = i.object_id AND o.type IN ('U', 'TT') AND o.is_ms_shipped = 0
+                INNER JOIN sys.objects o ON o.object_id = i.object_id AND o.type IN ('U', 'TT', 'V') AND o.is_ms_shipped = 0
                 LEFT JOIN sys.key_constraints kc ON kc.parent_object_id = i.object_id AND kc.unique_index_id = i.index_id
                 WHERE i.type > 0 AND i.is_hypothetical = 0
                 ORDER BY i.object_id, i.is_primary_key DESC, i.name",
@@ -162,7 +163,7 @@ namespace Viper.Scripts.LegacyMigration
             var indexColumns = Query(conn, @"
                 SELECT ic.object_id, ic.index_id, c.name, ic.is_descending_key, ic.is_included_column
                 FROM sys.index_columns ic
-                INNER JOIN sys.objects o ON o.object_id = ic.object_id AND o.type IN ('U', 'TT') AND o.is_ms_shipped = 0
+                INNER JOIN sys.objects o ON o.object_id = ic.object_id AND o.type IN ('U', 'TT', 'V') AND o.is_ms_shipped = 0
                 INNER JOIN sys.columns c ON c.object_id = ic.object_id AND c.column_id = ic.column_id
                 WHERE ic.key_ordinal > 0 OR ic.is_included_column = 1
                 ORDER BY ic.object_id, ic.index_id, ic.is_included_column, ic.key_ordinal, ic.index_column_id",
