@@ -60,6 +60,11 @@ public sealed class HarvestContext
     public HashSet<string>? ExcludedTitleCodes { get; set; }
 
     /// <summary>
+    /// MothraIds with a CAHFS job for the term, loaded once when the first person is imported.
+    /// </summary>
+    public IReadOnlySet<string>? CahfsMothraIds { get; set; }
+
+    /// <summary>
     /// Warnings accumulated during harvest.
     /// </summary>
     public List<HarvestWarning> Warnings { get; } = [];
