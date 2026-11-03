@@ -58,7 +58,7 @@ public interface IEffortAuditService
     /// Add a harvest person created audit entry to the context without saving.
     /// Use this within a transaction where the caller manages SaveChangesAsync.
     /// </summary>
-    void AddHarvestPersonAudit(int personId, int termCode, string firstName, string lastName, string department);
+    void AddHarvestPersonAudit(int personId, int termCode, string firstName, string lastName, string department, string? reportUnit);
 
     /// <summary>
     /// Add a harvest course created audit entry to the context without saving.

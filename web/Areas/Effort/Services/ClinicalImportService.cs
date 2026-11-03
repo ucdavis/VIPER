@@ -245,6 +245,8 @@ public class ClinicalImportService : IClinicalImportService
             ? await _context.Database.BeginTransactionAsync(ct)
             : null;
 
+        await TagCahfsOnExistingPersonsAsync(sourceData, termCode, ct);
+
         // Execute import based on mode
         var result = await ExecuteImportInternalAsync(sourceData, existingRecords, termCode, mode, modifiedBy, ct);
 
@@ -319,6 +321,8 @@ public class ClinicalImportService : IClinicalImportService
             await using var transaction = ownsTransaction
                 ? await _context.Database.BeginTransactionAsync(ct)
                 : null;
+
+            await TagCahfsOnExistingPersonsAsync(sourceData, termCode, ct);
 
             // Execute import based on mode with progress
             var result = await ExecuteImportWithProgressInternalAsync(
@@ -987,6 +991,37 @@ public class ClinicalImportService : IClinicalImportService
     }
 
     /// <summary>
+    /// Tag CAHFS on source instructors who already exist for the term with no report unit
+    /// (e.g. added before the rule), whether or not their clinical records change.
+    /// </summary>
+    private async Task TagCahfsOnExistingPersonsAsync(List<ClinicalSourceRecord> sourceData, int termCode, CancellationToken ct)
+    {
+        var mothraIds = sourceData.Select(s => s.MothraId).Distinct().ToList();
+        var untagged = await _context.Persons
+            .Where(p => p.TermCode == termCode && string.IsNullOrEmpty(p.ReportUnit))
+            .Join(_context.ViperPersons.Where(vp => EF.Parameter(mothraIds).Contains(vp.MothraId)),
+                p => p.PersonId, vp => vp.PersonId, (p, vp) => new { Person = p, vp.MothraId })
+            .ToListAsync(ct);
+        if (untagged.Count == 0)
+        {
+            return;
+        }
+
+        var cahfsMothraIds = await _instructorService.GetCahfsMothraIdsAsync(
+            untagged.Select(u => u.MothraId).ToList(), termCode, ct);
+
+        foreach (var person in untagged.Where(u => cahfsMothraIds.Contains(u.MothraId)).Select(u => u.Person))
+        {
+            var oldValues = new { person.ReportUnit };
+            person.ReportUnit = EffortConstants.CahfsReportUnit;
+            _auditService.AddPersonChangeAudit(person.PersonId, termCode, EffortAuditActions.UpdatePerson,
+                oldValues, new { person.ReportUnit });
+        }
+
+        await _context.SaveChangesAsync(ct);
+    }
+
+    /// <summary>
     /// Create a clinical effort record for the given instructor and course.
     /// Creates EffortPerson and EffortCourse on the fly if they don't exist.
     /// </summary>
@@ -1140,14 +1175,17 @@ public class ClinicalImportService : IClinicalImportService
             PercentAdmin = 0,
             JobGroupId = _jobGroupLookup?.GetValueOrDefault(titleCode),
             Title = null,
-            AdminUnit = null
+            AdminUnit = null,
+            ReportUnit = await _instructorService.HasCahfsAppointmentAsync(mothraId, termCode, ct)
+                ? EffortConstants.CahfsReportUnit
+                : null
         };
 
         _context.Persons.Add(effortPerson);
         await _context.SaveChangesAsync(ct);
         _processedMothraIds[mothraId] = true;
 
-        _auditService.AddHarvestPersonAudit(personId, termCode, firstName, lastName, dept);
+        _auditService.AddHarvestPersonAudit(personId, termCode, firstName, lastName, dept, effortPerson.ReportUnit);
 
         return true;
     }
