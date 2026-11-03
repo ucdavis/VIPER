@@ -117,6 +117,25 @@ public class IdentifiesOnePersonCheckTests
     }
 
     [Fact]
+    public void Run_ValuesThatAreNotIds_AreNotedForThePersonIdColumnsList()
+    {
+        var plan = TestSchema.Plan("""
+            { "checks": [{ "check": "identifiesOnePerson", "table": "[dbo].[visitor]", "column": "mothraid", "idType": "MothraId", "lookIn": "VIPER.users.Person" }] }
+            """);
+        var legacy = new FakeDatabase()
+            .Answer(RowsByIds, [7, 3L, null, null])
+            .Answer("COUNT_BIG(*)\nFROM [dbo].[visitor]", ["00123456", 10L], ["00999999", 2L], ["jsmith", 3L], ["xdoe", 1L]);
+        var viper = Viper(new() { ["00123456"] = ["1001"] }, new() { ["jsmith"] = ["1002"] });
+
+        Assert.Single(plan.DeclaredChecks).Run(TestSchema.Context(plan, legacy, new() { ["VIPER"] = viper }));
+
+        // Not found, but shown as a MothraId: 00999999 is not noted.
+        var masked = MaskedColumn.Of(Assert.Single(plan.Schema.MaskedColumns));
+        Assert.Equal((TestSchema.Visitor, "mothraid", true), (masked.Table, masked.Column, masked.IsPersonId));
+        Assert.Equal("letters only, 4-6 chars (2 distinct values)", masked.Shapes);
+    }
+
+    [Fact]
     public void Run_IdHeldBySeveralPeople_IsFoundSeveralAndNeverPicksOne()
     {
         var legacy = new FakeDatabase().Answer("COUNT_BIG(*)\nFROM [dbo].[visitor]", ["00123456", 4L]);

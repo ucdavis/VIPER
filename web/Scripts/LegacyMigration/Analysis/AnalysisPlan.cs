@@ -353,6 +353,22 @@ namespace Viper.Scripts.LegacyMigration.Analysis
         }
 
         /// <summary>
+        /// Columns a check compares with = and groups by as they are. SQL Server refuses both on the legacy
+        /// text, ntext, and image types, so the check would only fail to run.
+        /// </summary>
+        public List<ColumnRef>? ComparedColumns(string where, string field, TableRef? table, List<string>? names)
+        {
+            var columns = Columns(where, field, table, names);
+            var legacy = columns?.Where(c => c.BaseType is "text" or "ntext" or "image").ToList() ?? [];
+            foreach (var column in legacy)
+            {
+                Error(where, $"\"{field}\" has {column.Name}, which is {column.BaseType}: SQL Server cannot compare or group by. " +
+                             "Declare the check on a view that converts it to varchar(max), nvarchar(max), or varbinary(max).");
+            }
+            return legacy.Count > 0 ? null : columns;
+        }
+
+        /// <summary>
         /// Returns null without a further error when the table itself did not bind.
         /// </summary>
         public ColumnRef? Column(string where, string field, TableRef? table, string? name)

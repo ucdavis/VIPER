@@ -177,6 +177,16 @@ namespace Viper.Scripts.LegacyMigration.Analysis
                     result.Message = $"Failed to run: the query returns no column named {ResultSql.JoinAnd(missing)}.";
                     return;
                 }
+                // GetOrdinal reads the first column of a name, which may not be the one the key was traced to,
+                // such as a column from t.* ahead of t.Id AS Email.
+                var repeated = KeyColumns.Append(OccurredAtColumn).OfType<string>()
+                    .Where(c => columns.Count(n => n.Equals(c, StringComparison.OrdinalIgnoreCase)) > 1).ToList();
+                if (repeated.Count > 0)
+                {
+                    result.Status = CheckStatus.FailedToRun;
+                    result.Message = $"Failed to run: the query returns more than one column named {ResultSql.JoinAnd(repeated)}. Give each column a unique name.";
+                    return;
+                }
 
                 var keys = KeyColumns.Select(reader.GetOrdinal).ToList();
                 var date = OccurredAtColumn != null ? reader.GetOrdinal(OccurredAtColumn) : -1;

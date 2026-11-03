@@ -15,8 +15,8 @@ namespace Viper.Scripts.LegacyMigration.Analysis
         {
             var table = binder.Object(where, "table", Table);
             var other = binder.Object(where, "otherTable", OtherTable);
-            var columns = binder.Columns(where, "columns", table, Columns);
-            var otherColumns = binder.Columns(where, "otherColumns", other, OtherColumns);
+            var columns = binder.ComparedColumns(where, "columns", table, Columns);
+            var otherColumns = binder.ComparedColumns(where, "otherColumns", other, OtherColumns);
             if (table == null || other == null || columns == null || otherColumns == null)
             {
                 return null;

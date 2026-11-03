@@ -42,6 +42,8 @@ cd web\Scripts\LegacyMigration
 .\RunAnalysis.bat ClinicalScheduler Production
 ```
 
+Steps 3 and 4 use Production because it holds the data being migrated. The analysis scans whole tables without taking locks; a recent Test copy works too and keeps that load off Production (see "About cost" under [Column profile](docs/ANALYSIS-REFERENCE.md#column-profile)).
+
 The first run restores packages and builds the tool, so it takes longer.
 
 ## Exporting a schema

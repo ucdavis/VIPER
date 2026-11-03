@@ -28,6 +28,10 @@ public class CustomSqlValidatorTests
     // Built-in functions, scalar and table-valued
     [InlineData("SELECT percent_ID FROM tblPercent WHERE LEN(LTRIM(RTRIM(note))) = 0 AND TRY_CONVERT(int, note) IS NULL")]
     [InlineData("SELECT p.percent_ID FROM tblPercent p CROSS APPLY STRING_SPLIT(p.note, ',') s WHERE s.value = ''")]
+    // Static members of the types SQL Server ships with
+    [InlineData("SELECT percent_ID FROM tblPercent WHERE geography::Point(38.5, -121.7, 4326) IS NOT NULL")]
+    [InlineData("SELECT percent_ID FROM tblPercent WHERE HierarchyId::GetRoot() IS NOT NULL")]
+    [InlineData("SELECT percent_ID FROM tblPercent WHERE geometry::STGeomFromText('POINT (1 2)', 0) IS NOT NULL")]
     public void Validate_ReadOnlySelect_IsAccepted(string sql)
     {
         var outcome = Validate(sql);
@@ -86,6 +90,11 @@ public class CustomSqlValidatorTests
     [InlineData("SELECT f.id FROM OtherDb.dbo.tvf_rows(1) AS f")]
     [InlineData("SELECT p.percent_ID FROM tblPercent p CROSS APPLY dbo.tvf_rows(p.percent_ID) f")]
     [InlineData("SELECT percent_ID FROM tblPercent t WHERE t.doc.value('(/a)[1]', 'int') = 1")]
+    // Static members of user-defined CLR types, including a built-in type's name under a schema
+    [InlineData("SELECT percent_ID FROM tblPercent WHERE Money::Parse(note) IS NULL")]
+    [InlineData("SELECT percent_ID FROM tblPercent WHERE dbo.Money::Parse(note) IS NULL")]
+    [InlineData("SELECT percent_ID FROM tblPercent WHERE dbo.geography::Point(1, 2, 4326) IS NULL")]
+    [InlineData("SELECT Money::Zero FROM tblPercent")]
     // Wherever in the query the call is
     [InlineData("SELECT dbo.fn_label(percent_ID) FROM tblPercent")]
     [InlineData("WITH x AS (SELECT dbo.fn_label(percent_ID) AS l FROM tblPercent) SELECT l FROM x")]
@@ -116,6 +125,15 @@ public class CustomSqlValidatorTests
         var outcome = Validate("SELECT * FROM @rows");
 
         Assert.Single(outcome.Errors);
+    }
+
+    [Fact]
+    public void Validate_UserDefinedTypeMethod_IsRefusedByName()
+    {
+        var outcome = Validate("SELECT percent_ID FROM tblPercent WHERE dbo.Money::Parse(note) IS NULL");
+
+        Assert.Equal("line 1: dbo.Money::Parse belongs to a user-defined type, whose code cannot be checked. Write what it does into the query.",
+            Assert.Single(outcome.Errors));
     }
 
     [Fact]
