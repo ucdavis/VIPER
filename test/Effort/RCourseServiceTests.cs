@@ -345,6 +345,20 @@ public sealed class RCourseServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task CreateRCourseEffortRecordAsync_CreatesAuditEntry_WithReopenContext()
+    {
+        // Act
+        await _service.CreateRCourseEffortRecordAsync(TestPersonId, TestTermCode, TestModifiedBy, RCourseCreationContext.Reopen, TestContext.Current.CancellationToken);
+
+        // Assert
+        var auditEntry = await _context.Audits
+            .FirstOrDefaultAsync(a => a.Action == EffortAuditActions.RCourseAutoCreated, TestContext.Current.CancellationToken);
+
+        Assert.NotNull(auditEntry);
+        Assert.Contains("when term reopened", auditEntry.Changes);
+    }
+
+    [Fact]
     public async Task CreateRCourseEffortRecordAsync_CreatesSeparateRecords_ForDifferentInstructors()
     {
         // Arrange - Add another instructor
@@ -376,6 +390,68 @@ public sealed class RCourseServiceTests : IDisposable
         // Both share the same course
         var courseIds = records.Select(r => r.CourseId).Distinct().ToList();
         Assert.Single(courseIds);
+    }
+
+    #endregion
+
+    #region CreateForEligibleInstructorsAsync Tests
+
+    private void AddInstructorWithRecord(int personId, int recordId, EffortCourse course, DateTime? verified = null)
+    {
+        _context.Persons.Add(new EffortPerson
+        {
+            PersonId = personId,
+            TermCode = course.TermCode,
+            FirstName = "Test",
+            LastName = "Instructor",
+            EffortDept = "VME",
+            EffortVerified = verified
+        });
+        _context.Records.Add(new EffortRecord
+        {
+            Id = recordId,
+            PersonId = personId,
+            Course = course,
+            TermCode = course.TermCode,
+            EffortTypeId = "LEC",
+            RoleId = 1,
+            Crn = course.Crn,
+            Hours = 5
+        });
+    }
+
+    private static EffortCourse NewCourse(string crn, string crseNumb, int termCode = TestTermCode) => new()
+    {
+        TermCode = termCode,
+        Crn = crn,
+        SubjCode = "DVM",
+        CrseNumb = crseNumb,
+        SeqNumb = "001",
+        CustDept = "VME"
+    };
+
+    [Fact]
+    public async Task CreateForEligibleInstructorsAsync_CreatesRecords_OnlyForUnverifiedInstructorsWithNonRCourseEffort()
+    {
+        // Arrange
+        const int eligible = 201, verified = 202, rCourseOnly = 203, otherTerm = 204;
+        var regularCourse = NewCourse("12345", "443");
+        AddInstructorWithRecord(eligible, 1, regularCourse);
+        AddInstructorWithRecord(verified, 2, regularCourse, verified: DateTime.Now);
+        // char(5) padding, as stored in SQL Server: must still count as an R-course
+        AddInstructorWithRecord(rCourseOnly, 3, NewCourse("12346", "410R "));
+        AddInstructorWithRecord(otherTerm, 4, NewCourse("12347", "443", termCode: 202420));
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        // Act
+        await _service.CreateForEligibleInstructorsAsync(TestTermCode, TestModifiedBy, RCourseCreationContext.Reopen, TestContext.Current.CancellationToken);
+
+        // Assert
+        var createdFor = await _context.Records
+            .Where(r => r.Crn == "RESID")
+            .Select(r => r.PersonId)
+            .ToListAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(eligible, Assert.Single(createdFor));
     }
 
     #endregion
