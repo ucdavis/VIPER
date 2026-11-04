@@ -15,9 +15,8 @@ namespace Viper.Classes
     {
         /// <summary>
         /// Registers the EF contexts backing the UserInfo aggregation view
-        /// (each against its own named connection string, compat level 130
-        /// per our SQL Server 2016 target), plus its HttpClient factory and
-        /// UserInfoService.
+        /// (each against its own named connection string), plus its HttpClient
+        /// factory and UserInfoService.
         /// </summary>
         public static WebApplicationBuilder AddUserInfoServices(this WebApplicationBuilder builder, bool enableDetailedErrors)
         {
@@ -27,7 +26,7 @@ namespace Viper.Classes
                     ?? throw new InvalidOperationException($"Connection string '{connectionStringName}' not configured");
                 builder.Services.AddDbContext<TContext>(options =>
                 {
-                    options.UseSqlServer(connStr, o => o.UseCompatibilityLevel(130));
+                    options.UseSqlServer(connStr, o => o.UseCompatibilityLevel(builder.Configuration.GetCompatibilityLevel(connectionStringName)));
                     if (enableDetailedErrors) options.EnableDetailedErrors();
                 });
             }
