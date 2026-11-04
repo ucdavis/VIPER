@@ -20,7 +20,13 @@ namespace Viper.Areas.CTS.Models
 
         }
 
-        public CompetencyDto(Competency c)
+        public CompetencyDto(Competency c) : this(c, includeParent: true)
+        {
+
+        }
+
+        // One level only: a cycle in the data would otherwise overflow the stack and kill the process.
+        private CompetencyDto(Competency c, bool includeParent)
         {
             CompetencyId = c.CompetencyId;
             DomainId = c.DomainId;
@@ -31,7 +37,7 @@ namespace Viper.Areas.CTS.Models
             CanLinkToStudent = c.CanLinkToStudent;
             DomainName = c?.Domain?.Name;
             DomainOrder = c?.Domain?.Order;
-            Parent = c?.Parent != null ? new CompetencyDto(c.Parent) : null;
+            Parent = includeParent && c?.Parent != null ? new CompetencyDto(c.Parent, includeParent: false) : null;
         }
     }
 }
