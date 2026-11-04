@@ -296,8 +296,7 @@ try
             ?? throw new InvalidOperationException($"Connection string '{connectionStringKey}' not configured");
         builder.Services.AddDbContext<TContext>(options =>
         {
-            // Match our SQL Server 2016 compat level (130) so EF Core 10 generates optimal SQL for our DB version
-            options.UseSqlServer(connStr, o => o.UseCompatibilityLevel(130));
+            options.UseSqlServer(connStr, o => o.UseCompatibilityLevel(builder.Configuration.GetCompatibilityLevel(connectionStringKey)));
             if (enableDetailedErrors) options.EnableDetailedErrors();
             configure?.Invoke(options);
         });

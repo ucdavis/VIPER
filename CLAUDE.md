@@ -9,7 +9,7 @@ When I ask a question ("why does X...", "is Y right?") or make an observation ("
 
 ## Architecture
 
-- **DB**: SQL Server 2016 + EF Core (CTS, RAPS, AAUD schemas) | **Auth**: CAS + `[Permission]`
+- **DB**: SQL Server 2025 + EF Core (CTS, RAPS, AAUD schemas) | **Auth**: CAS + `[Permission]`
 - **Identity:** `AaudUser.AaudUserId` = `Person.PersonId`. If mismatched, TEST DB needs refresh.
 - **UI**: Read [DESIGN.md](DESIGN.md) before building or changing UI. Always use Quasar components; prefer VueUse composables over hand-rolled reactive logic.
 - **O(n²) lookups**: Pre-build a `Map`/`Set`/`Dictionary` instead of nesting `.find()`/`.FirstOrDefault()` in a loop over a growable list.
@@ -17,7 +17,7 @@ When I ask a question ("why does X...", "is Y right?") or make an observation ("
 
 ## Database & EF Core
 
-- **SQL Server 2016**: no `STRING_AGG`, `TRIM`, `CONCAT_WS`, `GREATEST/LEAST`
+- **SQL Server 2025**: EF's compat level per connection is in `DatabaseCompatibilityLevels` (`appsettings.json`), and LINQ only generates SQL for that level. Raw SQL can use 2025 functions; compat-gated features must work at the lowest level across environments.
 - Prefer EF entities over raw SQL. Raw SQL only for non-EF tables via `GetConnectionString()`. Never mix raw SQL + EF entities (causes auth failures).
 - **Read-only queries**: Always `.AsNoTracking()` | No `.Include()` before `.Select()`, projections resolve navigations
 - **Correlated subqueries**: Avoid `.Any()` on large tables inside `.Where()`/`.CountAsync()`: pre-load ID sets then `.Contains()`, or `.Join()`
@@ -44,14 +44,14 @@ When I ask a question ("why does X...", "is Y right?") or make an observation ("
 
 ## Testing & Git
 
-- **No VMACS production calls**: Unit tests, local environments, and test environments must NEVER send requests to the VMACS production server. All external HTTP requests (e.g., VMACS, Instinct, IAM API) must be mocked using in-memory databases and mock HTTP clients/factories to prevent production spam.
+- **No production calls from tests or dev**: Tests, local, and TEST must never send requests to the VMACS production server. Mock all external HTTP (VMACS, Instinct, IAM API).
 - **Playwright MCP**: Test UI changes (modals, forms, keyboard nav) and hit API endpoints with it; APIs need browser auth, `curl` fails
 - **Frontend mocks**: Vitest `clearMocks` is on, so `vi.clearAllMocks()` in `beforeEach` is redundant
 - **Frontend test realm**: `vmThreads` pool means values built outside the test realm (`FormData.getAll()`, component props) have a foreign `Array` prototype and `toStrictEqual` fails with "no visual difference". Spread first: `expect([...fd.getAll("x")]).toStrictEqual([...])`.
 - **Branch & merge flow**: Branch off `main` as `feature/`|`fix/`|etc. plus JIRA ticket (e.g. `feature/VPR-104-clinical-scheduler`). After code review, merge into `Development` and push (deploys to TEST); after approval on TEST, merge the PR into `main`. `Development` is a messy merge target only: never branch off, rebase from, or rewrite it, and being behind it is fine.
 - **Squash during review**: On an unmerged single-developer branch, squash review fixes into the relevant commit instead of stacking "address review" commits.
 - **Plan/smoketest notes**: `PLAN-*.md` and `SMOKETEST-*.md` at the repo root are gitignored local notes.
-- **Code-review self-check**: If `PLAN-code-review-lessons.md` exists at the repo root (a personal, gitignored note — may not exist on every machine or for every developer; skip silently if absent), read it and run its pre-flight checklist before saying a change is ready to build, test, or commit.
+- **Code-review self-check**: If the gitignored `PLAN-code-review-lessons.md` exists at the repo root, run its pre-flight checklist before saying a change is ready to build, test, or commit.
 - **Commit messages**: Conventional Commits `type(scope): subject` (`feat`|`fix`|`refactor`|`docs`|`test`|`chore`; prefer `feat` for new behavior), branch ticket ID as prefix (e.g. `VPR-104 fix(a11y): ...`). Subject: imperative, max 72 chars, no trailing period, intent not implementation. Body only when needed: `-` bullets that each earn their place (skip plumbing/helpers/test scaffolding), wrapped at 72.
 - **Line Endings (CRLF)**: Windows checkout and Husky validation strictly require CRLF (`\r\n`) line endings. Always ensure newly created or modified files are saved with CRLF line endings. Running tools/scripts that default to LF (`\n`) will cause pre-commit linter failures.
 - **ReSharper Inspection & EF Core Scaffoldings**:
