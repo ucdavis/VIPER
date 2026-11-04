@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using NSubstitute;
 using Viper.Areas.Effort;
+using Viper.Areas.Effort.Constants;
 using Viper.Areas.Effort.Models.Entities;
 using Viper.Areas.Effort.Services;
 using Viper.Classes.SQLContext;
@@ -44,7 +45,7 @@ public sealed class TermServiceTests : IDisposable
         _auditServiceMock
             .LogImportAsync(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
 
-        _termService = new TermService(_context, _viperContext, _auditServiceMock);
+        _termService = new TermService(_context, _viperContext, _auditServiceMock, new CourseClassificationService());
     }
 
     public void Dispose()
@@ -52,6 +53,49 @@ public sealed class TermServiceTests : IDisposable
         _context.Dispose();
         _viperContext.Dispose();
     }
+
+    private const int TestTermCode = 202410;
+
+    private void AddOpenTerm() =>
+        _context.Terms.Add(new EffortTerm { TermCode = TestTermCode, OpenedDate = DateTime.Now.AddDays(-7) });
+
+    private void AddPerson(int personId, bool verified, int termCode = TestTermCode) =>
+        _context.Persons.Add(new EffortPerson
+        {
+            PersonId = personId,
+            TermCode = termCode,
+            FirstName = "Test",
+            LastName = "Instructor",
+            EffortTitleCode = "PROF",
+            EffortDept = "VME",
+            EffortVerified = verified ? DateTime.Now.AddDays(-1) : null
+        });
+
+    private void AddCourse(int id, int enrollment, string crn, string subjCode = "DVM", string crseNumb = "443", int termCode = TestTermCode) =>
+        _context.Courses.Add(new EffortCourse
+        {
+            Id = id,
+            TermCode = termCode,
+            Enrollment = enrollment,
+            Crn = crn,
+            SubjCode = subjCode,
+            CrseNumb = crseNumb,
+            SeqNumb = "001"
+        });
+
+    private void AddRecord(int id, int personId, int courseId, int? hours, int? weeks = null, int termCode = TestTermCode) =>
+        _context.Records.Add(new EffortRecord
+        {
+            Id = id,
+            PersonId = personId,
+            CourseId = courseId,
+            TermCode = termCode,
+            EffortTypeId = "LEC",
+            RoleId = 1,
+            Crn = "12345",
+            Hours = hours,
+            Weeks = weeks
+        });
 
     #region GetTermsAsync Tests
 
@@ -565,20 +609,217 @@ public sealed class TermServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task CloseTermAsync_Fails_WhenCoursesHaveZeroEnrollment()
+    public async Task CloseTermAsync_FailsAndChangesNothing_WhenZeroEnrollmentCourseKeepsEffort()
     {
-        // Arrange - OpenedDate makes status "Opened"
-        _context.Terms.Add(new EffortTerm { TermCode = 202410, OpenedDate = DateTime.Now.AddDays(-7) });
-        _context.Courses.Add(new EffortCourse { Id = 1, TermCode = 202410, Enrollment = 0, Crn = "12345" });
-        _context.Courses.Add(new EffortCourse { Id = 2, TermCode = 202410, Enrollment = 0, Crn = "12346" });
+        // Arrange
+        AddOpenTerm();
+        AddPerson(100, verified: true);
+        AddPerson(101, verified: false);
+        AddCourse(1, enrollment: 0, crn: "12345", subjCode: "VME", crseNumb: "200");
+        AddCourse(2, enrollment: 0, crn: "12346");
+        AddCourse(3, enrollment: 10, crn: "12347");
+        AddRecord(1, personId: 100, courseId: 1, hours: 5);
+        AddRecord(2, personId: 101, courseId: 3, hours: 0);
         await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var (success, errorMessage) = await _termService.CloseTermAsync(202410, TestContext.Current.CancellationToken);
+        var (success, errorMessage) = await _termService.CloseTermAsync(TestTermCode, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(success);
-        Assert.Contains("2 course(s) have zero enrollment", errorMessage);
+        Assert.Contains("1 course(s) have zero enrollment and effort records: VME 200-001", errorMessage);
+        Assert.Equal(2, await _context.Records.CountAsync(TestContext.Current.CancellationToken));
+        Assert.Equal(3, await _context.Courses.CountAsync(TestContext.Current.CancellationToken));
+        var term = await _context.Terms.SingleAsync(TestContext.Current.CancellationToken);
+        Assert.Null(term.ClosedDate);
+    }
+
+    [Fact]
+    public async Task CloseTermAsync_FailsAndDeletesNothing_WhenTermNotOpen()
+    {
+        // Arrange - harvested but never opened, with data that cleanup would otherwise remove
+        _context.Terms.Add(new EffortTerm { TermCode = TestTermCode });
+        AddPerson(100, verified: false);
+        AddCourse(1, enrollment: 0, crn: "12345");
+        AddRecord(1, personId: 100, courseId: 1, hours: 0);
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        // Act
+        var (success, errorMessage) = await _termService.CloseTermAsync(TestTermCode, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.False(success);
+        Assert.Equal("Term must be opened before it can be closed", errorMessage);
+        Assert.Equal(1, await _context.Records.CountAsync(TestContext.Current.CancellationToken));
+        Assert.Equal(1, await _context.Courses.CountAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task CloseTermAsync_RemovesOnlyZeroEffortRecordsOfUnverifiedInstructors()
+    {
+        // Arrange
+        AddOpenTerm();
+        AddPerson(100, verified: false);
+        AddPerson(101, verified: true);
+        AddCourse(1, enrollment: 10, crn: "12345");
+        AddCourse(2, enrollment: 10, crn: "12346");
+        AddRecord(1, personId: 100, courseId: 1, hours: 0);
+        AddRecord(2, personId: 100, courseId: 2, hours: null, weeks: null);
+        AddRecord(3, personId: 100, courseId: 2, hours: 4);
+        AddRecord(4, personId: 100, courseId: 1, hours: null, weeks: 2);
+        AddRecord(5, personId: 101, courseId: 1, hours: 0);
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        // Act
+        var (success, _) = await _termService.CloseTermAsync(TestTermCode, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.True(success);
+        var remainingIds = await _context.Records.Select(r => r.Id).OrderBy(id => id).ToListAsync(TestContext.Current.CancellationToken);
+        Assert.Equal([3, 4, 5], remainingIds);
+        // The unverified instructor's report is kept, and closing is still allowed
+        Assert.Equal(2, await _context.Persons.CountAsync(TestContext.Current.CancellationToken));
+        _auditServiceMock.Received(2).AddRecordChangeAudit(
+            Arg.Any<int>(), Arg.Is(TestTermCode), EffortAuditActions.DeleteEffort, Arg.Any<object?>(), Arg.Is<object?>(v => v == null));
+    }
+
+    [Fact]
+    public async Task CloseTermAsync_RemovesZeroEnrollmentCourse_LeftEmptyByCleanup()
+    {
+        // Arrange
+        AddOpenTerm();
+        AddPerson(100, verified: false);
+        AddCourse(1, enrollment: 0, crn: "12345");
+        AddCourse(2, enrollment: 0, crn: "12346");
+        AddCourse(3, enrollment: 10, crn: "12347");
+        AddRecord(1, personId: 100, courseId: 1, hours: 0);
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        // Act
+        var (success, _) = await _termService.CloseTermAsync(TestTermCode, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.True(success);
+        var course = await _context.Courses.SingleAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(3, course.Id);
+        _auditServiceMock.Received(2).AddCourseChangeAudit(
+            Arg.Any<int>(), Arg.Is(TestTermCode), EffortAuditActions.DeleteCourse, Arg.Any<object?>(), Arg.Is<object?>(v => v == null));
+    }
+
+    [Fact]
+    public async Task CloseTermAsync_RemovesEmptyChildCourseAndItsRelationship()
+    {
+        // Arrange
+        AddOpenTerm();
+        AddCourse(1, enrollment: 10, crn: "12345");
+        AddCourse(2, enrollment: 0, crn: "12346");
+        _context.CourseRelationships.Add(new CourseRelationship { Id = 1, ParentCourseId = 1, ChildCourseId = 2, RelationshipType = "CrossList" });
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        // Act
+        var (success, _) = await _termService.CloseTermAsync(TestTermCode, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.True(success);
+        Assert.Equal(1, (await _context.Courses.SingleAsync(TestContext.Current.CancellationToken)).Id);
+        Assert.Empty(await _context.CourseRelationships.ToListAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task CloseTermAsync_KeepsEmptyParentCourse_WhenChildSurvives()
+    {
+        // Arrange
+        AddOpenTerm();
+        AddCourse(1, enrollment: 0, crn: "12345");
+        AddCourse(2, enrollment: 10, crn: "12346");
+        _context.CourseRelationships.Add(new CourseRelationship { Id = 1, ParentCourseId = 1, ChildCourseId = 2, RelationshipType = "CrossList" });
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        // Act
+        var (success, _) = await _termService.CloseTermAsync(TestTermCode, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.True(success);
+        Assert.Equal(2, await _context.Courses.CountAsync(TestContext.Current.CancellationToken));
+        Assert.Single(await _context.CourseRelationships.ToListAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task CloseTermAsync_RemovesEmptyParentCourse_WhenAllChildrenAreRemoved()
+    {
+        // Arrange
+        AddOpenTerm();
+        AddCourse(1, enrollment: 0, crn: "12345");
+        AddCourse(2, enrollment: 0, crn: "12346");
+        _context.CourseRelationships.Add(new CourseRelationship { Id = 1, ParentCourseId = 1, ChildCourseId = 2, RelationshipType = "CrossList" });
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        // Act
+        var (success, _) = await _termService.CloseTermAsync(TestTermCode, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.True(success);
+        Assert.Empty(await _context.Courses.ToListAsync(TestContext.Current.CancellationToken));
+        Assert.Empty(await _context.CourseRelationships.ToListAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task CloseTermAsync_GenericRCourseWithEffort_DoesNotBlockAndIsKept()
+    {
+        // Arrange - weeks-based generic R-course record has Hours = null
+        AddOpenTerm();
+        AddPerson(100, verified: false);
+        AddCourse(1, enrollment: 0, crn: "RESID");
+        AddRecord(1, personId: 100, courseId: 1, hours: null, weeks: 1);
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        // Act
+        var (success, errorMessage) = await _termService.CloseTermAsync(TestTermCode, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.True(success, errorMessage);
+        Assert.Equal(1, await _context.Courses.CountAsync(TestContext.Current.CancellationToken));
+        Assert.Equal(1, await _context.Records.CountAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task CloseTermAsync_GenericRCourseWithNoEffort_IsRemoved()
+    {
+        // Arrange
+        AddOpenTerm();
+        AddPerson(100, verified: false);
+        AddCourse(1, enrollment: 0, crn: "RESID");
+        AddRecord(1, personId: 100, courseId: 1, hours: 0);
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        // Act
+        var (success, _) = await _termService.CloseTermAsync(TestTermCode, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.True(success);
+        Assert.Empty(await _context.Courses.ToListAsync(TestContext.Current.CancellationToken));
+        Assert.Empty(await _context.Records.ToListAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task CloseTermAsync_LeavesOtherTermsUntouched()
+    {
+        // Arrange
+        AddOpenTerm();
+        const int otherTerm = 202501;
+        _context.Terms.Add(new EffortTerm { TermCode = otherTerm });
+        AddPerson(100, verified: false, termCode: otherTerm);
+        AddCourse(1, enrollment: 0, crn: "12345", termCode: otherTerm);
+        AddRecord(1, personId: 100, courseId: 1, hours: 0, termCode: otherTerm);
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        // Act
+        var (success, _) = await _termService.CloseTermAsync(TestTermCode, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.True(success);
+        Assert.Equal(1, await _context.Courses.CountAsync(TestContext.Current.CancellationToken));
+        Assert.Equal(1, await _context.Records.CountAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -773,29 +1014,72 @@ public sealed class TermServiceTests : IDisposable
         await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var (canClose, zeroEnrollmentCount) = await _termService.CanCloseTermAsync(202410, TestContext.Current.CancellationToken);
+        var (canClose, blockingCourseCount) = await _termService.CanCloseTermAsync(202410, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(canClose);
-        Assert.Equal(0, zeroEnrollmentCount);
+        Assert.Equal(0, blockingCourseCount);
     }
 
     [Fact]
-    public async Task CanCloseTermAsync_ReturnsCanCloseFalse_WithZeroEnrollmentCount()
+    public async Task CanCloseTermAsync_CountsOnlyZeroEnrollmentCoursesThatKeepEffort()
     {
         // Arrange
-        _context.Terms.Add(new EffortTerm { TermCode = 202410 });
-        _context.Courses.Add(new EffortCourse { Id = 1, TermCode = 202410, Enrollment = 0, Crn = "12345" });
-        _context.Courses.Add(new EffortCourse { Id = 2, TermCode = 202410, Enrollment = 0, Crn = "12346" });
-        _context.Courses.Add(new EffortCourse { Id = 3, TermCode = 202410, Enrollment = 5, Crn = "12347" });
+        _context.Terms.Add(new EffortTerm { TermCode = TestTermCode });
+        AddPerson(100, verified: true);
+        AddPerson(101, verified: false);
+        AddCourse(1, enrollment: 0, crn: "12345");
+        AddCourse(2, enrollment: 0, crn: "12346");
+        AddCourse(3, enrollment: 0, crn: "12347");
+        AddCourse(4, enrollment: 5, crn: "12348");
+        AddRecord(1, personId: 100, courseId: 1, hours: 5);
+        AddRecord(2, personId: 101, courseId: 2, hours: 0);
         await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var (canClose, zeroEnrollmentCount) = await _termService.CanCloseTermAsync(202410, TestContext.Current.CancellationToken);
+        var (canClose, blockingCourseCount) = await _termService.CanCloseTermAsync(TestTermCode, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(canClose);
-        Assert.Equal(2, zeroEnrollmentCount);
+        Assert.Equal(1, blockingCourseCount);
+    }
+
+    [Fact]
+    public async Task CanCloseTermAsync_DoesNotTrackEntities()
+    {
+        // Arrange
+        AddOpenTerm();
+        AddPerson(100, verified: false);
+        AddCourse(1, enrollment: 0, crn: "12345");
+        AddCourse(2, enrollment: 10, crn: "12346");
+        AddRecord(1, personId: 100, courseId: 1, hours: 0);
+        _context.CourseRelationships.Add(new CourseRelationship { Id = 1, ParentCourseId = 2, ChildCourseId = 1, RelationshipType = "CrossList" });
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+        _context.ChangeTracker.Clear();
+
+        // Act
+        await _termService.CanCloseTermAsync(TestTermCode, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.Empty(_context.ChangeTracker.Entries());
+    }
+
+    [Fact]
+    public async Task CanCloseTermAsync_VerifiedZeroEffortRecordStillBlocks()
+    {
+        // Arrange - cleanup only touches unverified instructors
+        _context.Terms.Add(new EffortTerm { TermCode = TestTermCode });
+        AddPerson(100, verified: true);
+        AddCourse(1, enrollment: 0, crn: "12345");
+        AddRecord(1, personId: 100, courseId: 1, hours: 0);
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        // Act
+        var (canClose, blockingCourseCount) = await _termService.CanCloseTermAsync(TestTermCode, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.False(canClose);
+        Assert.Equal(1, blockingCourseCount);
     }
 
     #endregion
