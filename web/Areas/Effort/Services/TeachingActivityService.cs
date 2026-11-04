@@ -232,8 +232,8 @@ public class TeachingActivityService : BaseReportService, ITeachingActivityServi
                         });
                         col.Item().PaddingVertical(6).Row(row =>
                         {
-                            row.RelativeItem().SemanticHeader1().Text(reportTitle).SemiBold().FontSize(12);
-                            row.RelativeItem().AlignCenter().SemanticHeader2().Text(dept.Department).SemiBold().FontSize(12);
+                            row.RelativeItem().SemanticHeading1().Text(reportTitle).SemiBold().FontSize(12);
+                            row.RelativeItem().AlignCenter().SemanticHeading2().Text(dept.Department).SemiBold().FontSize(12);
                             row.RelativeItem().AlignRight().Text(report.TermName).SemiBold().FontSize(12);
                         });
                     });
@@ -392,12 +392,12 @@ public class TeachingActivityService : BaseReportService, ITeachingActivityServi
                         });
                         col.Item().PaddingVertical(6).Row(row =>
                         {
-                            row.RelativeItem().SemanticHeader1().Text(reportTitle).SemiBold().FontSize(12);
+                            row.RelativeItem().SemanticHeading1().Text(reportTitle).SemiBold().FontSize(12);
                             row.RelativeItem().AlignCenter().Text(dept).SemiBold().FontSize(12);
                             row.RelativeItem().AlignRight().Text(report.TermName).SemiBold().FontSize(12);
                         });
                         // Instructor name below the sub-header
-                        col.Item().PaddingBottom(4).SemanticHeader2().Text(instructor.Instructor).Bold().FontSize(11);
+                        col.Item().PaddingBottom(4).SemanticHeading2().Text(instructor.Instructor).Bold().FontSize(11);
                     });
 
                     page.Content().SemanticTable().Table(table =>
