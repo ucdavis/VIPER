@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.Data.SqlClient;
@@ -45,7 +46,9 @@ namespace Viper.Scripts.LegacyMigration
         {
             WriteIndented = true,
             NewLine = "\r\n",
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            // summary.json is read by people and never served to a browser.
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
         };
 
         private readonly string _connectionString;

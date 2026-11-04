@@ -126,13 +126,14 @@ namespace Viper.Scripts.LegacyMigration
             {
                 var leftText = File.ReadAllText(leftFiles[key]);
                 var rightText = File.ReadAllText(rightFiles[key]);
-                var leftMissing = leftText.Contains(MissingDefinitionMarker);
-                var rightMissing = rightText.Contains(MissingDefinitionMarker);
+                var leftReason = HiddenReason(leftText);
+                var rightReason = HiddenReason(rightText);
+                var leftMissing = leftReason != null;
+                var rightMissing = rightReason != null;
 
                 if (leftMissing && rightMissing)
                 {
                     // Neither file holds a definition, so matching files say nothing about whether the objects match.
-                    var (leftReason, rightReason) = (MissingReason(leftText), MissingReason(rightText));
                     hiddenInBoth.Add(leftReason == rightReason
                         ? $"{key} ({leftReason})"
                         : $"{key} ({_left}: {leftReason}; {_right}: {rightReason})");
@@ -155,7 +156,7 @@ namespace Viper.Scripts.LegacyMigration
                     // The difference is that one environment would not show the definition, not that the
                     // definitions differ, so it is reported as a gap rather than a difference.
                     var hidden = leftMissing ? _left : _right;
-                    permissionGaps.Add($"{key}: definition not visible in {hidden} ({MissingReason(leftMissing ? leftText : rightText)})");
+                    permissionGaps.Add($"{key}: definition not visible in {hidden} ({leftReason ?? rightReason})");
                 }
                 else if (Normalize(leftText) == Normalize(rightText))
                 {
@@ -327,11 +328,16 @@ namespace Viper.Scripts.LegacyMigration
                 ? (m.Groups[1].Value.Replace("]]", "]"), m.Groups[2].Value.Replace("]]", "]"))
                 : null;
 
-        private static string MissingReason(string text)
+        /// <summary>
+        /// Why the export has no definition for this object, or null when it has one. Only the header's comment
+        /// lines are read: a real definition follows SET lines, so text in its body is never taken for the marker.
+        /// </summary>
+        internal static string? HiddenReason(string text)
         {
-            var start = text.IndexOf(MissingDefinitionMarker, StringComparison.Ordinal) + MissingDefinitionMarker.Length;
-            var end = text.IndexOfAny(['\r', '\n'], start);
-            return (end < 0 ? text[start..] : text[start..end]).Trim();
+            var markerLine = text.Split('\n')
+                .TakeWhile(line => line.StartsWith("--", StringComparison.Ordinal))
+                .FirstOrDefault(line => line.StartsWith(MissingDefinitionMarker, StringComparison.Ordinal));
+            return markerLine == null ? null : markerLine[MissingDefinitionMarker.Length..].Trim();
         }
 
         private void WriteHeader(SchemaSummary left, SchemaSummary right)

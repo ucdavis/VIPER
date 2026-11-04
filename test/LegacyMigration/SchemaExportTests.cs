@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Viper.Scripts.LegacyMigration;
 
 namespace Viper.test.LegacyMigration;
@@ -350,6 +351,19 @@ public sealed class SchemaExportTests : IDisposable
 
         Assert.Equal("The SELECT permission was denied. (error 229)", summary.ReferencesError);
         Assert.Empty(summary.ExternalReferences);
+    }
+
+    [Fact]
+    public void SummaryJson_KeepsConstraintTextReadable_AndReadsBackTheSame()
+    {
+        const string definition = "([code]<>'café' AND [id]+(1)>(0))";
+
+        Write(NewCatalog(checks: [Check("CK_code", definition)]));
+
+        var json = Read("Test", "summary.json");
+        Assert.Contains(definition, json, StringComparison.Ordinal);
+        var summary = JsonSerializer.Deserialize<SchemaSummary>(json, SchemaExport.JsonOptions);
+        Assert.Equal(definition, Assert.Single(summary!.CheckConstraints).Definition);
     }
 
     [Theory]
