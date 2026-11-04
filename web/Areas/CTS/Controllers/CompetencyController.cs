@@ -110,6 +110,11 @@ namespace Viper.Areas.CTS.Controllers
                 return BadRequest("That parent would create a cycle in the competency hierarchy.");
             }
 
+            if (!await context.Domains.AnyAsync(d => d.DomainId == competency.DomainId))
+            {
+                return BadRequest("Domain not found.");
+            }
+
             var duplicates = await context.Competencies.Where(c => c.Number == competency.Number).ToListAsync();
             if (duplicates.Count > 0)
             {
@@ -161,6 +166,11 @@ namespace Viper.Areas.CTS.Controllers
                 return BadRequest("That parent would create a cycle in the competency hierarchy.");
             }
 
+            if (!await context.Domains.AnyAsync(d => d.DomainId == competency.DomainId))
+            {
+                return BadRequest("Domain not found.");
+            }
+
             var duplicates = await context.Competencies
                 .Where(c => c.CompetencyId != competency.CompetencyId)
                 .Where(c => c.Number == competency.Number)
@@ -174,6 +184,7 @@ namespace Viper.Areas.CTS.Controllers
             c.Number = competency.Number;
             c.Description = competency.Description;
             c.CanLinkToStudent = competency.CanLinkToStudent;
+            c.DomainId = competency.DomainId;
             c.ParentId = competency.ParentId;
 
             context.Competencies.Update(c);
