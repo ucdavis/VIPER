@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.Extensions.Options;
 using NSubstitute;
 using Viper.Areas.Effort;
 using Viper.Areas.Effort.Constants;
@@ -18,6 +19,7 @@ public sealed class TermServiceTests : IDisposable
     private readonly EffortDbContext _context;
     private readonly VIPERContext _viperContext;
     private readonly IEffortAuditService _auditServiceMock;
+    private readonly IRCourseService _rCourseServiceMock;
     private readonly TermService _termService;
 
     public TermServiceTests()
@@ -45,7 +47,10 @@ public sealed class TermServiceTests : IDisposable
         _auditServiceMock
             .LogImportAsync(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
 
-        _termService = new TermService(_context, _viperContext, _auditServiceMock, new CourseClassificationService());
+        _rCourseServiceMock = Substitute.For<IRCourseService>();
+
+        _termService = new TermService(_context, _viperContext, _auditServiceMock, new CourseClassificationService(),
+            _rCourseServiceMock, Options.Create(new EffortSettings { AutoCreateGenericRCourse = true }));
     }
 
     public void Dispose()
@@ -55,6 +60,10 @@ public sealed class TermServiceTests : IDisposable
     }
 
     private const int TestTermCode = 202410;
+    private const int TestModifiedBy = 999;
+
+    private void AddClosedTerm() =>
+        _context.Terms.Add(new EffortTerm { TermCode = TestTermCode, OpenedDate = DateTime.Now.AddDays(-30), ClosedDate = DateTime.Now.AddDays(-1) });
 
     private void AddOpenTerm() =>
         _context.Terms.Add(new EffortTerm { TermCode = TestTermCode, OpenedDate = DateTime.Now.AddDays(-7) });
@@ -845,21 +854,49 @@ public sealed class TermServiceTests : IDisposable
     public async Task ReopenTermAsync_SetsStatusToOpened_AndClearsClosedDate()
     {
         // Arrange - ClosedDate makes status "Closed"
-        _context.Terms.Add(new EffortTerm
-        {
-            TermCode = 202410,
-            OpenedDate = DateTime.Now.AddDays(-30),
-            ClosedDate = DateTime.Now.AddDays(-1)
-        });
+        AddClosedTerm();
         await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var term = await _termService.ReopenTermAsync(202410, TestContext.Current.CancellationToken);
+        var term = await _termService.ReopenTermAsync(TestTermCode, TestModifiedBy, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(term);
         Assert.Equal("Opened", term.Status);
         Assert.Null(term.ClosedDate);
+    }
+
+    [Fact]
+    public async Task ReopenTermAsync_RecreatesGenericRCourses_WhenAutoCreateEnabled()
+    {
+        // Arrange
+        AddClosedTerm();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        // Act
+        await _termService.ReopenTermAsync(TestTermCode, TestModifiedBy, TestContext.Current.CancellationToken);
+
+        // Assert
+        await _rCourseServiceMock.Received(1).CreateForEligibleInstructorsAsync(
+            TestTermCode, TestModifiedBy, RCourseCreationContext.Reopen, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ReopenTermAsync_DoesNotRecreateGenericRCourse_WhenAutoCreateDisabled()
+    {
+        // Arrange
+        var termService = new TermService(_context, _viperContext, _auditServiceMock, new CourseClassificationService(),
+            _rCourseServiceMock, Options.Create(new EffortSettings { AutoCreateGenericRCourse = false }));
+        AddClosedTerm();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        // Act
+        var term = await termService.ReopenTermAsync(TestTermCode, TestModifiedBy, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.Equal("Opened", term?.Status);
+        await _rCourseServiceMock.DidNotReceive().CreateForEligibleInstructorsAsync(
+            Arg.Any<int>(), Arg.Any<int>(), Arg.Any<RCourseCreationContext>(), Arg.Any<CancellationToken>());
     }
 
     #endregion

@@ -26,6 +26,25 @@ public class RCourseService : IRCourseService
     }
 
     /// <inheritdoc />
+    public async Task CreateForEligibleInstructorsAsync(int termCode, int modifiedBy, RCourseCreationContext context, CancellationToken ct = default)
+    {
+        var eligibleInstructors = await _context.Records
+            .AsNoTracking()
+            // CrseNumb is char(5), so it must be trimmed or "410R " does not end in R
+            .Where(r => r.TermCode == termCode
+                     && r.Person.EffortVerified == null
+                     && !r.Course.CrseNumb.Trim().EndsWith('R'))
+            .Select(r => r.PersonId)
+            .Distinct()
+            .ToListAsync(ct);
+
+        _logger.LogInformation("Found {Count} eligible instructors for R-course generation in term {TermCode}",
+            eligibleInstructors.Count, termCode);
+
+        await CreateRecordsAsync(eligibleInstructors, termCode, modifiedBy, context, ct);
+    }
+
+    /// <inheritdoc />
     public async Task<EffortCourse> GetOrCreateGenericRCourseAsync(int termCode, CancellationToken ct = default)
     {
         var genericRCourse = await _context.Courses
@@ -69,22 +88,39 @@ public class RCourseService : IRCourseService
     }
 
     /// <inheritdoc />
-    public async Task CreateRCourseEffortRecordAsync(
+    public Task CreateRCourseEffortRecordAsync(
         int personId,
         int termCode,
         int modifiedBy,
         RCourseCreationContext context,
-        CancellationToken ct = default)
+        CancellationToken ct = default) =>
+        CreateRecordsAsync([personId], termCode, modifiedBy, context, ct);
+
+    private async Task CreateRecordsAsync(
+        List<int> personIds,
+        int termCode,
+        int modifiedBy,
+        RCourseCreationContext context,
+        CancellationToken ct)
     {
+        if (personIds.Count == 0)
+        {
+            return;
+        }
+
         var genericRCourse = await GetOrCreateGenericRCourseAsync(termCode, ct);
 
-        // Check if effort record already exists (idempotent)
-        var existingRecord = await _context.Records
-            .AnyAsync(r => r.PersonId == personId
-                        && r.CourseId == genericRCourse.Id
-                        && r.TermCode == termCode, ct);
+        // Skip instructors who already have the record (idempotent)
+        var existingPersonIds = await _context.Records
+            .AsNoTracking()
+            .Where(r => r.CourseId == genericRCourse.Id
+                     && r.TermCode == termCode
+                     && EF.Parameter(personIds).Contains(r.PersonId))
+            .Select(r => r.PersonId)
+            .ToListAsync(ct);
+        var missingPersonIds = personIds.Except(existingPersonIds).ToList();
 
-        if (existingRecord)
+        if (missingPersonIds.Count == 0)
         {
             return;
         }
@@ -98,13 +134,13 @@ public class RCourseService : IRCourseService
         if (defaultEffortType == null)
         {
             _logger.LogWarning(
-                "Cannot create R-course for PersonId {PersonId} in term {TermCode}: " +
+                "Cannot create R-course for {Count} instructors in term {TermCode}: " +
                 "No active effort type with AllowedOnRCourses=true exists",
-                personId, termCode);
+                missingPersonIds.Count, termCode);
             return;
         }
 
-        var effortRecord = new EffortRecord
+        var effortRecords = missingPersonIds.Select(personId => new EffortRecord
         {
             PersonId = personId,
             CourseId = genericRCourse.Id,
@@ -116,16 +152,19 @@ public class RCourseService : IRCourseService
             Crn = "RESID",
             ModifiedDate = DateTime.Now,
             ModifiedBy = modifiedBy
-        };
-        _context.Records.Add(effortRecord);
+        }).ToList();
+        _context.Records.AddRange(effortRecords);
         await _context.SaveChangesAsync(ct);
 
-        // Create audit entry with context-specific details
-        var details = context == RCourseCreationContext.Harvest
-            ? "Generic R-course effort record auto-created during harvest"
-            : "Generic R-course effort record auto-created when first non-R-course added";
+        // Create audit entries with context-specific details
+        var details = context switch
+        {
+            RCourseCreationContext.Harvest => "Generic R-course effort record auto-created during harvest",
+            RCourseCreationContext.Reopen => "Generic R-course effort record auto-created when term reopened",
+            _ => "Generic R-course effort record auto-created when first non-R-course added"
+        };
 
-        var auditEntry = new Audit
+        _context.Audits.AddRange(effortRecords.Select(effortRecord => new Audit
         {
             TableName = EffortAuditTables.Records,
             RecordId = effortRecord.Id,
@@ -135,16 +174,15 @@ public class RCourseService : IRCourseService
             ChangedDate = DateTime.Now,
             Changes = JsonSerializer.Serialize(new Dictionary<string, object>
             {
-                ["PersonId"] = personId,
+                ["PersonId"] = effortRecord.PersonId,
                 ["Course"] = "RES 000R",
                 ["Type"] = defaultEffortType.Id,
                 ["Details"] = details
             })
-        };
-        _context.Audits.Add(auditEntry);
+        }));
         await _context.SaveChangesAsync(ct);
 
-        _logger.LogDebug("Created R-course effort record for PersonId {PersonId} in term {TermCode} (context: {Context})",
-            personId, termCode, context);
+        _logger.LogDebug("Created {Count} R-course effort records in term {TermCode} (context: {Context})",
+            effortRecords.Count, termCode, context);
     }
 }
