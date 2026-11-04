@@ -38,7 +38,7 @@ Because migration is incremental, every new surface has to be legible next to a 
 ## Capabilities and Constraints
 
 - **Stack.** ASP.NET 10 backend organized per area under `web/Areas/{AreaName}/`, with a Vue 3 multi-SPA frontend built by Vite into `wwwroot/vue/`. Quasar is the component vocabulary; new screens compose it rather than introducing bespoke markup.
-- **Data.** SQL Server 2016 with EF Core, spanning the CTS, RAPS, and AAUD schemas plus `effort` and `users`. The 2016 target rules out `STRING_AGG`, `TRIM`, `CONCAT_WS`, and `GREATEST`/`LEAST`.
+- **Data.** SQL Server 2025 with EF Core, spanning the CTS, RAPS, and AAUD schemas plus `effort` and `users`.
 - **Identity.** `AaudUser.AaudUserId` equals `Person.PersonId`. Records are de-duplicated by MothraId.
 - **Terminology future work must preserve.** RAPS (roles and permissions), CTS (competency tracking), AAUD (campus identity), effort (reporting), rotation (clinical scheduling), MothraId, area.
 - **Open and undecided.** Which remaining VIPER 1 areas migrate next, and in what order, is not recorded here.

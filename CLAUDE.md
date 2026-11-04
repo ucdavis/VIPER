@@ -9,7 +9,7 @@ When I ask a question ("why does X...", "is Y right?") or make an observation ("
 
 ## Architecture
 
-- **DB**: SQL Server 2016 + EF Core (CTS, RAPS, AAUD schemas) | **Auth**: CAS + `[Permission]`
+- **DB**: SQL Server 2025 + EF Core (CTS, RAPS, AAUD schemas) | **Auth**: CAS + `[Permission]`
 - **Identity:** `AaudUser.AaudUserId` = `Person.PersonId`. If mismatched, TEST DB needs refresh.
 - **UI**: Read [DESIGN.md](DESIGN.md) before building or changing UI. Always use Quasar components; prefer VueUse composables over hand-rolled reactive logic.
 - **O(n²) lookups**: Pre-build a `Map`/`Set`/`Dictionary` instead of nesting `.find()`/`.FirstOrDefault()` in a loop over a growable list.
@@ -17,7 +17,7 @@ When I ask a question ("why does X...", "is Y right?") or make an observation ("
 
 ## Database & EF Core
 
-- **SQL Server 2016**: no `STRING_AGG`, `TRIM`, `CONCAT_WS`, `GREATEST/LEAST`
+- **SQL Server 2025**: EF's compat level per connection is in `DatabaseCompatibilityLevels` (`appsettings.json`), and LINQ only generates SQL for that level. Raw SQL can use 2025 functions; compat-gated features must work at the lowest level across environments.
 - Prefer EF entities over raw SQL. Raw SQL only for non-EF tables via `GetConnectionString()`. Never mix raw SQL + EF entities (causes auth failures).
 - **Read-only queries**: Always `.AsNoTracking()` | No `.Include()` before `.Select()`, projections resolve navigations
 - **Correlated subqueries**: Avoid `.Any()` on large tables inside `.Where()`/`.CountAsync()`: pre-load ID sets then `.Contains()`, or `.Join()`
