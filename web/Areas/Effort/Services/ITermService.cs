@@ -56,9 +56,10 @@ public interface ITermService
     Task<TermDto?> OpenTermAsync(int termCode, CancellationToken ct = default);
 
     /// <summary>
-    /// Close a term. Validates no courses have zero enrollment.
+    /// Close a term, removing zero-effort records of unverified instructors and zero-enrollment courses left empty.
+    /// Fails without changing anything if a zero-enrollment course would still have effort records.
     /// </summary>
-    /// <returns>Tuple of (success, errorMessage). Error message contains count of zero-enrollment courses if validation fails.</returns>
+    /// <returns>Tuple of (success, errorMessage). Error message lists the blocking courses if validation fails.</returns>
     Task<(bool Success, string? ErrorMessage)> CloseTermAsync(int termCode, CancellationToken ct = default);
 
     /// <summary>
@@ -77,10 +78,10 @@ public interface ITermService
     Task<bool> CanDeleteTermAsync(int termCode, CancellationToken ct = default);
 
     /// <summary>
-    /// Check if a term can be closed (no courses with zero enrollment).
+    /// Check if a term can be closed (no zero-enrollment courses would still have effort records after cleanup).
     /// </summary>
-    /// <returns>Tuple of (canClose, zeroEnrollmentCount).</returns>
-    Task<(bool CanClose, int ZeroEnrollmentCount)> CanCloseTermAsync(int termCode, CancellationToken ct = default);
+    /// <returns>Tuple of (canClose, blockingCourseCount).</returns>
+    Task<(bool CanClose, int BlockingCourseCount)> CanCloseTermAsync(int termCode, CancellationToken ct = default);
 
     /// <summary>
     /// Get future terms from vwTerms that are not yet in the Effort system.
