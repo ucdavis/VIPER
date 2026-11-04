@@ -49,7 +49,7 @@ namespace Viper.Scripts.LegacyMigration
             Console.WriteLine();
             Console.WriteLine("Usage:");
             Console.WriteLine("  RunSchemaExport.bat <ConnectionName> <Development|Test|Production>");
-            Console.WriteLine("  RunSchemaCompare.bat <ConnectionName> <Environment> <Environment>");
+            Console.WriteLine("  RunSchemaCompare.bat <ConnectionName> <EnvironmentA> <EnvironmentB>  (two different environments)");
             Console.WriteLine();
             Console.WriteLine("Commands:");
             Console.WriteLine("  schema-export --connection <name>                  Export schema and object definitions (no table data)");
