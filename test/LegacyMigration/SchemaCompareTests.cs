@@ -102,6 +102,33 @@ public sealed class SchemaCompareTests : IDisposable
     }
 
     [Fact]
+    public void Report_HiddenDefinitionAfterALongerHeader_IsStillHidden()
+    {
+        var hidden = $"-- SQL_TRIGGER: [dbo].[trgAudit]\n-- On table: [dbo].[tblAudit]\n-- DISABLED trigger\n{SchemaExport.MissingDefinitionMarker} created WITH ENCRYPTION\n";
+        Export("Test", new SchemaSummary(), ("Triggers/dbo.trgAudit.sql", hidden));
+        Export("Production", new SchemaSummary(), ("Triggers/dbo.trgAudit.sql", hidden));
+
+        Assert.Contains("HIDDEN IN BOTH, NOT COMPARED (1)\r\n  Triggers/dbo.trgAudit (created WITH ENCRYPTION)\r\n", Report(), StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("MARKER see ticket 123\nCREATE PROCEDURE dbo.Real AS SELECT 1")]
+    [InlineData("CREATE PROCEDURE dbo.Real AS\nMARKER see ticket 123\nSELECT 1")]
+    public void Report_DefinitionMentioningTheMarker_IsComparedAsADefinition(string definition)
+    {
+        static string Script(string body) =>
+            $"-- SQL_STORED_PROCEDURE: [dbo].[Real]\nSET ANSI_NULLS ON\nGO\nSET QUOTED_IDENTIFIER ON\nGO\n{body}\nGO\n";
+        var body = definition.Replace("MARKER", SchemaExport.MissingDefinitionMarker, StringComparison.Ordinal);
+        Export("Test", new SchemaSummary(), ("StoredProcedures/dbo.Real.sql", Script(body)));
+        Export("Production", new SchemaSummary(), ("StoredProcedures/dbo.Real.sql", Script(body.Replace("SELECT 1", "SELECT 2", StringComparison.Ordinal))));
+
+        var report = Report();
+
+        Assert.Contains("DEFINITIONS THAT DIFFER (1)\r\n  StoredProcedures/dbo.Real\r\n", report, StringComparison.Ordinal);
+        Assert.Contains("HIDDEN IN BOTH, NOT COMPARED (0)", report, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Report_MarksEnvironmentDifferencesAndListsUnscriptedTypesOnlyInOne()
     {
         ExportBoth();
@@ -205,6 +232,7 @@ public sealed class SchemaCompareTests : IDisposable
     [InlineData("[dbo].[vAll]", "Views/dbo.vAll")]
     [InlineData("[a.b].[c]", "Views/a%2Eb.c")]
     [InlineData("[dbo].[odd]]name]", "Views/dbo.odd]name")]
+    [InlineData("notQuoted", "Views/notQuoted")]
     public void ViewFileKey_MatchesTheExportsFileName(string quoted, string expected)
     {
         Assert.Equal(expected, SchemaCompare.ViewFileKey(quoted));

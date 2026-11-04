@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using Microsoft.Data.SqlClient;
 
@@ -329,8 +330,9 @@ namespace Viper.Scripts.LegacyMigration
         /// What one module reads and writes, from sys.dm_sql_referenced_entities, which binds the module
         /// the way running it would, without running it. It raises an error for a module it cannot bind
         /// (such as one naming a column that no longer exists), which would end a query covering every
-        /// module, so each module is read on its own and its error kept. A database DDL trigger is not in
-        /// sys.objects, so it is named on its own, as the DATABASE_DDL_TRIGGER class.
+        /// module, so each module is read on its own and its error kept. A timeout, a deadlock, or a lost
+        /// connection says nothing about the module, so it ends the export, to be run again. A database DDL
+        /// trigger is not in sys.objects, so it is named on its own, as the DATABASE_DDL_TRIGGER class.
         /// </summary>
         private static ModuleReferences ReadModuleReferences(SqlConnection conn, string name, string referencingClass)
         {
@@ -355,11 +357,16 @@ namespace Viper.Scripts.LegacyMigration
                     new SqlParameter("@name", name), new SqlParameter("@class", referencingClass));
                 return new ModuleReferences(references, null);
             }
-            catch (SqlException ex)
+            catch (SqlException ex) when (!IsTransientError(ex.Number) && conn.State == ConnectionState.Open)
             {
                 return new ModuleReferences([], $"{ex.Message} (error {ex.Number})");
             }
         }
+
+        /// <summary>
+        /// A command timeout (-2) or a deadlock (1205): the read failed, not the module.
+        /// </summary>
+        internal static bool IsTransientError(int errorNumber) => errorNumber is -2 or 1205;
 
         /// <summary>
         /// [schema].[name], quoted as the export names every object, with any ] inside doubled.
