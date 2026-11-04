@@ -713,14 +713,6 @@ public sealed class HarvestServiceTests : IDisposable
 
         // Assert - Harvest completes successfully even with no data
         Assert.True(result.Success);
-
-        // RCourseService should NOT be called (no eligible instructors)
-        await _rCourseServiceMock.DidNotReceive().CreateRCourseEffortRecordAsync(
-            Arg.Any<int>(),
-            Arg.Any<int>(),
-            Arg.Any<int>(),
-            Arg.Any<RCourseCreationContext>(),
-            Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -758,15 +750,13 @@ public sealed class HarvestServiceTests : IDisposable
             RCourseEnabledSettings,
             _loggerMock);
 
-        // Act - Run harvest (R-course detection uses inline EndsWith("R") logic)
+        // Act
         var result = await harvestServiceWithTestPhase.ExecuteHarvestAsync(TestTermCode, modifiedBy: 123, TestContext.Current.CancellationToken);
 
         // Assert - Harvest completes successfully
         Assert.True(result.Success);
 
-        // RCourseService should be called for the eligible instructor
-        await _rCourseServiceMock.Received(1).CreateRCourseEffortRecordAsync(
-            100,
+        await _rCourseServiceMock.Received(1).CreateForEligibleInstructorsAsync(
             TestTermCode,
             123,
             RCourseCreationContext.Harvest,
@@ -811,8 +801,7 @@ public sealed class HarvestServiceTests : IDisposable
 
         // Assert - harvest succeeds but the generic R-course is not created
         Assert.True(result.Success);
-        await _rCourseServiceMock.DidNotReceive().CreateRCourseEffortRecordAsync(
-            Arg.Any<int>(),
+        await _rCourseServiceMock.DidNotReceive().CreateForEligibleInstructorsAsync(
             Arg.Any<int>(),
             Arg.Any<int>(),
             Arg.Any<RCourseCreationContext>(),
