@@ -188,8 +188,8 @@ public class DeptSummaryService : BaseReportService, IDeptSummaryService
                         });
                         col.Item().PaddingVertical(6).Row(row =>
                         {
-                            row.RelativeItem().SemanticHeader1().Text(reportTitle).SemiBold().FontSize(12);
-                            row.RelativeItem().AlignCenter().SemanticHeader2().Text(dept.Department).SemiBold().FontSize(12);
+                            row.RelativeItem().SemanticHeading1().Text(reportTitle).SemiBold().FontSize(12);
+                            row.RelativeItem().AlignCenter().SemanticHeading2().Text(dept.Department).SemiBold().FontSize(12);
                             row.RelativeItem().AlignRight().Text(report.TermName).SemiBold().FontSize(12);
                         });
                     });

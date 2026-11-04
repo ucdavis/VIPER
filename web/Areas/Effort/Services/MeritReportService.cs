@@ -625,8 +625,8 @@ public class MeritReportService : BaseReportService, IMeritReportService
                         });
                         col.Item().PaddingVertical(6).Row(row =>
                         {
-                            row.RelativeItem().SemanticHeader1().Text(reportTitle).SemiBold().FontSize(12);
-                            row.RelativeItem().AlignCenter().SemanticHeader2().Text(dept.Department).SemiBold().FontSize(12);
+                            row.RelativeItem().SemanticHeading1().Text(reportTitle).SemiBold().FontSize(12);
+                            row.RelativeItem().AlignCenter().SemanticHeading2().Text(dept.Department).SemiBold().FontSize(12);
                             row.RelativeItem().AlignRight().Text(report.TermName).SemiBold().FontSize(12);
                         });
                     });
@@ -789,11 +789,11 @@ public class MeritReportService : BaseReportService, IMeritReportService
                             });
                             col.Item().PaddingVertical(6).Row(row =>
                             {
-                                row.RelativeItem().SemanticHeader1().Text(reportTitle).SemiBold().FontSize(12);
-                                row.RelativeItem().AlignCenter().SemanticHeader2().Text(dept.Department).SemiBold().FontSize(12);
+                                row.RelativeItem().SemanticHeading1().Text(reportTitle).SemiBold().FontSize(12);
+                                row.RelativeItem().AlignCenter().SemanticHeading2().Text(dept.Department).SemiBold().FontSize(12);
                                 row.RelativeItem().AlignRight().Text(report.TermName).SemiBold().FontSize(12);
                             });
-                            col.Item().SemanticHeader3().Text(jobGroup.JobGroupDescription).SemiBold().FontSize(11);
+                            col.Item().SemanticHeading3().Text(jobGroup.JobGroupDescription).SemiBold().FontSize(11);
                         });
 
                         var totalColumns = (uint)(2 + orderedTypes.Count);

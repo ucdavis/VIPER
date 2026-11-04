@@ -329,7 +329,7 @@ public class ClinicalScheduleService : BaseReportService, IClinicalScheduleServi
                     col.Item().BorderBottom(1.5f).BorderColor(Colors.Black)
                         .PaddingVertical(6).Row(row =>
                         {
-                            row.RelativeItem(3).SemanticHeader1().Text(reportTitle).SemiBold().FontSize(12);
+                            row.RelativeItem(3).SemanticHeading1().Text(reportTitle).SemiBold().FontSize(12);
                             var termLabel = report.AcademicYear != null
                                 ? $"Academic Year {report.TermName}"
                                 : report.TermName;

@@ -509,8 +509,8 @@ public class EvaluationReportService : BaseReportService, IEvaluationReportServi
                         });
                         col.Item().PaddingVertical(6).Row(row =>
                         {
-                            row.RelativeItem().SemanticHeader1().Text(reportTitle).SemiBold().FontSize(12);
-                            row.AutoItem().SemanticHeader2().Text(dept.Department).SemiBold().FontSize(12);
+                            row.RelativeItem().SemanticHeading1().Text(reportTitle).SemiBold().FontSize(12);
+                            row.AutoItem().SemanticHeading2().Text(dept.Department).SemiBold().FontSize(12);
                             row.RelativeItem().AlignRight().Text(report.AcademicYear ?? report.TermName).SemiBold().FontSize(12);
                         });
                         col.Item().BorderBottom(1.5f).BorderColor(Colors.Black).PaddingBottom(3);
@@ -582,8 +582,8 @@ public class EvaluationReportService : BaseReportService, IEvaluationReportServi
                         });
                         col.Item().PaddingVertical(6).Row(row =>
                         {
-                            row.RelativeItem().SemanticHeader1().Text(reportTitle).SemiBold().FontSize(12);
-                            row.AutoItem().SemanticHeader2().Text(dept.Department).SemiBold().FontSize(12);
+                            row.RelativeItem().SemanticHeading1().Text(reportTitle).SemiBold().FontSize(12);
+                            row.AutoItem().SemanticHeading2().Text(dept.Department).SemiBold().FontSize(12);
                             row.RelativeItem().AlignRight().Text(report.AcademicYear ?? report.TermName).SemiBold().FontSize(12);
                         });
                         col.Item().BorderBottom(1.5f).BorderColor(Colors.Black).PaddingBottom(3);

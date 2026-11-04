@@ -9,7 +9,7 @@ namespace Viper.Classes.Utilities;
 /// The QuestPDF Community licence is configured once at application startup
 /// (see <c>Program.cs</c>); this helper does not touch global settings.
 /// Pair with <see cref="QuestPDF.Fluent.SemanticExtensions"/> calls inside the
-/// document body (SemanticHeader1, SemanticImage, SemanticIgnore, etc.) to
+/// document body (SemanticHeading1, SemanticImage, SemanticIgnore, etc.) to
 /// satisfy WCAG 2.1 SC 1.3.1 / PDF-UA-1 expectations.
 /// </summary>
 public static class PdfAccessibilityHelper

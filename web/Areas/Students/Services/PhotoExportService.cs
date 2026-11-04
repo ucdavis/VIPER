@@ -560,7 +560,7 @@ namespace Viper.Areas.Students.Services
                                             if (ShouldShowGroupHeaders(groupedStudents))
                                             {
                                                 var headerText = $"{group.Key} ({chunkStart + 1}-{chunkEnd})";
-                                                column.Item().SemanticHeader2().Text(headerText)
+                                                column.Item().SemanticHeading2().Text(headerText)
                                                     .SemiBold()
                                                     .FontSize(16)
                                                     .FontColor(Colors.Black);
@@ -645,7 +645,7 @@ namespace Viper.Areas.Students.Services
                                         // Only show title and date for non-group exports
                                         if (!useLargeLayout)
                                         {
-                                            column.Item().SemanticHeader1().Text(titleLines[0])
+                                            column.Item().SemanticHeading1().Text(titleLines[0])
                                                 .SemiBold()
                                                 .FontSize(20)
                                                 .FontColor(Colors.Black);
@@ -662,7 +662,7 @@ namespace Viper.Areas.Students.Services
                                         if (ShouldShowGroupHeaders(groupedStudents))
                                         {
                                             var headerText = GetGroupHeaderText(group.Key, groupStudents.Count);
-                                            column.Item().PaddingTop(useLargeLayout ? 0 : 10).SemanticHeader2().Text(headerText)
+                                            column.Item().PaddingTop(useLargeLayout ? 0 : 10).SemanticHeading2().Text(headerText)
                                                 .SemiBold()
                                                 .FontSize(16)
                                                 .FontColor(Colors.Black);
@@ -824,7 +824,7 @@ namespace Viper.Areas.Students.Services
 
                         page.Header().Column(col =>
                         {
-                            col.Item().SemanticHeader1().Text(fullTitle).SemiBold().FontSize(16);
+                            col.Item().SemanticHeading1().Text(fullTitle).SemiBold().FontSize(16);
                             col.Item().PaddingTop(2).Text(generatedLabel).FontSize(9).FontColor(Colors.Grey.Darken1);
                         });
 

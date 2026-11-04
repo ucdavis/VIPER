@@ -198,7 +198,7 @@ public class SchoolSummaryService : BaseReportService, ISchoolSummaryService
                     });
                     col.Item().PaddingVertical(6).Row(row =>
                     {
-                        row.RelativeItem().SemanticHeader1().Text(reportTitle).SemiBold().FontSize(12);
+                        row.RelativeItem().SemanticHeading1().Text(reportTitle).SemiBold().FontSize(12);
                         row.RelativeItem().AlignRight().Text(report.TermName).SemiBold().FontSize(12);
                     });
                 });
