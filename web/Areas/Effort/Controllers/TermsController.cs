@@ -178,7 +178,8 @@ public class TermsController : BaseEffortController
     }
 
     /// <summary>
-    /// Close a term. Validates no courses have zero enrollment.
+    /// Close a term, removing zero-effort records of unverified instructors and empty zero-enrollment courses.
+    /// Fails if a zero-enrollment course would still have effort records.
     /// </summary>
     [HttpPost("{termCode:int}/close")]
     [Permission(Allow = EffortPermissions.ManageTerms)]
@@ -272,15 +273,15 @@ public class TermsController : BaseEffortController
     }
 
     /// <summary>
-    /// Check if a term can be closed and get zero enrollment count.
+    /// Check if a term can be closed and get the count of zero-enrollment courses blocking it.
     /// </summary>
     [HttpGet("{termCode:int}/can-close")]
     [Permission(Allow = EffortPermissions.ManageTerms)]
     public async Task<ActionResult<object>> CanCloseTerm(int termCode, CancellationToken ct)
     {
         SetExceptionContext("termCode", termCode);
-        var (canClose, zeroEnrollmentCount) = await _termService.CanCloseTermAsync(termCode, ct);
-        return Ok(new { canClose, zeroEnrollmentCount });
+        var (canClose, blockingCourseCount) = await _termService.CanCloseTermAsync(termCode, ct);
+        return Ok(new { canClose, blockingCourseCount });
     }
 
     /// <summary>
