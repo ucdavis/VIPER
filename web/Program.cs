@@ -70,6 +70,9 @@ string awsCredentialsFilePath = Directory.GetCurrentDirectory() + "\\awscredenti
 // Configure QuestPDF for the whole process. Must run before any export
 // service generates a PDF; assigning at startup covers every export.
 QuestPDF.Settings.License = LicenseType.Community;
+// QuestPDF 2026.9 defaults would throw on user-entered text outside bundled Lato (e.g. CJK names).
+QuestPDF.Settings.UseSystemFonts = true;
+QuestPDF.Settings.ThrowOnMissingTextGlyphs = false;
 
 // Early init of NLog to allow startup and exception logging, before host is built
 var logger = LogManager.Setup().LoadConfigurationFromAppSettings().GetCurrentClassLogger();
@@ -292,8 +295,7 @@ try
             ?? throw new InvalidOperationException($"Connection string '{connectionStringKey}' not configured");
         builder.Services.AddDbContext<TContext>(options =>
         {
-            // Match our SQL Server 2016 compat level (130) so EF Core 10 generates optimal SQL for our DB version
-            options.UseSqlServer(connStr, o => o.UseCompatibilityLevel(130));
+            options.UseSqlServer(connStr, o => o.UseCompatibilityLevel(builder.Configuration.GetCompatibilityLevel(connectionStringKey)));
             if (enableDetailedErrors) options.EnableDetailedErrors();
             configure?.Invoke(options);
         });
