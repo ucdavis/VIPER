@@ -1,5 +1,6 @@
 using System.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Viper.Areas.Curriculum.Services;
 using Viper.Areas.Effort.Constants;
 using Viper.Areas.Effort.Helpers;
@@ -22,13 +23,23 @@ public class TermService : ITermService
     private readonly VIPERContext _viperContext;
     private readonly IEffortAuditService _auditService;
     private readonly ICourseClassificationService _classificationService;
+    private readonly IRCourseService _rCourseService;
+    private readonly EffortSettings _settings;
 
-    public TermService(EffortDbContext context, VIPERContext viperContext, IEffortAuditService auditService, ICourseClassificationService classificationService)
+    public TermService(
+        EffortDbContext context,
+        VIPERContext viperContext,
+        IEffortAuditService auditService,
+        ICourseClassificationService classificationService,
+        IRCourseService rCourseService,
+        IOptions<EffortSettings> settings)
     {
         _context = context;
         _viperContext = viperContext;
         _auditService = auditService;
         _classificationService = classificationService;
+        _rCourseService = rCourseService;
+        _settings = settings.Value;
     }
 
     public async Task<List<TermDto>> GetTermsAsync(CancellationToken ct = default)
@@ -361,7 +372,7 @@ public class TermService : ITermService
         return (true, null);
     }
 
-    public async Task<TermDto?> ReopenTermAsync(int termCode, CancellationToken ct = default)
+    public async Task<TermDto?> ReopenTermAsync(int termCode, int modifiedBy, CancellationToken ct = default)
     {
         var term = await _context.Terms.FirstOrDefaultAsync(t => t.TermCode == termCode, ct);
         if (term == null)
@@ -383,6 +394,13 @@ public class TermService : ITermService
             new { Status = oldStatus },
             new { term.Status });
         await _context.SaveChangesAsync(ct);
+
+        // Closing removes empty generic R-course records, and they cannot be added back by hand
+        if (_settings.AutoCreateGenericRCourse)
+        {
+            await _rCourseService.CreateForEligibleInstructorsAsync(termCode, modifiedBy, RCourseCreationContext.Reopen, ct);
+        }
+
         await transaction.CommitAsync(ct);
 
         return await MapTermToDtoAsync(term, ct);

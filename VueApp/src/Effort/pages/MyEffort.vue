@@ -99,6 +99,10 @@
                 :show="myEffort.hasZeroEffort"
                 mode="self"
             />
+            <RCourseOverlapBanner
+                :records="myEffort.effortRecords"
+                mode="self"
+            />
 
             <!-- Clinical effort note -->
             <p
@@ -252,6 +256,7 @@ import CourseImportDialog from "../components/CourseImportDialog.vue"
 import EffortRecordsDisplay from "../components/EffortRecordsDisplay.vue"
 import EffortActionButtons from "../components/EffortActionButtons.vue"
 import ZeroEffortBanner from "../components/ZeroEffortBanner.vue"
+import RCourseOverlapBanner from "../components/RCourseOverlapBanner.vue"
 import CrossListedCoursesSection from "../components/CrossListedCoursesSection.vue"
 
 const route = useRoute()
