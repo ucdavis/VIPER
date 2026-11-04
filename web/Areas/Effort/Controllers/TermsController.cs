@@ -18,12 +18,15 @@ namespace Viper.Areas.Effort.Controllers;
 public class TermsController : BaseEffortController
 {
     private readonly ITermService _termService;
+    private readonly IEffortPermissionService _permissionService;
 
     public TermsController(
         ITermService termService,
+        IEffortPermissionService permissionService,
         ILogger<TermsController> logger) : base(logger)
     {
         _termService = termService;
+        _permissionService = permissionService;
     }
 
     /// <summary>
@@ -212,7 +215,7 @@ public class TermsController : BaseEffortController
         TermDto? term;
         try
         {
-            term = await _termService.ReopenTermAsync(termCode, ct);
+            term = await _termService.ReopenTermAsync(termCode, _permissionService.GetCurrentPersonId(), ct);
         }
         catch (InvalidOperationException ex)
         {

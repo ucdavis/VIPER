@@ -64,8 +64,9 @@ public interface ITermService
 
     /// <summary>
     /// Reopen a closed term. Clears ClosedDate and sets status back to "Opened".
+    /// Recreates the generic R-course records that closing removes, for unverified instructors.
     /// </summary>
-    Task<TermDto?> ReopenTermAsync(int termCode, CancellationToken ct = default);
+    Task<TermDto?> ReopenTermAsync(int termCode, int modifiedBy, CancellationToken ct = default);
 
     /// <summary>
     /// Revert an open term back to harvested/created state. Clears OpenedDate.
