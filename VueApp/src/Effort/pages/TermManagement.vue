@@ -719,7 +719,10 @@ function confirmTermAction(config: TermActionConfig) {
             $q.notify({ type: "positive", message: config.successMessage })
             await loadTerms({ background: true })
         } else {
-            $q.notify({ type: "negative", message: `${config.title} failed. Please try again.` })
+            $q.notify({
+                type: "negative",
+                message: (result as { error?: string } | null)?.error ?? `${config.title} failed. Please try again.`,
+            })
         }
     })
 }
@@ -797,7 +800,7 @@ function confirmOpenTerm(term: TermDto) {
 function confirmCloseTerm(term: TermDto) {
     confirmTermAction({
         title: "Close Term",
-        message: `Are you sure you want to close "${term.termName}"?`,
+        message: `Are you sure you want to close "${term.termName}"? This permanently removes zero-effort entries for instructors who have not verified, and zero-enrollment courses with no effort. Reopening the term restores only the generic R-course (RES 000R-001).`,
         successMessage: "Term closed successfully",
         action: () => termService.closeTerm(term.termCode),
     })

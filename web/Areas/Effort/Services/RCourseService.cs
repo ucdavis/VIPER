@@ -26,6 +26,28 @@ public class RCourseService : IRCourseService
     }
 
     /// <inheritdoc />
+    public async Task CreateForEligibleInstructorsAsync(int termCode, int modifiedBy, RCourseCreationContext context, CancellationToken ct = default)
+    {
+        var eligibleInstructors = await _context.Records
+            .AsNoTracking()
+            // CrseNumb is char(5), so it must be trimmed or "410R " does not end in R
+            .Where(r => r.TermCode == termCode
+                     && r.Person.EffortVerified == null
+                     && !r.Course.CrseNumb.Trim().EndsWith('R'))
+            .Select(r => r.PersonId)
+            .Distinct()
+            .ToListAsync(ct);
+
+        _logger.LogInformation("Found {Count} eligible instructors for R-course generation in term {TermCode}",
+            eligibleInstructors.Count, termCode);
+
+        foreach (var personId in eligibleInstructors)
+        {
+            await CreateRCourseEffortRecordAsync(personId, termCode, modifiedBy, context, ct);
+        }
+    }
+
+    /// <inheritdoc />
     public async Task<EffortCourse> GetOrCreateGenericRCourseAsync(int termCode, CancellationToken ct = default)
     {
         var genericRCourse = await _context.Courses
@@ -121,9 +143,12 @@ public class RCourseService : IRCourseService
         await _context.SaveChangesAsync(ct);
 
         // Create audit entry with context-specific details
-        var details = context == RCourseCreationContext.Harvest
-            ? "Generic R-course effort record auto-created during harvest"
-            : "Generic R-course effort record auto-created when first non-R-course added";
+        var details = context switch
+        {
+            RCourseCreationContext.Harvest => "Generic R-course effort record auto-created during harvest",
+            RCourseCreationContext.Reopen => "Generic R-course effort record auto-created when term reopened",
+            _ => "Generic R-course effort record auto-created when first non-R-course added"
+        };
 
         var auditEntry = new Audit
         {
