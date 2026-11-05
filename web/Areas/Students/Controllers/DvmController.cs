@@ -254,7 +254,8 @@ namespace Viper.Areas.Students.Controllers
             if (!activeOnly)
             {
                 var minCY = activeClassYears[0];
-                for (var i = minCY - 1; i >= (minClassYear ?? minCY - 10); i--)
+                var firstYear = Math.Max(minClassYear ?? minCY - 10, minCY - 20);
+                for (var i = minCY - 1; i >= firstYear; i--)
                 {
                     activeClassYears = activeClassYears.Prepend(i).ToList();
                 }

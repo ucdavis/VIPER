@@ -99,6 +99,22 @@ namespace Viper.Areas.CTS.Controllers
                 return BadRequest("Name and Number are required.");
             }
 
+            // Also stops a guessed next identity value self-parenting the new row
+            if (await ParentMissing(competency.ParentId))
+            {
+                return BadRequest("Parent competency not found.");
+            }
+
+            if (await WouldCreateParentCycle(null, competency.ParentId))
+            {
+                return BadRequest("That parent would create a cycle in the competency hierarchy.");
+            }
+
+            if (!await context.Domains.AnyAsync(d => d.DomainId == competency.DomainId))
+            {
+                return BadRequest("Domain not found.");
+            }
+
             var duplicates = await context.Competencies.Where(c => c.Number == competency.Number).ToListAsync();
             if (duplicates.Count > 0)
             {
@@ -144,6 +160,21 @@ namespace Viper.Areas.CTS.Controllers
                 return BadRequest("Name and Number are required.");
             }
 
+            if (await ParentMissing(competency.ParentId))
+            {
+                return BadRequest("Parent competency not found.");
+            }
+
+            if (await WouldCreateParentCycle(competencyId, competency.ParentId))
+            {
+                return BadRequest("That parent would create a cycle in the competency hierarchy.");
+            }
+
+            if (!await context.Domains.AnyAsync(d => d.DomainId == competency.DomainId))
+            {
+                return BadRequest("Domain not found.");
+            }
+
             var duplicates = await context.Competencies
                 .Where(c => c.CompetencyId != competency.CompetencyId)
                 .Where(c => c.Number == competency.Number)
@@ -157,6 +188,7 @@ namespace Viper.Areas.CTS.Controllers
             c.Number = competency.Number;
             c.Description = competency.Description;
             c.CanLinkToStudent = competency.CanLinkToStudent;
+            c.DomainId = competency.DomainId;
             c.ParentId = competency.ParentId;
 
             context.Competencies.Update(c);
@@ -185,6 +217,34 @@ namespace Viper.Areas.CTS.Controllers
             }
             await UpdateCompetencyOrders();
             return new CompetencyDto(c);
+        }
+
+        private async Task<bool> ParentMissing(int? parentId) =>
+            parentId != null && !await context.Competencies.AnyAsync(c => c.CompetencyId == parentId);
+
+        // competencyId is null for a new competency, which only an existing cycle above the parent can strand
+        private async Task<bool> WouldCreateParentCycle(int? competencyId, int? parentId)
+        {
+            if (parentId == null)
+            {
+                return false;
+            }
+
+            var parentIds = await context.Competencies
+                .AsNoTracking()
+                .Select(c => new { c.CompetencyId, c.ParentId })
+                .ToDictionaryAsync(c => c.CompetencyId, c => c.ParentId);
+
+            // A repeated id means a cycle already exists above the new parent, which would also strand this competency
+            var visited = new HashSet<int>();
+            for (var id = parentId; id != null; id = parentIds.GetValueOrDefault(id.Value))
+            {
+                if (id == competencyId || !visited.Add(id.Value))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         private async Task UpdateCompetencyOrders()
