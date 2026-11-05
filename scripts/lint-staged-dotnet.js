@@ -29,6 +29,7 @@ const { env } = process
 const WEB_PATH_REGEX = /(^|[\\/])web([\\/]|$)/
 const TEST_PATH_REGEX = /(^|[\\/])test([\\/]|$)/
 const EFFORT_SCRIPTS_PATH_REGEX = /(^|[\\/])web[\\/]Areas[\\/]Effort[\\/]Scripts([\\/]|$)/
+const LEGACY_MIGRATION_PATH_REGEX = /(^|[\\/])web[\\/]Scripts[\\/]LegacyMigration([\\/]|$)/
 
 /**
  * Parse dotnet build output to extract SonarAnalyzer issues
@@ -137,9 +138,12 @@ if (rawFiles.length === 0) {
     process.exit(0)
 }
 
-// Effort Scripts must be filtered FIRST since it's a subdirectory of web
+// Script projects must be filtered FIRST since they're subdirectories of web
 const effortScriptsFiles = rawFiles.filter((f) => EFFORT_SCRIPTS_PATH_REGEX.test(f))
-const webFiles = rawFiles.filter((f) => WEB_PATH_REGEX.test(f) && !EFFORT_SCRIPTS_PATH_REGEX.test(f))
+const legacyMigrationFiles = rawFiles.filter((f) => LEGACY_MIGRATION_PATH_REGEX.test(f))
+const webFiles = rawFiles.filter(
+    (f) => WEB_PATH_REGEX.test(f) && !EFFORT_SCRIPTS_PATH_REGEX.test(f) && !LEGACY_MIGRATION_PATH_REGEX.test(f),
+)
 const testFiles = rawFiles.filter((f) => TEST_PATH_REGEX.test(f))
 
 // Supported project configurations
@@ -150,6 +154,11 @@ const PROJECT_CONFIG = {
     "web/Areas/Effort/Scripts": {
         projectName: "EffortMigration.csproj",
         buildPath: "web/Areas/Effort/Scripts/",
+        artifactsPath: ".artifacts-lint",
+    },
+    "web/Scripts/LegacyMigration": {
+        projectName: "LegacyMigration.csproj",
+        buildPath: "web/Scripts/LegacyMigration/",
         artifactsPath: ".artifacts-lint",
     },
 }
@@ -465,6 +474,14 @@ try {
         allBuildOutput += buildResult.output || ""
 
         const formatResult = runFormat("web/Areas/Effort/Scripts", effortScriptsFiles)
+        allFormatOutput += formatResult.output || ""
+    }
+
+    if (legacyMigrationFiles.length > 0) {
+        const buildResult = runBuild("web/Scripts/LegacyMigration")
+        allBuildOutput += buildResult.output || ""
+
+        const formatResult = runFormat("web/Scripts/LegacyMigration", legacyMigrationFiles)
         allFormatOutput += formatResult.output || ""
     }
 

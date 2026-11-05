@@ -1,0 +1,97 @@
+{
+    // PhoneLists was migrated already; these declarations restate checks from its migration
+    // (web/Areas/Personnel/Scripts) so the toolkit's results can be compared with known findings.
+    "dateColumns": {
+        "[dbo].[SVM_Phones]": "Date_Mod",
+        "[dbo].[VMDOPeople]": "vmdoPeople_updated"
+    },
+    // Unit and section IDs, so rows keyed by them can be found. Fax stays out: it is contact information.
+    "safeColumns": [
+        { "table": "[dbo].[SVM_Phones]", "column": "unitID", "reason": "Incremental unit IDs, not personal." },
+        { "table": "[dbo].[dvtUnit]", "column": "dvtUnit_sectionID", "reason": "Incremental section IDs, not personal." },
+        { "table": "[dbo].[dvtUnit]", "column": "dvtUnit_unitID", "reason": "Incremental unit IDs, not personal." }
+    ],
+    "checks": [
+        {
+            "check": "notBlank",
+            "description": "Every phone list row must belong to a section and unit.",
+            "table": "[dbo].[SVM_Phones]",
+            "columns": ["SectionID", "unitID"]
+        },
+        {
+            "check": "listValues",
+            "description": "Interim must map onto the new Acting/Interim/Vice values.",
+            "table": "[dbo].[SVM_Phones]",
+            "column": "InterimAdmin"
+        },
+        {
+            "check": "listValues",
+            "description": "Interim must map onto the new Acting/Interim/Vice values.",
+            "table": "[dbo].[SVM_Phones]",
+            "column": "InterimDirector"
+        },
+        {
+            "check": "oneValuePerKey",
+            "description": "UnitOrder and Fax are stored on every row of a unit and should be the same on all of them.",
+            "table": "[dbo].[SVM_Phones]",
+            "keyColumns": ["SectionID", "unitID"],
+            "columns": ["UnitOrder", "Fax"]
+        },
+        {
+            "check": "sameKeysAs",
+            "description": "dvtUnit should describe exactly the units in SVM_Phones, or it cannot be dropped.",
+            "table": "[dbo].[dvtUnit]",
+            "columns": ["dvtUnit_sectionID", "dvtUnit_unitID"],
+            "otherTable": "[dbo].[SVM_Phones]",
+            "otherColumns": ["SectionID", "unitID"]
+        },
+        {
+            "check": "identifiesOnePerson",
+            "description": "Every dean or director must be a person the new phone list can link to.",
+            "table": "[dbo].[SVM_Phones]",
+            "column": "Dean_Director_MothraID",
+            "idType": "MothraId",
+            "lookIn": "VIPER.users.Person"
+        },
+        {
+            "check": "identifiesOnePerson",
+            "description": "Every administrator must be a person the new phone list can link to.",
+            "table": "[dbo].[SVM_Phones]",
+            "column": "Admin_MothraID",
+            "idType": "MothraId",
+            "lookIn": "VIPER.users.Person"
+        },
+        {
+            "check": "identifiesOnePerson",
+            "description": "Every person on the VMDO list must be a person the new phone list can link to.",
+            "table": "[dbo].[VMDOPeople]",
+            "column": "vmdoPeople_mothraID",
+            "idType": "MothraId",
+            "lookIn": "VIPER.users.Person"
+        },
+        {
+            "check": "identifiesOnePerson",
+            "description": "Every supervisor on the VMDO list must be a person the new phone list can link to.",
+            "table": "[dbo].[VMDOPeople]",
+            "column": "vmdoPeople_supMothraID",
+            "idType": "MothraId",
+            "lookIn": "VIPER.users.Person"
+        },
+        {
+            "check": "valuesMustExistIn",
+            "description": "Implicit foreign key relationship between [dbo].[SVM_Phones].SectionID and the primary key of [dbo].[SVM_Phones_Sections].",
+            "table": "[dbo].[SVM_Phones]",
+            "columns": ["SectionID"],
+            "otherTable": "[dbo].[SVM_Phones_Sections]",
+            "otherColumns": ["SectionID"]
+        },
+        {
+            "check": "identifiesOnePerson",
+            "description": "[SVM_Phones].Who_Mod should be resolvable as a user.",
+            "table": "[dbo].[SVM_Phones]",
+            "column": "Who_Mod",
+            "idType": "MailId",
+            "lookIn": "VIPER.users.Person"
+        }
+    ]
+}

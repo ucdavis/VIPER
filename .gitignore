@@ -514,6 +514,9 @@ web/Areas/Personnel/Scripts/AnalysisOutput/
 # Career Selection migration script outputs
 web/Areas/Students/Scripts/AnalysisOutput/
 
+# Legacy migration toolkit output: schema exports and comparisons, data analysis results and their history, suggestions
+web/Scripts/LegacyMigration/Output/
+
 # Code-quality tool outputs (fallow cache + jscpd + ReSharper reports)
 .fallow/
 VueApp/.fallow/
