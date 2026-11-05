@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { inject, ref, watch } from "vue"
+import { computed, inject, ref, watch } from "vue"
 import type { Ref } from "vue"
 import { useQuasar, type QTreeNode } from "quasar"
 import { useFetch } from "@/composables/ViperFetch"
@@ -30,10 +30,20 @@ const expanded = ref([]) as Ref<number[]>
 const showDescriptions = ref(false)
 const tree = ref(null) as Ref<any>
 
+function subtreeIds(comp: Competency): (number | null)[] {
+    return [comp.competencyId, ...(comp.children ?? []).flatMap(subtreeIds)]
+}
+
+// A competency cannot sit under itself or anything below it
+const parentOptions = computed(() => {
+    const excluded = new Set(subtreeIds(selectedComp.value))
+    return competencies.value.filter((c) => !excluded.has(c.competencyId))
+})
+
 async function load() {
     const [, , hierarchyResult] = await Promise.all([
         get(apiUrl + "cts/domains").then((r) => (domains.value = r.result)),
-        get(apiUrl + "cts/competencies").then((r) => (competencies.value = r.result)),
+        get(apiUrl + "cts/competencies").then((r) => (competencies.value = r.result ?? [])),
         get(apiUrl + "cts/competencies/hierarchy"),
     ])
     if (hierarchyResult?.result) {
@@ -195,7 +205,7 @@ load()
                         emit-value
                         :option-label="(opt) => opt.number + ' ' + opt.name"
                         option-value="competencyId"
-                        :options="competencies"
+                        :options="parentOptions"
                         class="col-12"
                     ></q-select>
                 </div>
