@@ -63,7 +63,7 @@ npm run dev:build
 - **Backend**: Published to `dist/dev` and run without hot reload
 - **Best for**: Testing production builds, debugging static file serving, or CI/CD validation
 
-Use `npm run dev:backend` to start only the .NET backend (https://localhost:7157), and `npm run dev:stop` to stop services.
+Use `npm run dev:backend` to start only the .NET backend (https://localhost:7157), after `npm install --prefix VueApp` on a fresh clone so Razor pages have their Vue and Quasar files. Use `npm run dev:stop` to stop services.
 
 ### Running Multiple Instances
 

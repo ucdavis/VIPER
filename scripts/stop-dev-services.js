@@ -51,49 +51,40 @@ async function findPidOnPort(port) {
     }
 }
 
-// Get the parent PID if it's a dotnet.exe process (Windows only)
-async function getDotnetParentPid(pid) {
-    if (process.platform !== "win32" || !/^\d+$/.test(String(pid))) {
-        return null
-    }
-    try {
-        const { stdout } = await execAsync(`wmic process where "ProcessId=${pid}" get ParentProcessId /value`)
-        const match = stdout.match(/ParentProcessId=(\d+)/)
-        if (!match) {
-            return null
-        }
-        const [, parentPid] = match
-        if (parentPid === "0" || parentPid === "1") {
-            return null
-        }
-        // Only return if parent is a dotnet process (e.g. dotnet watch)
-        if (!/^\d+$/.test(parentPid)) {
-            return null
-        }
-        const { stdout: parentInfo } = await execAsync(`wmic process where "ProcessId=${parentPid}" get Name /value`)
-        return parentInfo.includes("dotnet.exe") ? parentPid : null
-    } catch {
-        return null
-    }
+// Query Windows processes with a WQL filter. Throws if the query itself fails, so
+// callers can tell that apart from an empty result.
+async function queryProcesses(filter) {
+    const { stdout } = await execAsync(
+        `powershell -NoProfile -NonInteractive -Command "ConvertTo-Json -Compress -InputObject @(Get-CimInstance Win32_Process -Filter \\"${filter}\\" | Select-Object ProcessId,ParentProcessId,Name)"`,
+    )
+    return JSON.parse(stdout)
 }
 
 // Walk up from the server to the top of its dotnet chain. The chain is
 // dotnet watch > dotnet-watch.dll > dotnet run > server, and killing anything
 // below the top leaves dotnet watch alive to restart the server.
 async function findTopDotnetAncestor(pid) {
-    const maxChainDepth = 5
-    let top = null
-    let current = pid
-    for (let depth = 0; depth < maxChainDepth; depth += 1) {
-        // eslint-disable-next-line no-await-in-loop -- each lookup depends on the previous parent
-        const parent = await getDotnetParentPid(current)
-        if (!parent) {
-            break
-        }
-        top = parent
-        current = parent
+    if (process.platform !== "win32") {
+        return null
     }
-    return top
+    try {
+        const processes = await queryProcesses("Name='dotnet.exe' OR Name='Viper.exe'")
+        const processesByPid = new Map(processes.map((entry) => [entry.ProcessId, entry]))
+        const maxChainDepth = 5
+        let top = null
+        let current = processesByPid.get(Number(pid))
+        for (let depth = 0; depth < maxChainDepth; depth += 1) {
+            const parent = processesByPid.get(current?.ParentProcessId)
+            if (parent?.Name !== "dotnet.exe") {
+                break
+            }
+            top = String(parent.ProcessId)
+            current = parent
+        }
+        return top
+    } catch {
+        return null
+    }
 }
 
 // An idle dotnet watch has no server to show which checkout owns it, so it can't
@@ -103,16 +94,13 @@ async function warnAboutRemainingDotnetWatch() {
         return
     }
     try {
-        const { stdout } = await execAsync(
-            `wmic process where "Name='dotnet.exe' AND CommandLine LIKE 'dotnet watch%'" get ProcessId /value`,
-        )
-        const pids = [...stdout.matchAll(/ProcessId=(?<pid>\d+)/gu)].map((match) => match.groups.pid)
-        for (const pid of pids) {
+        const watchers = await queryProcesses("Name='dotnet.exe' AND CommandLine LIKE 'dotnet watch%'")
+        for (const { ProcessId: pid } of watchers) {
             logWarning(`dotnet watch (PID ${pid}) is still running, possibly for another checkout.`)
             logWarning(`If it belongs to this one, stop it with: taskkill /F /T /PID ${pid}`)
         }
-    } catch {
-        // Wmic reports "no instances" as a failure, which means nothing is left to warn about
+    } catch (error) {
+        logWarning(`Could not check for remaining dotnet watch processes: ${error.message}`)
     }
 }
 
@@ -122,30 +110,13 @@ async function killOrphanedDotnetWatch() {
         return 0
     }
     try {
-        const { stdout } = await execAsync(
-            `wmic process where "Name='dotnet.exe' AND CommandLine LIKE '%watch%'" get ProcessId,ParentProcessId /value`,
-        )
-        if (!stdout) {
-            return 0
-        }
-
-        // Parse PID/ParentProcessId pairs from wmic /value output
-        const entries = stdout.split(/\r?\n\r?\n/).filter((s) => s.includes("ProcessId="))
+        const watchers = await queryProcesses("Name='dotnet.exe' AND CommandLine LIKE '%watch%'")
         const results = await Promise.all(
-            entries.map(async (entry) => {
-                const pidMatch = entry.match(/(?<!\w)ProcessId=(\d+)/)
-                const parentMatch = entry.match(/ParentProcessId=(\d+)/)
-                if (!pidMatch || !parentMatch) {
-                    return false
-                }
-
-                const [, pid] = pidMatch
-                const [, parentPid] = parentMatch
-
+            watchers.map(async ({ ProcessId: pid, ParentProcessId: parentPid }) => {
                 // If the parent is dead, this dotnet watch is orphaned
-                const parentAlive = await checkProcessExists(parentPid)
+                const parentAlive = await checkProcessExists(String(parentPid))
                 if (!parentAlive) {
-                    const wasKilled = await killProcess(pid)
+                    const wasKilled = await killProcess(String(pid))
                     if (wasKilled) {
                         logSuccess(`Orphaned dotnet watch: Stopped process tree (PID ${pid})`)
                         return true
@@ -235,20 +206,21 @@ async function isAnyViperInstanceRunning() {
     if (process.platform !== "win32") {
         return false
     }
-    try {
-        const { stdout } = await execAsync(
-            `wmic process where "Name='Viper.exe' OR (Name='dotnet.exe' AND (CommandLine LIKE 'dotnet watch%' OR CommandLine LIKE '%Viper.dll%'))" get ProcessId /value`,
-        )
-        return stdout.includes("ProcessId=")
-    } catch {
-        return false
-    }
+    const instances = await queryProcesses(
+        "Name='Viper.exe' OR (Name='dotnet.exe' AND (CommandLine LIKE 'dotnet watch%' OR CommandLine LIKE '%Viper.dll%'))",
+    )
+    return instances.length > 0
 }
 
 // Mailpit is shared by every instance on the machine, so only the last one stops it
 async function stopSharedMailpit(envVars) {
-    if (await isAnyViperInstanceRunning()) {
-        logInfo("Mailpit: Left running for another VIPER instance")
+    try {
+        if (await isAnyViperInstanceRunning()) {
+            logInfo("Mailpit: Left running for another VIPER instance")
+            return 0
+        }
+    } catch (error) {
+        logWarning(`Mailpit: Left running because other instances could not be checked: ${error.message}`)
         return 0
     }
 

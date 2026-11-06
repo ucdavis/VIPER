@@ -129,7 +129,7 @@
                         onLoad: function (data) {
                             this.rows = data.map(rm => ({
                                 ...rm,
-                                active: (rm?.active ?? false) ? "Y" : "N",
+                                active: rm?.active && rm.active !== "N" ? "Y" : "N",
                                 lastModified: rm.modBy === null ? "" : (formatDate(rm.modTime) + " (" + rm.modBy.trim() + ")")
                             }))
                         },
