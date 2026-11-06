@@ -114,6 +114,9 @@
                         <q-badge color="negative" role="presentation" class="mainLayoutViperMode">Test</q-badge>
                     }
                 </q-btn>
+                <q-btn flat dense round size="sm" icon="info_outline" class="gt-sm self-end" href="@Viper.Classes.ExternalLinks.Viper2InfoUrl" target="_blank" rel="noopener" aria-label="About VIPER 2.0 (opens in new window)">
+                    <q-tooltip>About VIPER 2.0</q-tooltip>
+                </q-btn>
 
                 @await Component.InvokeAsync("EmulationBanner")
                 <q-space></q-space>
@@ -182,6 +185,12 @@
         <q-footer elevated class="bg-white" v-cloak>
             <div class="q-py-sm q-px-md q-gutter-xs text-caption row" id="footerNavLinks">
                 <div class="col-12 col-md q-pl-md">
+                    <a href="@Viper.Classes.ExternalLinks.Viper2InfoUrl" target="_blank" rel="noopener" class="text-primary">
+                        <q-icon color="primary" name="info" size="xs" aria-hidden="true"></q-icon>
+                        About VIPER 2.0
+                        <span class="sr-only">(opens in new window)</span>
+                    </a>
+                    <span class="text-primary q-px-sm">|</span>
                     <a href="https://svmithelp.vetmed.ucdavis.edu/" target="_blank" rel="noopener" class="text-primary">
                         <q-icon color="primary" name="help_center" size="xs" aria-hidden="true"></q-icon>
                         SVM-IT ServiceDesk
