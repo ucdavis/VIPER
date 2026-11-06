@@ -76,6 +76,7 @@ public class HarvestService : IHarvestService
 
         // Calculate summary
         CalculateSummary(harvestContext);
+        await AddExpectedRCoursesToSummaryAsync(harvestContext, ct);
 
         // Detect existing and removed items
         await DetectExistingAndRemovedItemsAsync(harvestContext, ct);
@@ -146,18 +147,16 @@ public class HarvestService : IHarvestService
             await UpdateTermStatusAsync(termCode, ct);
 
             // Add import audit
-            var summaryText = BuildSummaryText(harvestContext);
+            var summary = await GetPersistedSummaryAsync(termCode, ct);
+            var summaryText = BuildSummaryText(summary);
             _auditService.AddImportAudit(termCode, EffortAuditActions.ImportEffort, summaryText);
 
             await _context.SaveChangesAsync(ct);
             await transaction.CommitAsync(ct);
 
-            // Calculate summary for result
-            CalculateSummary(harvestContext);
-
             result.Success = true;
             result.HarvestedDate = DateTime.Now;
-            result.Summary = harvestContext.Preview.Summary;
+            result.Summary = summary;
             result.Warnings = harvestContext.Warnings;
 
             _logger.LogInformation("Harvest completed for term {TermCode}: {Summary}", termCode, summaryText);
@@ -298,20 +297,19 @@ public class HarvestService : IHarvestService
             await progressChannel.WriteAsync(HarvestProgressEvent.Finalizing(), ct);
             await UpdateTermStatusAsync(termCode, ct);
 
-            var summaryText = BuildSummaryText(harvestContext);
+            var summary = await GetPersistedSummaryAsync(termCode, ct);
+            var summaryText = BuildSummaryText(summary);
             _auditService.AddImportAudit(termCode, EffortAuditActions.ImportEffort, summaryText);
 
             await _context.SaveChangesAsync(ct);
             await transaction.CommitAsync(ct);
-
-            CalculateSummary(harvestContext);
 
             var result = new HarvestResultDto
             {
                 TermCode = termCode,
                 Success = true,
                 HarvestedDate = DateTime.Now,
-                Summary = harvestContext.Preview.Summary,
+                Summary = summary,
                 Warnings = harvestContext.Warnings
             };
 
@@ -491,21 +489,44 @@ public class HarvestService : IHarvestService
         };
     }
 
-    private static string BuildSummaryText(HarvestContext context)
+    // R-courses are generated after the import, so they have no preview rows. Mirrors
+    // IRCourseService.CreateForEligibleInstructorsAsync so the preview totals match the harvest.
+    private async Task AddExpectedRCoursesToSummaryAsync(HarvestContext context, CancellationToken ct)
     {
-        var allInstructors = GetAllInstructors(context.Preview)
-            .DistinctBy(p => p.MothraId)
-            .Count();
+        if (!_settings.AutoCreateGenericRCourse)
+        {
+            return;
+        }
 
-        var allCourses = context.Preview.CrestCourses.Count +
-                         context.Preview.NonCrestCourses.Count(c => c.Source != EffortConstants.SourceInCrest) +
-                         context.Preview.ClinicalCourses.Count;
+        // Harvest recreates every person unverified, so every instructor gets the R-course
+        var eligibleInstructors = context.Preview.Summary.TotalInstructors;
+        if (eligibleInstructors == 0)
+        {
+            return;
+        }
 
-        var allEffort = context.Preview.CrestEffort.Count +
-                        context.Preview.NonCrestEffort.Count +
-                        context.Preview.ClinicalEffort.Count;
+        // The course is created even when no effort type allows R-course records.
+        context.Preview.Summary.TotalCourses++;
+        if (await _context.EffortTypes.AnyAsync(t => t.AllowedOnRCourses && t.IsActive, ct))
+        {
+            context.Preview.Summary.TotalEffortRecords += eligibleInstructors;
+        }
+    }
 
-        return $"Harvested: {allInstructors} instructors, {allCourses} courses, {allEffort} effort records";
+    // Counts saved rows, not the preview, which excludes post-harvest R-courses and skipped records.
+    private async Task<HarvestSummary> GetPersistedSummaryAsync(int termCode, CancellationToken ct)
+    {
+        return new HarvestSummary
+        {
+            TotalInstructors = await _context.Persons.AsNoTracking().CountAsync(p => p.TermCode == termCode, ct),
+            TotalCourses = await _context.Courses.AsNoTracking().CountAsync(c => c.TermCode == termCode, ct),
+            TotalEffortRecords = await _context.Records.AsNoTracking().CountAsync(r => r.TermCode == termCode, ct)
+        };
+    }
+
+    private static string BuildSummaryText(HarvestSummary summary)
+    {
+        return $"Harvested: {summary.TotalInstructors} instructors, {summary.TotalCourses} courses, {summary.TotalEffortRecords} effort records";
     }
 
     private async Task DetectExistingAndRemovedItemsAsync(HarvestContext context, CancellationToken ct)
