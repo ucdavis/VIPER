@@ -221,6 +221,109 @@ public sealed class HarvestServiceTests : IDisposable
         _termServiceMock.Received(1).GetTermName(TestTermCode);
     }
 
+    [Theory]
+    [InlineData(true, "00193236", 0)]
+    [InlineData(true, "00999999", 1)]
+    [InlineData(true, null, 1)]
+    [InlineData(false, "00193236", 1)]
+    [InlineData(false, null, 1)]
+    public async Task NonCrestPreview_CrnInCrestAtOtherUnits_KeepsCourseVariantButSkipsEffort(bool inCrest, string? crestEffortMothraId, int expectedEffort)
+    {
+        // Arrange: R-course whose CREST row has 0 units while Banner lists it at 2 units
+        const string crn = "90517";
+        var termStr = TestTermCode.ToString();
+        _coursesContext.Baseinfos.Add(new Models.Courses.Baseinfo
+        {
+            BaseinfoPkey = "BK1",
+            BaseinfoTermCode = termStr,
+            BaseinfoSubjCode = "IMM",
+            BaseinfoCrseNumb = "491R",
+            BaseinfoSeqNumb = "001",
+            BaseinfoCrn = crn,
+            BaseinfoTitle = "Research",
+            BaseinfoUnitType = "CR",
+            BaseinfoUnitLow = 2,
+            BaseinfoUnitHigh = 2,
+            BaseinfoCollCode = "VM",
+            BaseinfoDeptCode = "IMM",
+            BaseinfoXlistFlag = "N",
+            BaseinfoXlistGroup = ""
+        });
+        _coursesContext.Poas.Add(new Models.Courses.Poa { PoaPkey = "P1", PoaTermCode = termStr, PoaCrn = crn, PoaPidm = "111" });
+        _aaudContext.Ids.Add(new Models.AAUD.Id { IdsPKey = "PK1", IdsTermCode = termStr, IdsClientid = "C1", IdsMothraid = "00193236", IdsPidm = "111" });
+        _aaudContext.Employees.Add(new Models.AAUD.Employee
+        {
+            EmpPKey = "PK1",
+            EmpTermCode = termStr,
+            EmpClientid = "C1",
+            EmpHomeDept = "072030",
+            EmpAltDeptCode = "",
+            EmpSchoolDivision = "VM",
+            EmpCbuc = "99",
+            EmpStatus = "A",
+            EmpEffortTitleCode = "001917"
+        });
+        _aaudContext.People.Add(new Viper.Models.AAUD.Person { PersonPKey = "PK1", PersonTermCode = termStr, PersonClientid = "C1", PersonLastName = "Barter", PersonFirstName = "Linda" });
+        _viperContext.People.Add(new Person { PersonId = 25756, ClientId = "C1", MothraId = "00193236", FirstName = "Linda", LastName = "Barter", FullName = "Barter, Linda" });
+        _instructorServiceMock
+            .BatchResolveDepartmentsAsync(Arg.Any<List<string>>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(new Dictionary<string, string> { ["00193236"] = "VSR" });
+        var ct = TestContext.Current.CancellationToken;
+        await _coursesContext.SaveChangesAsync(ct);
+        await _aaudContext.SaveChangesAsync(ct);
+        await _viperContext.SaveChangesAsync(ct);
+
+        var context = CreateHarvestContext();
+        if (inCrest)
+        {
+            context.Preview.CrestCourses.Add(new HarvestCoursePreview { Crn = crn, SubjCode = "IMM", CrseNumb = "491R", Units = 0 });
+        }
+        if (crestEffortMothraId != null)
+        {
+            // Without inCrest this row has no importable CREST course, so it must not suppress POA effort
+            context.Preview.CrestEffort.Add(new HarvestRecordPreview { Crn = crn, MothraId = crestEffortMothraId, RoleId = EffortConstants.DirectorRoleId });
+        }
+
+        // Act
+        await new NonCrestHarvestPhase().GeneratePreviewAsync(context, ct);
+
+        // Assert: the 2-unit variant is still imported as a course, but CREST owns the effort
+        // and the director still supplies the variant dept
+        Assert.Contains(context.Preview.NonCrestCourses, c => c.Crn == crn && c.Units == 2 && c.Source == EffortConstants.SourceNonCrest && c.CustDept == "VSR");
+        Assert.Equal(expectedEffort, context.Preview.NonCrestEffort.Count);
+        Assert.Equal(expectedEffort, context.Preview.NonCrestInstructors.Count);
+    }
+
+    [Theory]
+    [InlineData(false, null)]
+    [InlineData(true, EffortConstants.CahfsReportUnit)]
+    public async Task ImportPerson_SetsCahfsReportUnit_WhenPersonHasCahfsJob(bool hasCahfsJob, string? expectedReportUnit)
+    {
+        // Arrange
+        var ct = TestContext.Current.CancellationToken;
+        _instructorServiceMock
+            .HasCahfsAppointmentAsync("00193236", TestTermCode, Arg.Any<CancellationToken>())
+            .Returns(hasCahfsJob);
+        var context = CreateHarvestContext();
+        context.Preview.NonCrestInstructors.Add(new HarvestPersonPreview
+        {
+            MothraId = "00193236",
+            PersonId = 25756,
+            FirstName = "Linda",
+            LastName = "Barter",
+            Department = "VSR",
+            TitleCode = "001917"
+        });
+
+        // Act
+        await new NonCrestHarvestPhase().ExecuteAsync(context, ct);
+
+        // Assert
+        var person = Assert.Single(_context.Persons.Local);
+        Assert.Equal(expectedReportUnit, person.ReportUnit);
+        _auditServiceMock.Received(1).AddHarvestPersonAudit(25756, TestTermCode, "Linda", "Barter", "VSR", expectedReportUnit);
+    }
+
     #endregion
 
     #region ExecuteHarvestAsync Tests
@@ -838,6 +941,24 @@ public sealed class HarvestServiceTests : IDisposable
         Assert.Equal("PMI", courses[1].CustDept); // already academic — unchanged
         Assert.Equal("UNK", courses[2].CustDept); // IOR dept not academic — unchanged
     }
+
+    /// <summary>
+    /// Creates a HarvestContext wired to the test contexts and mocks, for driving a phase directly.
+    /// </summary>
+    private HarvestContext CreateHarvestContext() => new()
+    {
+        TermCode = TestTermCode,
+        EffortContext = _context,
+        CrestContext = _crestContext,
+        CoursesContext = _coursesContext,
+        ViperContext = _viperContext,
+        AaudContext = _aaudContext,
+        DictionaryContext = _dictionaryContext,
+        AuditService = _auditServiceMock,
+        InstructorService = _instructorServiceMock,
+        TermService = _termServiceMock,
+        Logger = _loggerMock
+    };
 
     /// <summary>
     /// Creates a HarvestService that uses a single custom phase for testing.

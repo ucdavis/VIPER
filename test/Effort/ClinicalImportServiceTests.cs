@@ -1,3 +1,4 @@
+using System.Threading.Channels;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging;
@@ -331,8 +332,10 @@ public sealed class ClinicalImportServiceTests : IDisposable
 
     #region ExecuteImportAsync - EnsureEffortPerson/Course Tests
 
-    [Fact]
-    public async Task ExecuteImportAsync_CreatesEffortPerson_WhenMissing()
+    [Theory]
+    [InlineData(false, null)]
+    [InlineData(true, EffortConstants.CahfsReportUnit)]
+    public async Task ExecuteImportAsync_CreatesEffortPerson_WhenMissing(bool hasCahfsJob, string? expectedReportUnit)
     {
         // Arrange - term, source data, AAUD record, VIPER person — but NO EffortPerson
         await SeedTermAndCourseAsync();
@@ -382,6 +385,10 @@ public sealed class ClinicalImportServiceTests : IDisposable
         });
         await _aaudContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
+        _instructorServiceMock
+            .HasCahfsAppointmentAsync("INST0020", TermCode, Arg.Any<CancellationToken>())
+            .Returns(hasCahfsJob);
+
         // Act
         var result = await _service.ExecuteImportAsync(TermCode, ClinicalImportMode.AddNewOnly, modifiedBy: 1, TestContext.Current.CancellationToken);
 
@@ -394,6 +401,61 @@ public sealed class ClinicalImportServiceTests : IDisposable
         Assert.Equal("CLINICAL", effortPerson.LastName);
         Assert.Equal("VME", effortPerson.EffortDept);
         Assert.Equal("1234", effortPerson.EffortTitleCode);
+        Assert.Equal(expectedReportUnit, effortPerson.ReportUnit);
+    }
+
+    [Theory]
+    [InlineData(null, true, false, false, EffortConstants.CahfsReportUnit)]
+    [InlineData("", true, false, false, EffortConstants.CahfsReportUnit)]
+    [InlineData(null, false, false, false, null)]
+    [InlineData("PMI", true, false, false, "PMI")]
+    [InlineData(null, true, true, false, EffortConstants.CahfsReportUnit)]
+    [InlineData(null, true, true, true, EffortConstants.CahfsReportUnit)]
+    public async Task ExecuteImportAsync_TagsExistingPersonCahfs_OnlyWhenReportUnitUnset(
+        string? existingReportUnit, bool hasCahfsJob, bool hasExistingRecord, bool withProgress, string? expectedReportUnit)
+    {
+        // Arrange - instructor already exists for the term (e.g. added manually)
+        await SeedTermAndCourseAsync();
+        await SeedSourceDataAsync("INST0022", "DVM", "453", weekCount: 2);
+        _context.ViperPersons.Add(new ViperPerson
+        {
+            PersonId = 22,
+            FirstName = "Existing",
+            LastName = "Clinical",
+            MothraId = "INST0022"
+        });
+        _context.Persons.Add(new EffortPerson
+        {
+            PersonId = 22,
+            TermCode = TermCode,
+            FirstName = "EXISTING",
+            LastName = "CLINICAL",
+            EffortDept = "VME",
+            EffortTitleCode = "1234",
+            ReportUnit = existingReportUnit
+        });
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        if (hasExistingRecord)
+        {
+            // First import creates the clinical record, so the repeat import skips it
+            await _service.ExecuteImportAsync(TermCode, ClinicalImportMode.AddNewOnly, modifiedBy: 1, TestContext.Current.CancellationToken);
+        }
+
+        _instructorServiceMock
+            .GetCahfsMothraIdsAsync(Arg.Any<IReadOnlyCollection<string>>(), TermCode, Arg.Any<CancellationToken>())
+            .Returns(hasCahfsJob ? new HashSet<string> { "INST0022" } : new HashSet<string>());
+
+        // Act
+        var result = withProgress
+            ? await _service.ExecuteImportWithProgressAsync(TermCode, ClinicalImportMode.AddNewOnly, modifiedBy: 1,
+                Channel.CreateUnbounded<ClinicalImportProgressEvent>().Writer, TestContext.Current.CancellationToken)
+            : await _service.ExecuteImportAsync(TermCode, ClinicalImportMode.AddNewOnly, modifiedBy: 1, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.True(result.Success);
+        var effortPerson = await _context.Persons.AsNoTracking().SingleAsync(p => p.PersonId == 22 && p.TermCode == TermCode, TestContext.Current.CancellationToken);
+        Assert.Equal(expectedReportUnit, effortPerson.ReportUnit);
     }
 
     [Fact]

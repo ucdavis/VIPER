@@ -133,16 +133,20 @@ public class EffortAuditService : IEffortAuditService
         _logger.LogInformation("Cleared audit records for term {TermCode}", termCode);
     }
 
-    public void AddHarvestPersonAudit(int personId, int termCode, string firstName, string lastName, string department)
+    public void AddHarvestPersonAudit(int personId, int termCode, string firstName, string lastName, string department, string? reportUnit)
     {
-        var changes = JsonSerializer.Serialize(new Dictionary<string, ChangeDetail>
+        var changes = new Dictionary<string, ChangeDetail>
         {
             ["PersonId"] = new ChangeDetail { OldValue = null, NewValue = personId.ToString() },
             ["Name"] = new ChangeDetail { OldValue = null, NewValue = $"{lastName}, {firstName}" },
             ["Department"] = new ChangeDetail { OldValue = null, NewValue = department }
-        });
+        };
+        if (reportUnit != null)
+        {
+            changes["ReportUnit"] = new ChangeDetail { OldValue = null, NewValue = reportUnit };
+        }
 
-        AddAuditEntry(EffortAuditTables.Persons, personId, termCode, EffortAuditActions.HarvestCreatePerson, changes);
+        AddAuditEntry(EffortAuditTables.Persons, personId, termCode, EffortAuditActions.HarvestCreatePerson, JsonSerializer.Serialize(changes));
     }
 
     public void AddHarvestCourseAudit(int courseId, int termCode, string subjCode, string crseNumb, string crn)
