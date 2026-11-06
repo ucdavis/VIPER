@@ -1,0 +1,14 @@
+@* Shared SVM brand lockup (rod mark + school-name). Styled by .viper-brand* in
+   site.css; mirrored in welcome.css for the standalone splash. *@
+<div class="viper-brand">
+    <div class="viper-brand__mark" aria-hidden="true">
+        <picture>
+            <source srcset="@Url.Content("~/images/login/rod-of-asclepius-white.avif")" type="image/avif" />
+            <img src="@Url.Content("~/images/login/rod-of-asclepius-white.png")" alt="" />
+        </picture>
+    </div>
+    <picture>
+        <source srcset="@Url.Content("~/images/logo-vetmed-stacked-lockup.avif")" type="image/avif" />
+        <img class="viper-brand__name" src="@Url.Content("~/images/logo-vetmed-stacked-lockup.png")" alt="UC Davis Weill School of Veterinary Medicine" />
+    </picture>
+</div>

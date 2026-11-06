@@ -4,18 +4,22 @@
 namespace Web.Authorization
 {
     /// <summary>
-    /// Single sign-on providers the app can sign users in with.
+    /// Single sign-on providers the app can offer on the welcome screen.
     /// </summary>
     /// <remarks>
-    /// An environment uses exactly one: campus switches from CAS to Entra ID in one step. Flags
-    /// so a misconfigured "Cas, EntraId" still binds and is caught at startup, which falls back
-    /// to CAS.
+    /// Flags so the splash can offer both side by side for local development and testing;
+    /// deployed environments run one. Configuration binding parses the member names, so "Cas",
+    /// "EntraId", "Both", and "Cas, EntraId" are all valid values for
+    /// Authentication:EnabledProviders.
     /// </remarks>
     [Flags]
     public enum LoginProviders
     {
         None = 0,
         Cas = 1,
-        EntraId = 2
+        EntraId = 2,
+
+        /// <summary>Both providers offered at once. Named for readability in appsettings.</summary>
+        Both = Cas | EntraId
     }
 }
