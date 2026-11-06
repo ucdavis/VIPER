@@ -10,7 +10,6 @@ import {
     getDevServerEnv,
     createLogger,
     execAsync,
-    checkProcessExists,
     DEFAULT_ENV_VARS,
 } from "./lib/script-utils.js"
 
@@ -114,8 +113,9 @@ async function killOrphanedDotnetWatch() {
         const results = await Promise.all(
             watchers.map(async ({ ProcessId: pid, ParentProcessId: parentPid }) => {
                 // If the parent is dead, this dotnet watch is orphaned
-                const parentAlive = await checkProcessExists(String(parentPid))
-                if (!parentAlive) {
+                // A failed query throws, so a watcher is only killed when its parent is really gone
+                const parents = await queryProcesses(`ProcessId=${parentPid}`)
+                if (parents.length === 0) {
                     const wasKilled = await killProcess(String(pid))
                     if (wasKilled) {
                         logSuccess(`Orphaned dotnet watch: Stopped process tree (PID ${pid})`)
