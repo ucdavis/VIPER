@@ -1,3 +1,4 @@
+using System.Threading.Channels;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging;
@@ -147,6 +148,42 @@ public sealed class HarvestServiceTests : IDisposable
     }
 
     #region GeneratePreviewAsync Tests
+
+    [Theory]
+    [InlineData(true, true, 2, 4)]
+    [InlineData(true, false, 2, 3)]
+    [InlineData(false, true, 1, 3)]
+    public async Task GeneratePreviewAsync_SummaryIncludesExpectedRCourses(
+        bool autoCreate, bool effortTypeActive, int expectedCourses, int expectedRecords)
+    {
+        // Arrange: only 00000001 has effort on a non-R course
+        var ct = TestContext.Current.CancellationToken;
+        _context.EffortTypes.Add(new EffortType { Id = "LEC", Description = "Lecture", AllowedOnRCourses = true, IsActive = effortTypeActive });
+        await _context.SaveChangesAsync(ct);
+
+        var service = new HarvestService(
+            new List<IHarvestPhase> { new PreviewEffortPhase() },
+            _context,
+            _viperContext,
+            _coursesContext,
+            _crestContext,
+            _aaudContext,
+            _dictionaryContext,
+            _auditServiceMock,
+            _termServiceMock,
+            _instructorServiceMock,
+            _rCourseServiceMock,
+            _clinicalImportServiceMock,
+            Options.Create(new EffortSettings { AutoCreateGenericRCourse = autoCreate }),
+            _loggerMock);
+
+        // Act
+        var result = await service.GeneratePreviewAsync(TestTermCode, ct);
+
+        // Assert
+        Assert.Equal(expectedCourses, result.Summary.TotalCourses);
+        Assert.Equal(expectedRecords, result.Summary.TotalEffortRecords);
+    }
 
     [Fact]
     public async Task GeneratePreviewAsync_WithNoData_ReturnsEmptyPreview()
@@ -889,6 +926,68 @@ public sealed class HarvestServiceTests : IDisposable
             Arg.Any<CancellationToken>());
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Harvest_SummaryCountsPersistedRows_IncludingGeneratedRCourse(bool withProgress)
+    {
+        // Arrange
+        var ct = TestContext.Current.CancellationToken;
+        _context.Terms.Add(new EffortTerm { TermCode = TestTermCode });
+        _context.EffortTypes.Add(new EffortType { Id = "LEC", Description = "Lecture", AllowedOnRCourses = true, IsActive = true });
+        await _context.SaveChangesAsync(ct);
+
+        _rCourseServiceMock
+            .When(s => s.CreateForEligibleInstructorsAsync(TestTermCode, 123, RCourseCreationContext.Harvest, Arg.Any<CancellationToken>()))
+            .Do(_ =>
+            {
+                var rCourse = new EffortCourse { TermCode = TestTermCode, Crn = "RESID", SubjCode = "RES", CrseNumb = "000R", SeqNumb = "001", CustDept = "" };
+                _context.Courses.Add(rCourse);
+                _context.SaveChanges();
+                _context.Records.Add(new EffortRecord { PersonId = 100, TermCode = TestTermCode, CourseId = rCourse.Id, EffortTypeId = "LEC", RoleId = 2, Crn = "RESID" });
+                _context.SaveChanges();
+            });
+
+        var service = new HarvestService(
+            new List<IHarvestPhase> { new TestDataHarvestPhase(_context, TestTermCode) },
+            _context,
+            _viperContext,
+            _coursesContext,
+            _crestContext,
+            _aaudContext,
+            _dictionaryContext,
+            _auditServiceMock,
+            _termServiceMock,
+            _instructorServiceMock,
+            _rCourseServiceMock,
+            _clinicalImportServiceMock,
+            RCourseEnabledSettings,
+            _loggerMock);
+
+        // Act
+        HarvestResultDto? result;
+        if (withProgress)
+        {
+            var channel = Channel.CreateUnbounded<HarvestProgressEvent>();
+            await service.ExecuteHarvestWithProgressAsync(TestTermCode, 123, channel.Writer, ct);
+            var events = await channel.Reader.ReadAllAsync(ct).ToListAsync(ct);
+            Assert.Null(events.Find(e => e.Type == "error")?.Error);
+            result = events.Single(e => e.Type == "complete").Result;
+        }
+        else
+        {
+            result = await service.ExecuteHarvestAsync(TestTermCode, 123, ct);
+        }
+
+        // Assert: the test phase adds 1 person, course and record; the R-course adds 1 course and record
+        Assert.NotNull(result);
+        Assert.Equal(1, result.Summary.TotalInstructors);
+        Assert.Equal(2, result.Summary.TotalCourses);
+        Assert.Equal(2, result.Summary.TotalEffortRecords);
+        _auditServiceMock.Received(1).AddImportAudit(
+            TestTermCode, Arg.Any<string>(), "Harvested: 1 instructors, 2 courses, 2 effort records");
+    }
+
     [Fact]
     public async Task ExecuteHarvestAsync_DoesNotCallRCourseService_WhenAutoCreateDisabled()
     {
@@ -1041,6 +1140,25 @@ public sealed class HarvestServiceTests : IDisposable
                     Source = "CREST"
                 });
             }
+            return Task.CompletedTask;
+        }
+
+        public Task ExecuteAsync(HarvestContext context, CancellationToken ct = default)
+            => Task.CompletedTask;
+    }
+
+    private sealed class PreviewEffortPhase : IHarvestPhase
+    {
+        public int Order => 1;
+        public string PhaseName => "PreviewEffort";
+        public bool ShouldExecute(int termCode) => true;
+
+        public Task GeneratePreviewAsync(HarvestContext context, CancellationToken ct = default)
+        {
+            context.Preview.CrestCourses.Add(new HarvestCoursePreview { Crn = "12345", SubjCode = "VET", CrseNumb = "410", Units = 4 });
+            context.Preview.CrestEffort.Add(new HarvestRecordPreview { MothraId = "00000001", CourseCode = "VET 410" });
+            context.Preview.NonCrestEffort.Add(new HarvestRecordPreview { MothraId = "00000001", CourseCode = "VSR 491R" });
+            context.Preview.NonCrestEffort.Add(new HarvestRecordPreview { MothraId = "00000002", CourseCode = "VSR 491R" });
             return Task.CompletedTask;
         }
 
