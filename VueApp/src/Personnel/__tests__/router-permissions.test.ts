@@ -147,6 +147,31 @@ describe("personnel router - permission gating", () => {
         expect(router.currentRoute.value.name).toBe("MaintainPhoneList")
     })
 
+    it("lets the API-gated pages through without a browser-side permission", async () => {
+        expect.hasAssertions()
+        // EIS and the Person Collector check their permissions in the API. The browser only
+        // holds SVMSecure.PhoneLists.*, so a route gate on their permissions would always fail.
+        const router = routerFor([])
+
+        await router.push("/Personnel/PersonCollector")
+
+        expect(router.currentRoute.value.name).toBe("PersonCollector")
+
+        await router.push("/Personnel/EIS")
+
+        expect(router.currentRoute.value.name).toBe("EisSelectPerson")
+    })
+
+    it("only gates routes on permissions the guard loads", () => {
+        expect.hasAssertions()
+        // A gate on any other permission could never pass and would always redirect home.
+        const gated = routes.flatMap((route) =>
+            "meta" in route ? ((route.meta as { permissions?: string[] }).permissions ?? []) : [],
+        )
+
+        expect(gated.filter((permission) => !permission.startsWith("SVMSecure.PhoneLists."))).toStrictEqual([])
+    })
+
     it("redirects the pre-Code VMDO paths so published links keep working", async () => {
         expect.hasAssertions()
         const router = routerFor([])
