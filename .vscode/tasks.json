@@ -18,46 +18,6 @@
             },
             "problemMatcher": "$msCompile"
         },
-        {
-            "label": "dev:frontend",
-            "type": "shell",
-            "command": "npm",
-            "args": ["run", "dev:frontend"],
-            "group": "build",
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "shared",
-                "group": "frontend"
-            }
-        },
-        {
-            "label": "dev:fullstack",
-            "type": "shell",
-            "command": "npm",
-            "args": ["run", "dev:fullstack"],
-            "group": "build",
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "shared"
-            }
-        },
-        {
-            "label": "dev:frontend-build",
-            "type": "shell",
-            "command": "npm",
-            "args": ["run", "dev:frontend-build"],
-            "group": "build",
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "shared"
-            }
-        },
         // Linting Tasks
         {
             "label": "lint",
