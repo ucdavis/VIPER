@@ -27,32 +27,37 @@
             :parent-to="{ name: 'EisSelectPerson' }"
         />
         <EisPersonHeader :header="header" />
-        <q-tabs
-            align="left"
-            no-caps
-            active-color="primary"
-            indicator-color="primary"
-            class="q-mb-md"
+        <nav
+            aria-label="Employee information"
+            class="eis-section-nav q-mb-md"
         >
-            <q-route-tab
-                v-for="tab in TABS"
-                :key="tab.name"
-                :to="{ name: tab.name, params: { employeeId } }"
-                :label="tab.label"
-                exact
-            />
-        </q-tabs>
+            <q-tabs
+                align="left"
+                no-caps
+                active-color="primary"
+                indicator-color="primary"
+                class="tabs-no-fade"
+            >
+                <q-route-tab
+                    v-for="tab in TABS"
+                    :key="tab.name"
+                    :to="{ name: tab.name, params: { employeeId } }"
+                    :label="tab.label"
+                    exact
+                />
+            </q-tabs>
+        </nav>
         <router-view />
     </template>
 </template>
 
 <script setup lang="ts">
-import { computed, provide, readonly, ref, watch } from "vue"
+import { computed, ref, watch } from "vue"
 import { useRoute } from "vue-router"
 import BreadcrumbHeading from "@/components/BreadcrumbHeading.vue"
 import StatusBanner from "@/components/StatusBanner.vue"
 import EisPersonHeader from "../components/EisPersonHeader.vue"
-import { eisHeaderKey } from "../composables/eis-header"
+import { provideEisHeader } from "../composables/use-eis-header"
 import { eisService } from "../services/eis-service"
 import type { EisPersonHeader as EisPersonHeaderData } from "../types/eis-types"
 
@@ -75,7 +80,7 @@ const header = ref<EisPersonHeaderData | null>(null)
 const loading = ref(true)
 let loadId = 0
 
-provide(eisHeaderKey, readonly(header))
+provideEisHeader(header)
 
 watch(
     employeeId,
@@ -93,3 +98,18 @@ watch(
     { immediate: true },
 )
 </script>
+
+<style scoped>
+/* A tinted, bordered band so the tabs read as navigation rather than page text. The active tab
+   takes the blue-10 tint the left nav uses for its active row. */
+.eis-section-nav {
+    background-color: var(--surface-tint);
+    border: 1px solid var(--ucdavis-black-10);
+    border-radius: 0.25rem;
+}
+
+.eis-section-nav :deep(.q-tab--active) {
+    background-color: var(--ucdavis-blue-10);
+    font-weight: 500;
+}
+</style>

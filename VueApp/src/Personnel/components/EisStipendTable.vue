@@ -53,7 +53,7 @@
 </template>
 
 <script setup lang="ts">
-import { formatEisDate, formatEndDate, formatMoney } from "../services/eis-format"
+import { formatEisDate, formatEndDate, formatMoney } from "../utils/eis-format"
 import type { EisStipend } from "../types/eis-types"
 
 /** The employee's stipends, when there are any. */

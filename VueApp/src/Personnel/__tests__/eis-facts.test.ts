@@ -1,9 +1,11 @@
-import { headerFacts, listingFacts, summaryFacts } from "../services/eis-facts"
+import { headerFacts, listingFacts, summaryFacts } from "../utils/eis-facts"
+import type { EisFactRow, EisFactSection } from "../utils/eis-facts"
 import type { EisPersonHeader } from "../types/eis-types"
 
 /**
- * The EIS fact lists keep missing values as null (shown blank) and leave out the rows a person
- * doesn't have: staff and faculty programs, and a PTO balance of zero.
+ * The EIS fact lists pair related facts on one line as the legacy header did, keep missing
+ * values as null (shown blank) and leave out what a person doesn't have: staff and faculty
+ * programs, and a PTO balance of zero.
  */
 
 const person: EisPersonHeader = {
@@ -37,19 +39,62 @@ const person: EisPersonHeader = {
     ptoHours: 0,
 }
 
-function labels(facts: { label: string }[]): string[] {
-    return facts.map((fact) => fact.label)
+function labels(rows: EisFactRow[]): string[] {
+    return rows.flat().map((fact) => fact.label)
+}
+
+/** Every row of every Summary section, in order. */
+function summaryRows(sections: EisFactSection[]): EisFactRow[] {
+    return sections.flatMap((section) => section.rows)
+}
+
+/** Each row's labels joined, so the pairing is easy to read in the expectations. */
+function lines(rows: EisFactRow[]): string[] {
+    return rows.map((row) => row.map((fact) => fact.label).join(" | "))
 }
 
 describe("eis-facts", () => {
     it("links the email and shows PTO only when there is a balance", () => {
         expect.hasAssertions()
-        const facts = summaryFacts({ ...person, email: "ada@ucdavis.edu", ptoHours: 8 })
+        const facts = summaryRows(summaryFacts({ ...person, email: "ada@ucdavis.edu", ptoHours: 8 }))
 
-        expect(facts[0]).toStrictEqual({ label: "Email", value: "ada@ucdavis.edu", href: "mailto:ada@ucdavis.edu" })
+        expect(facts[0]).toStrictEqual([{ label: "Email", value: "ada@ucdavis.edu", href: "mailto:ada@ucdavis.edu" }])
         expect(labels(facts)).toContain("PTO balance")
-        expect(summaryFacts(person)[0]).toStrictEqual({ label: "Email", value: null })
-        expect(labels(summaryFacts(person))).not.toContain("PTO balance")
+        expect(summaryRows(summaryFacts(person))[0]).toStrictEqual([{ label: "Email", value: null }])
+        expect(labels(summaryRows(summaryFacts(person)))).not.toContain("PTO balance")
+    })
+
+    it("pairs related facts the way the legacy header did", () => {
+        expect.hasAssertions()
+
+        expect(lines(headerFacts({ ...person, isStaff: true, isFaculty: true }))).toStrictEqual([
+            "Employee ID",
+            "Primary affiliation",
+            "Primary title | Job group ID",
+            "Home department | Alternate department",
+            "Staff program | Staff type",
+            "Faculty program | Ladder rank",
+        ])
+    })
+
+    it("keeps the legacy order in the Summary, split into personal, position, and service and leave", () => {
+        expect.hasAssertions()
+        const sections = summaryFacts({ ...person, ptoHours: 8 })
+
+        expect(sections.map((section) => [section.title, lines(section.rows)])).toStrictEqual([
+            [
+                "Personal",
+                [
+                    "Email",
+                    "Date of birth | Age",
+                    "Gender | Ethnicity",
+                    "Hire date | Employment status",
+                    "US citizen | Visa type",
+                ],
+            ],
+            ["Position", ["Bargaining unit | Labor relations unit"]],
+            ["Service and leave", ["Service credit | Vacation balance", "Sick leave balance | PTO balance"]],
+        ])
     })
 
     it("adds the staff and faculty programs only for people who hold them", () => {
@@ -72,6 +117,9 @@ describe("eis-facts", () => {
             phone: null,
         })
 
-        expect(facts.map((fact) => fact.value)).toStrictEqual(["Professor", null, null, null])
+        expect(facts.map((row) => row.map((fact) => fact.value))).toStrictEqual([
+            ["Professor", null],
+            [null, null],
+        ])
     })
 })

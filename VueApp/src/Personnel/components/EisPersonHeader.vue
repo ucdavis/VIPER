@@ -9,7 +9,7 @@
             />
         </div>
         <div class="col">
-            <EisFactList :facts="facts" />
+            <EisFactList :rows="rows" />
         </div>
     </div>
 </template>
@@ -17,8 +17,8 @@
 <script setup lang="ts">
 import { computed } from "vue"
 import EisFactList from "./EisFactList.vue"
-import { headerFacts } from "../services/eis-facts"
 import { eisService } from "../services/eis-service"
+import { headerFacts } from "../utils/eis-facts"
 import type { EisPersonHeader } from "../types/eis-types"
 
 /**
@@ -27,5 +27,5 @@ import type { EisPersonHeader } from "../types/eis-types"
  */
 const { header } = defineProps<{ header: EisPersonHeader }>()
 
-const facts = computed(() => headerFacts(header))
+const rows = computed(() => headerFacts(header))
 </script>

@@ -4,7 +4,7 @@ import {
     studentKeys,
     toApiRequest,
     withStudentKeys,
-} from "../services/person-collector-request"
+} from "../utils/person-collector-request"
 
 /**
  * The request helpers decide when there is anything to load, and keep MPVM in the student picker

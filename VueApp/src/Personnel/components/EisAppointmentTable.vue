@@ -96,7 +96,7 @@
 </template>
 
 <script setup lang="ts">
-import { describeAppointment, formatEisDate, formatEndDate, formatMoney, formatPercent } from "../services/eis-format"
+import { describeAppointment, formatEisDate, formatEndDate, formatMoney, formatPercent } from "../utils/eis-format"
 import type { EisAppointment } from "../types/eis-types"
 
 /** One appointment with its distributions and total. Negative amounts are reductions, such as furloughs. */

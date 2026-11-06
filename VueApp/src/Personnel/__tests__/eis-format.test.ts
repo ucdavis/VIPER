@@ -8,7 +8,7 @@ import {
     formatMoney,
     formatPercent,
     formatServiceCredit,
-} from "../services/eis-format"
+} from "../utils/eis-format"
 import type { EisAppointment } from "../types/eis-types"
 
 /**

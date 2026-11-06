@@ -93,7 +93,7 @@
 import { computed } from "vue"
 import type { WritableComputedRef } from "vue"
 import PersonCollectorChoices from "./PersonCollectorChoices.vue"
-import { MPVM, emptyRequest, hasChoice, studentKeys, withStudentKeys } from "../services/person-collector-request"
+import { MPVM, emptyRequest, hasChoice, studentKeys, withStudentKeys } from "../utils/person-collector-request"
 import type { PersonCollectorForm, PersonCollectorRequest } from "../types/person-collector-types"
 
 /**
