@@ -255,7 +255,7 @@ namespace Viper.Classes.HealthChecks
         /// <summary>
         /// Wires the health-check endpoints and the UI dashboard into the pipeline,
         /// including IP gating, duration-humanizer script injection, and the UI map.
-        /// Call AFTER UseRouting / UseAuthentication / UseSession.
+        /// Call AFTER UseRouting / UseAuthentication.
         /// </summary>
         public static WebApplication UseViperHealthChecks(this WebApplication app)
         {
