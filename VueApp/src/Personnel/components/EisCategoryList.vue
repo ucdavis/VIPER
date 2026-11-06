@@ -47,10 +47,11 @@ function isManual(category: EisCategory): category is ManualCategory {
 </script>
 
 <style scoped>
+/* Columns fill top to bottom, so the categories read down each column in the legacy page's
+   order rather than across. */
 .eis-categories {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
-    gap: 0.25rem 1.5rem;
+    columns: 18rem;
+    column-gap: 1.5rem;
     list-style: none;
     padding: 0;
 }
@@ -60,5 +61,7 @@ function isManual(category: EisCategory): category is ManualCategory {
     align-items: center;
     gap: 0.5rem;
     min-height: 1.75rem;
+    margin-bottom: 0.25rem;
+    break-inside: avoid;
 }
 </style>

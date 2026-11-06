@@ -20,7 +20,7 @@
                 class="q-ml-sm"
             />
         </h4>
-        <EisFactList :facts="listingFacts(listing)" />
+        <EisFactList :rows="listingFacts(listing)" />
     </div>
 </template>
 
@@ -28,7 +28,7 @@
 import StatusBadge from "@/components/StatusBadge.vue"
 import StatusBanner from "@/components/StatusBanner.vue"
 import EisFactList from "./EisFactList.vue"
-import { listingFacts } from "../services/eis-facts"
+import { listingFacts } from "../utils/eis-facts"
 import type { EisCampusListing } from "../types/eis-types"
 
 /** The campus directory listings; additional listings the directory doesn't publish are marked. */

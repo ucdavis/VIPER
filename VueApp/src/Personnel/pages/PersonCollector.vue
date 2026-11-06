@@ -91,8 +91,8 @@ import ExportToolbar from "@/components/ExportToolbar.vue"
 import StatusBanner from "@/components/StatusBanner.vue"
 import PersonCollectorFilters from "../components/PersonCollectorFilters.vue"
 import PersonCollectorResults from "../components/PersonCollectorResults.vue"
-import { emptyRequest, hasChoice, toApiRequest } from "../services/person-collector-request"
 import { personCollectorService } from "../services/person-collector-service"
+import { emptyRequest, hasChoice, toApiRequest } from "../utils/person-collector-request"
 import type {
     PersonCollectorForm,
     PersonCollectorRequest,

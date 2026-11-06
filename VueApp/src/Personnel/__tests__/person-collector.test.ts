@@ -6,8 +6,8 @@ import PersonCollectorFilters from "../components/PersonCollectorFilters.vue"
 import PersonCollectorResults from "../components/PersonCollectorResults.vue"
 import PersonCollector from "../pages/PersonCollector.vue"
 import { routes } from "../router/routes"
-import { emptyRequest } from "../services/person-collector-request"
 import { personCollectorService } from "../services/person-collector-service"
+import { emptyRequest } from "../utils/person-collector-request"
 import type { PersonCollectorForm, PersonCollectorResult } from "../types/person-collector-types"
 
 /**

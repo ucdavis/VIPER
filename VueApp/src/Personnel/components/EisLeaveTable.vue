@@ -35,7 +35,7 @@
 </template>
 
 <script setup lang="ts">
-import { formatEisDate } from "../services/eis-format"
+import { formatEisDate } from "../utils/eis-format"
 import type { EisLeave } from "../types/eis-types"
 
 /** One leave of absence list, from UCPath or from the retired PPS system. */
