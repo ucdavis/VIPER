@@ -525,3 +525,4 @@ inspect-report/
 
 # Agent folders
 .claude
+.boost/
