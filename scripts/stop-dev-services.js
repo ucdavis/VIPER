@@ -16,7 +16,7 @@ import {
 
 // Create logger with prefix
 const logger = createLogger("Dev Stop")
-const { error: logError, success: logSuccess, info: logInfo } = logger
+const { error: logError, success: logSuccess, info: logInfo, warning: logWarning } = logger
 
 // Stop Mailpit specifically (cross-platform)
 async function stopMailpit() {
@@ -77,6 +77,45 @@ async function getDotnetParentPid(pid) {
     }
 }
 
+// Walk up from the server to the top of its dotnet chain. The chain is
+// dotnet watch > dotnet-watch.dll > dotnet run > server, and killing anything
+// below the top leaves dotnet watch alive to restart the server.
+async function findTopDotnetAncestor(pid) {
+    const maxChainDepth = 5
+    let top = null
+    let current = pid
+    for (let depth = 0; depth < maxChainDepth; depth += 1) {
+        // eslint-disable-next-line no-await-in-loop -- each lookup depends on the previous parent
+        const parent = await getDotnetParentPid(current)
+        if (!parent) {
+            break
+        }
+        top = parent
+        current = parent
+    }
+    return top
+}
+
+// An idle dotnet watch has no server to show which checkout owns it, so it can't
+// be stopped safely when other instances may be running. Report it instead.
+async function warnAboutRemainingDotnetWatch() {
+    if (process.platform !== "win32") {
+        return
+    }
+    try {
+        const { stdout } = await execAsync(
+            `wmic process where "Name='dotnet.exe' AND CommandLine LIKE 'dotnet watch%'" get ProcessId /value`,
+        )
+        const pids = [...stdout.matchAll(/ProcessId=(?<pid>\d+)/gu)].map((match) => match.groups.pid)
+        for (const pid of pids) {
+            logWarning(`dotnet watch (PID ${pid}) is still running, possibly for another checkout.`)
+            logWarning(`If it belongs to this one, stop it with: taskkill /F /T /PID ${pid}`)
+        }
+    } catch {
+        // Wmic reports "no instances" as a failure, which means nothing is left to warn about
+    }
+}
+
 // Find and kill orphaned dotnet watch processes whose parent session is dead
 async function killOrphanedDotnetWatch() {
     if (process.platform !== "win32") {
@@ -129,13 +168,13 @@ async function stopDotnetProcesses(envVars) {
         // Find the process on the port so we can also kill its parent (dotnet watch)
         const pid = await findPidOnPort(port)
         if (pid) {
-            const parentPid = await getDotnetParentPid(pid)
-            if (parentPid) {
-                // Kill the parent dotnet watch — killProcess uses /T to kill the entire tree
-                const killed = await killProcess(parentPid)
+            const topPid = await findTopDotnetAncestor(pid)
+            if (topPid) {
+                // Kill the top of the chain: killProcess uses /T to kill the entire tree
+                const killed = await killProcess(topPid)
                 if (killed) {
                     logSuccess(
-                        `.NET development server: Stopped dotnet watch (PID ${parentPid}) and its process tree on port ${port}`,
+                        `.NET development server: Stopped dotnet watch (PID ${topPid}) and its process tree on port ${port}`,
                     )
                     return true
                 }
@@ -158,6 +197,8 @@ async function stopDotnetProcesses(envVars) {
 
     // Sweep for orphaned dotnet watch processes (parent session died but watch survived)
     const orphansKilled = await killOrphanedDotnetWatch()
+
+    await warnAboutRemainingDotnetWatch()
 
     return stopped + orphansKilled
 }
@@ -189,6 +230,44 @@ async function stopViteDevServer(envVars) {
     return stopped
 }
 
+// Check for a VIPER server or dotnet watch, from dev or dev:build, in any checkout (Windows only)
+async function isAnyViperInstanceRunning() {
+    if (process.platform !== "win32") {
+        return false
+    }
+    try {
+        const { stdout } = await execAsync(
+            `wmic process where "Name='Viper.exe' OR (Name='dotnet.exe' AND (CommandLine LIKE 'dotnet watch%' OR CommandLine LIKE '%Viper.dll%'))" get ProcessId /value`,
+        )
+        return stdout.includes("ProcessId=")
+    } catch {
+        return false
+    }
+}
+
+// Mailpit is shared by every instance on the machine, so only the last one stops it
+async function stopSharedMailpit(envVars) {
+    if (await isAnyViperInstanceRunning()) {
+        logInfo("Mailpit: Left running for another VIPER instance")
+        return 0
+    }
+
+    await stopMailpit()
+
+    // Stop any remaining processes on Mailpit ports (in case Mailpit wasn't caught by name)
+    const mailpitPorts = [envVars.MAILPIT_SMTP_PORT, envVars.MAILPIT_WEB_PORT]
+    const mailpitStopPromises = mailpitPorts.map(async (port) => {
+        const portStopped = await killProcessOnPort(port)
+        if (portStopped) {
+            logSuccess(`Stopped remaining process on Mailpit port ${port}`)
+            return true
+        }
+        return false
+    })
+    const mailpitResults = await Promise.all(mailpitStopPromises)
+    return mailpitResults.filter(Boolean).length
+}
+
 // Main stop function
 async function stopDevServices() {
     logInfo("Stopping development services...")
@@ -217,27 +296,14 @@ async function stopDevServices() {
     logInfo(`Checking ports: ${allPorts.join(", ")}`)
 
     try {
-        // Stop Mailpit first
-        await stopMailpit()
-
         // Stop .NET processes (port-based for safety)
         const dotnetStopped = await stopDotnetProcesses(envVars)
 
         // Stop Vite dev server
         const viteStopped = await stopViteDevServer(envVars)
 
-        // Stop any remaining processes on Mailpit ports (in case Mailpit wasn't caught by name)
-        const mailpitPorts = [envVars.MAILPIT_SMTP_PORT, envVars.MAILPIT_WEB_PORT]
-        const mailpitStopPromises = mailpitPorts.map(async (port) => {
-            const portStopped = await killProcessOnPort(port)
-            if (portStopped) {
-                logSuccess(`Stopped remaining process on Mailpit port ${port}`)
-                return true
-            }
-            return false
-        })
-        const mailpitResults = await Promise.all(mailpitStopPromises)
-        const mailpitPortsStopped = mailpitResults.filter(Boolean).length
+        // Runs after .NET stops, so a server still running belongs to another instance
+        const mailpitPortsStopped = await stopSharedMailpit(envVars)
 
         // Summary
         const totalStopped = dotnetStopped + viteStopped + mailpitPortsStopped
