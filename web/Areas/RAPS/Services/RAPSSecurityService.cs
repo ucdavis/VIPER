@@ -226,7 +226,9 @@ namespace Viper.Areas.RAPS.Services
                     .Include(r => r.ChildRoles)
                         .ThenInclude(cr => cr.Role)
                     .Where(r => r.Application == 1)
-                    .Where(r => r.TblRoleMembers.Any(rm => rm.MemberId == userId))
+                    .Where(r => r.TblRoleMembers.Any(rm => rm.MemberId == userId
+                        && (rm.StartDate == null || rm.StartDate <= DateTime.Today)
+                        && (rm.EndDate == null || rm.EndDate >= DateTime.Today)))
                     .ToList();
 
             _appRolesForUser[key] = roles;
