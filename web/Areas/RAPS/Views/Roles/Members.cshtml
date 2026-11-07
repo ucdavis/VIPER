@@ -25,7 +25,7 @@
                 <q-card>
                     <q-form @@submit="addUpdateMember();" v-bind="membersTable.object">
                         <q-card-section class="row items-center q-pb-none">
-                            <div class="text-h6">{{membersTable.editing >= 0 ? "Edit" : "Create"}} Role Member</div>
+                            <div class="text-h6">{{membersTable.editing ? "Edit" : "Create"}} Role Member</div>
                             <q-space></q-space>
                             <q-btn icon="close" flat round dense aria-label="Close dialog" v-close-popup></q-btn>
                         </q-card-section>

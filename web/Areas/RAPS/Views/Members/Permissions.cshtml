@@ -28,7 +28,7 @@
                     <q-card>
                         <q-form @@submit="memberPermissionsTable.submit(this)" v-bind="memberPermissionsTable.object">
                             <q-card-section class="row items-center q-pb-none">
-                                <div class="text-h6">{{memberPermissionsTable.editing >= 0 ? "Edit" : "Create"}} Permission Membership</div>
+                                <div class="text-h6">{{memberPermissionsTable.editing ? "Edit" : "Create"}} Permission Membership</div>
                                 <q-space></q-space>
                                 <q-btn icon="close" flat round dense aria-label="Close dialog" v-close-popup></q-btn>
                             </q-card-section>
