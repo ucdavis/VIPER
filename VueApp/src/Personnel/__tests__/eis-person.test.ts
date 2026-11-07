@@ -89,6 +89,9 @@ describe("eisPerson.vue", () => {
             ),
         ).toStrictEqual([])
         expect(wrapper.find("a[href='mailto:aalovelace@ucdavis.edu']").exists()).toBeTruthy()
+        expect(wrapper.find("nav[aria-label='Employee information'] .q-tabs").exists()).toBeTruthy()
+        // The Summary's three groups are set apart by separators.
+        expect(wrapper.findAll(".q-separator")).toHaveLength(2)
     })
 
     it("leaves out staff, faculty and PTO details the employee doesn't have", async () => {

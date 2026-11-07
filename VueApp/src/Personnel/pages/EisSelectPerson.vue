@@ -60,8 +60,8 @@
 import { onMounted, ref } from "vue"
 import { useRouter } from "vue-router"
 import StatusBanner from "@/components/StatusBanner.vue"
-import { filterPeople } from "../services/eis-format"
 import { eisService } from "../services/eis-service"
+import { filterPeople } from "../utils/eis-format"
 import type { EisPersonOption } from "../types/eis-types"
 
 /**

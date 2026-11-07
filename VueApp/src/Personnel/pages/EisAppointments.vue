@@ -25,8 +25,8 @@ import EisAppointmentTable from "../components/EisAppointmentTable.vue"
 import EisSectionState from "../components/EisSectionState.vue"
 import EisStipendTable from "../components/EisStipendTable.vue"
 import { useEisSection } from "../composables/use-eis-section"
-import { formatMoney } from "../services/eis-format"
 import { eisService } from "../services/eis-service"
+import { formatMoney } from "../utils/eis-format"
 
 /**
  * The employee's appointments with their distributions, stipends and the annual total, as the

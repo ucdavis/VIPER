@@ -67,7 +67,7 @@
 </template>
 
 <script setup lang="ts">
-import { formatDecimal, formatEisDate, formatMoney } from "../services/eis-format"
+import { formatDecimal, formatEisDate, formatMoney } from "../utils/eis-format"
 import type { EisHistoryEntry } from "../types/eis-types"
 
 /** One appointment history list, from UCPath or from the retired PPS system. */
