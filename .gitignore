@@ -42,7 +42,7 @@ bld/
 [Ll]ogs/
 dist/
 
-# LibMan client-side libraries (restored via libman restore)
+# Vue and Quasar browser builds (copied by VueApp postinstall)
 web/wwwroot/lib/
 
 # Visual Studio 2015/2017 cache/options directory
@@ -525,3 +525,4 @@ inspect-report/
 
 # Agent folders
 .claude
+.boost/

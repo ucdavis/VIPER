@@ -13,7 +13,7 @@
          dense
          row-key="memberId"
          :loading="membersTable.loading"
-         :rows="membersTable.data"
+         :rows="membersTable.rows"
          :columns="membersTable.columns"
          :filter="membersTable.filter"
          :pagination="membersTable.pagination">
@@ -25,7 +25,7 @@
                 <q-card>
                     <q-form @@submit="addUpdateMember();" v-bind="membersTable.object">
                         <q-card-section class="row items-center q-pb-none">
-                            <div class="text-h6">{{membersTable.editing >= 0 ? "Edit" : "Create"}} Role Member</div>
+                            <div class="text-h6">{{membersTable.editing ? "Edit" : "Create"}} Role Member</div>
                             <q-space></q-space>
                             <q-btn icon="close" flat round dense aria-label="Close dialog" v-close-popup></q-btn>
                         </q-card-section>
@@ -127,9 +127,9 @@
                         ],
                         //after loading role members, add the member name and active flag
                         onLoad: function (data) {
-                            this.data = data.map(rm => ({
+                            this.rows = data.map(rm => ({
                                 ...rm,
-                                active: (rm?.active ?? false) ? "Y" : "N",
+                                active: rm?.active && rm.active !== "N" ? "Y" : "N",
                                 lastModified: rm.modBy === null ? "" : (formatDate(rm.modTime) + " (" + rm.modBy.trim() + ")")
                             }))
                         },

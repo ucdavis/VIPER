@@ -72,7 +72,6 @@ pipeline {
 					},
 					dotnet: {
 						bat '"C:\\Program Files\\dotnet\\dotnet" tool restore'
-						bat 'pushd web && "C:\\Program Files\\dotnet\\dotnet" tool run libman restore && popd'
 						bat '"C:\\Program Files\\dotnet\\dotnet" restore Viper.sln'
 					}
 				)

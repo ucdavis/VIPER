@@ -8,12 +8,6 @@
         "dotnet-ef"
       ]
     },
-    "microsoft.web.librarymanager.cli": {
-      "version": "3.0.114",
-      "commands": [
-        "libman"
-      ]
-    },
     "jetbrains.resharper.globaltools": {
       "version": "2026.2.3.1",
       "commands": [
