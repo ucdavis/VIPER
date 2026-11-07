@@ -24,6 +24,12 @@ namespace Viper.Areas.RAPS.Services
                 return "User is already a member of this role";
             }
 
+            await InsertMember(roleId, memberId, startDate, endDate, comment);
+            return null;
+        }
+
+        private async Task InsertMember(int roleId, string memberId, DateOnly? startDate, DateOnly? endDate, string? comment)
+        {
             using var transaction = await _context.Database.BeginTransactionAsync();
             TblRoleMember tblRoleMember = new()
             {
@@ -41,8 +47,27 @@ namespace Viper.Areas.RAPS.Services
             new RAPSAuditService(_context).AuditRoleMemberChange(tblRoleMember, RAPSAuditService.AuditActionType.Create, comment);
             await _context.SaveChangesAsync();
             await transaction.CommitAsync();
+        }
 
-            return null;
+        /// <summary>
+        /// Give the user the role from today with no end date. A row outside its dates is
+        /// reactivated, since AddMemberToRole refuses any existing row.
+        /// </summary>
+        public async Task AddOrRenewMember(int roleId, string memberId, string? comment)
+        {
+            var tblRoleMember = await _context.TblRoleMembers.FindAsync(roleId, memberId);
+            if (tblRoleMember == null)
+            {
+                await InsertMember(roleId, memberId, null, null, comment);
+                return;
+            }
+
+            tblRoleMember.StartDate = null;
+            tblRoleMember.EndDate = null;
+            tblRoleMember.ModTime = DateTime.Now;
+            tblRoleMember.ModBy = UserHelper.GetCurrentUser()?.LoginId;
+            new RAPSAuditService(_context).AuditRoleMemberChange(tblRoleMember, RAPSAuditService.AuditActionType.Update, comment);
+            await _context.SaveChangesAsync();
         }
     }
 }

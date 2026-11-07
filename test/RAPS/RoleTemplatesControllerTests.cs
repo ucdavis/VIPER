@@ -1,9 +1,12 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using NSubstitute;
 using Viper.Areas.RAPS.Controllers;
 using Viper.Areas.RAPS.Models;
+using Viper.Areas.RAPS.Services;
 using Viper.Classes.SQLContext;
+using Viper.Models.AAUD;
 using Viper.Models.RAPS;
 
 namespace Viper.test.RAPS
@@ -140,7 +143,12 @@ namespace Viper.test.RAPS
         public async Task RoleTemplateApply_UnknownMember_ReturnsNotFound()
         {
             // act - the write has no reason to accept a member id that matches nobody
-            var result = await CreateController().RoleTemplateApply("VIPER", TemplateId, "99999999");
+            var userHelper = Substitute.For<IUserHelper>();
+            userHelper.HasPermission(Arg.Any<RAPSContext?>(), Arg.Any<AaudUser?>(), "RAPS.Admin").Returns(true);
+            var controller = CreateController();
+            controller.SecurityService = new RAPSSecurityService(_context, userHelper);
+
+            var result = await controller.RoleTemplateApply("VIPER", TemplateId, "99999999");
 
             // assert
             Assert.IsType<NotFoundResult>(result.Result);

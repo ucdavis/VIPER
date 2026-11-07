@@ -1512,9 +1512,4 @@ public partial class RAPSContext : DbContext
     }
 
     partial void OnModelCreatingPartial(ModelBuilder modelBuilder);
-
-    public virtual void SetModified(object entity)
-    {
-        Entry(entity).State = EntityState.Modified;
-    }
 }

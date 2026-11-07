@@ -16,11 +16,13 @@ namespace Viper.Areas.RAPS.Controllers
     {
         private readonly RAPSContext _context;
         private readonly RAPSAuditService _auditService;
+        internal RAPSSecurityService SecurityService { get; set; }
 
         public PermissionsController(RAPSContext context)
         {
             _context = context;
             _auditService = new RAPSAuditService(context);
+            SecurityService = new RAPSSecurityService(context);
         }
 
         // GET: Permissions
@@ -32,8 +34,12 @@ namespace Viper.Areas.RAPS.Controllers
             {
                 return NotFound();
             }
-            return await _context.TblPermissions
-                .Include(p => p.TblMemberPermissions)
+            // Member assignments are admin-only; only the admin list reads them, for a count.
+            IQueryable<TblPermission> permissions = SecurityService.IsAllowedTo("RAPS.Admin")
+                ? _context.TblPermissions.Include(p => p.TblMemberPermissions)
+                : _context.TblPermissions;
+            return await permissions
+                .AsNoTracking()
                 .Where(RAPSSecurityService.FilterPermissionsToInstance(instance))
                 .OrderBy(p => p.Permission)
                 .ToListAsync();
