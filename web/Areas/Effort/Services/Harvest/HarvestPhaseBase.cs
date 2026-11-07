@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Viper.Areas.Effort.Constants;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Models.Entities;
 using Viper.Classes.Utilities;
@@ -53,6 +54,8 @@ public abstract class HarvestPhaseBase : IHarvestPhase
             return;
         }
 
+        ctx.CahfsMothraIds ??= await ctx.InstructorService.GetCahfsMothraIdsAsync(ctx.TermCode, ct);
+
         var effortPerson = new EffortPerson
         {
             PersonId = person.PersonId,
@@ -65,14 +68,17 @@ public abstract class HarvestPhaseBase : IHarvestPhase
             PercentAdmin = 0,
             JobGroupId = !string.IsNullOrEmpty(person.TitleCode) ? ctx.JobGroupLookup?.GetValueOrDefault(person.TitleCode.Trim()) : null,
             Title = null,
-            AdminUnit = null
+            AdminUnit = null,
+            ReportUnit = ctx.CahfsMothraIds.Contains(person.MothraId)
+                ? EffortConstants.CahfsReportUnit
+                : null
         };
 
         ctx.EffortContext.Persons.Add(effortPerson);
         ctx.ImportedMothraIds.Add(person.MothraId);
 
         ctx.AuditService.AddHarvestPersonAudit(
-            person.PersonId, ctx.TermCode, person.FirstName, person.LastName, person.Department);
+            person.PersonId, ctx.TermCode, person.FirstName, person.LastName, person.Department, effortPerson.ReportUnit);
 
         // Update progress
         ctx.InstructorsImported++;

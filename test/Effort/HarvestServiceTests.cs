@@ -1,3 +1,4 @@
+using System.Threading.Channels;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging;
@@ -148,6 +149,42 @@ public sealed class HarvestServiceTests : IDisposable
 
     #region GeneratePreviewAsync Tests
 
+    [Theory]
+    [InlineData(true, true, 2, 4)]
+    [InlineData(true, false, 2, 3)]
+    [InlineData(false, true, 1, 3)]
+    public async Task GeneratePreviewAsync_SummaryIncludesExpectedRCourses(
+        bool autoCreate, bool effortTypeActive, int expectedCourses, int expectedRecords)
+    {
+        // Arrange: only 00000001 has effort on a non-R course
+        var ct = TestContext.Current.CancellationToken;
+        _context.EffortTypes.Add(new EffortType { Id = "LEC", Description = "Lecture", AllowedOnRCourses = true, IsActive = effortTypeActive });
+        await _context.SaveChangesAsync(ct);
+
+        var service = new HarvestService(
+            new List<IHarvestPhase> { new PreviewEffortPhase() },
+            _context,
+            _viperContext,
+            _coursesContext,
+            _crestContext,
+            _aaudContext,
+            _dictionaryContext,
+            _auditServiceMock,
+            _termServiceMock,
+            _instructorServiceMock,
+            _rCourseServiceMock,
+            _clinicalImportServiceMock,
+            Options.Create(new EffortSettings { AutoCreateGenericRCourse = autoCreate }),
+            _loggerMock);
+
+        // Act
+        var result = await service.GeneratePreviewAsync(TestTermCode, ct);
+
+        // Assert
+        Assert.Equal(expectedCourses, result.Summary.TotalCourses);
+        Assert.Equal(expectedRecords, result.Summary.TotalEffortRecords);
+    }
+
     [Fact]
     public async Task GeneratePreviewAsync_WithNoData_ReturnsEmptyPreview()
     {
@@ -219,6 +256,132 @@ public sealed class HarvestServiceTests : IDisposable
         // Assert
         Assert.Equal($"Term {TestTermCode}", result.TermName);
         _termServiceMock.Received(1).GetTermName(TestTermCode);
+    }
+
+    [Theory]
+    [InlineData(true, "00193236", 0)]
+    [InlineData(true, "00999999", 1)]
+    [InlineData(true, null, 1)]
+    [InlineData(false, "00193236", 1)]
+    [InlineData(false, null, 1)]
+    public async Task NonCrestPreview_CrnInCrestAtOtherUnits_KeepsCourseVariantButSkipsEffort(bool inCrest, string? crestEffortMothraId, int expectedEffort)
+    {
+        // Arrange: R-course whose CREST row has 0 units while Banner lists it at 2 units
+        const string crn = "90517";
+        var termStr = TestTermCode.ToString();
+        _coursesContext.Baseinfos.Add(new Models.Courses.Baseinfo
+        {
+            BaseinfoPkey = "BK1",
+            BaseinfoTermCode = termStr,
+            BaseinfoSubjCode = "IMM",
+            BaseinfoCrseNumb = "491R",
+            BaseinfoSeqNumb = "001",
+            BaseinfoCrn = crn,
+            BaseinfoTitle = "Research",
+            BaseinfoUnitType = "CR",
+            BaseinfoUnitLow = 2,
+            BaseinfoUnitHigh = 2,
+            BaseinfoCollCode = "VM",
+            BaseinfoDeptCode = "IMM",
+            BaseinfoXlistFlag = "N",
+            BaseinfoXlistGroup = ""
+        });
+        _coursesContext.Poas.Add(new Models.Courses.Poa { PoaPkey = "P1", PoaTermCode = termStr, PoaCrn = crn, PoaPidm = "111" });
+        _aaudContext.Ids.Add(new Models.AAUD.Id { IdsPKey = "PK1", IdsTermCode = termStr, IdsClientid = "C1", IdsMothraid = "00193236", IdsPidm = "111" });
+        _aaudContext.Employees.Add(new Models.AAUD.Employee
+        {
+            EmpPKey = "PK1",
+            EmpTermCode = termStr,
+            EmpClientid = "C1",
+            EmpHomeDept = "072030",
+            EmpAltDeptCode = "",
+            EmpSchoolDivision = "VM",
+            EmpCbuc = "99",
+            EmpStatus = "A",
+            EmpEffortTitleCode = "001917"
+        });
+        _aaudContext.People.Add(new Viper.Models.AAUD.Person { PersonPKey = "PK1", PersonTermCode = termStr, PersonClientid = "C1", PersonLastName = "Barter", PersonFirstName = "Linda" });
+        _viperContext.People.Add(new Person { PersonId = 25756, ClientId = "C1", MothraId = "00193236", FirstName = "Linda", LastName = "Barter", FullName = "Barter, Linda" });
+        _instructorServiceMock
+            .BatchResolveDepartmentsAsync(Arg.Any<List<string>>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(new Dictionary<string, string> { ["00193236"] = "VSR" });
+        var ct = TestContext.Current.CancellationToken;
+        await _coursesContext.SaveChangesAsync(ct);
+        await _aaudContext.SaveChangesAsync(ct);
+        await _viperContext.SaveChangesAsync(ct);
+
+        var context = CreateHarvestContext();
+        if (inCrest)
+        {
+            context.Preview.CrestCourses.Add(new HarvestCoursePreview { Crn = crn, SubjCode = "IMM", CrseNumb = "491R", Units = 0 });
+        }
+        if (crestEffortMothraId != null)
+        {
+            // Without inCrest this row has no importable CREST course, so it must not suppress POA effort
+            context.Preview.CrestEffort.Add(new HarvestRecordPreview { Crn = crn, MothraId = crestEffortMothraId, RoleId = EffortConstants.DirectorRoleId });
+        }
+
+        // Act
+        await new NonCrestHarvestPhase().GeneratePreviewAsync(context, ct);
+
+        // Assert: the 2-unit variant is still imported as a course, but CREST owns the effort
+        // and the director still supplies the variant dept
+        Assert.Contains(context.Preview.NonCrestCourses, c => c.Crn == crn && c.Units == 2 && c.Source == EffortConstants.SourceNonCrest && c.CustDept == "VSR");
+        Assert.Equal(expectedEffort, context.Preview.NonCrestEffort.Count);
+        Assert.Equal(expectedEffort, context.Preview.NonCrestInstructors.Count);
+    }
+
+    [Theory]
+    [InlineData(false, null)]
+    [InlineData(true, EffortConstants.CahfsReportUnit)]
+    public async Task ImportPerson_SetsCahfsReportUnit_WhenPersonHasCahfsJob(bool hasCahfsJob, string? expectedReportUnit)
+    {
+        // Arrange
+        var ct = TestContext.Current.CancellationToken;
+        IReadOnlySet<string> cahfsIds = new HashSet<string>(hasCahfsJob ? ["00193236"] : []);
+        _instructorServiceMock
+            .GetCahfsMothraIdsAsync(TestTermCode, Arg.Any<CancellationToken>())
+            .Returns(cahfsIds);
+        var context = CreateHarvestContext();
+        context.Preview.NonCrestInstructors.Add(new HarvestPersonPreview
+        {
+            MothraId = "00193236",
+            PersonId = 25756,
+            FirstName = "Linda",
+            LastName = "Barter",
+            Department = "VSR",
+            TitleCode = "001917"
+        });
+
+        // Act
+        await new NonCrestHarvestPhase().ExecuteAsync(context, ct);
+
+        // Assert
+        var person = Assert.Single(_context.Persons.Local);
+        Assert.Equal(expectedReportUnit, person.ReportUnit);
+        _auditServiceMock.Received(1).AddHarvestPersonAudit(25756, TestTermCode, "Linda", "Barter", "VSR", expectedReportUnit);
+    }
+
+    [Fact]
+    public async Task ImportPerson_LoadsCahfsIdsOnce_ForMultiplePeople()
+    {
+        // Arrange
+        var ct = TestContext.Current.CancellationToken;
+        IReadOnlySet<string> cahfsIds = new HashSet<string> { "00193236" };
+        _instructorServiceMock
+            .GetCahfsMothraIdsAsync(TestTermCode, Arg.Any<CancellationToken>())
+            .Returns(cahfsIds);
+        var context = CreateHarvestContext();
+        context.Preview.NonCrestInstructors.Add(new HarvestPersonPreview { MothraId = "00193236", PersonId = 25756, FirstName = "Linda", LastName = "Barter", Department = "VSR" });
+        context.Preview.NonCrestInstructors.Add(new HarvestPersonPreview { MothraId = "00999999", PersonId = 25757, FirstName = "Other", LastName = "Person", Department = "VSR" });
+
+        // Act
+        await new NonCrestHarvestPhase().ExecuteAsync(context, ct);
+
+        // Assert
+        await _instructorServiceMock.Received(1).GetCahfsMothraIdsAsync(TestTermCode, Arg.Any<CancellationToken>());
+        Assert.Equal(EffortConstants.CahfsReportUnit, _context.Persons.Local.Single(p => p.PersonId == 25756).ReportUnit);
+        Assert.Null(_context.Persons.Local.Single(p => p.PersonId == 25757).ReportUnit);
     }
 
     #endregion
@@ -763,6 +926,68 @@ public sealed class HarvestServiceTests : IDisposable
             Arg.Any<CancellationToken>());
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Harvest_SummaryCountsPersistedRows_IncludingGeneratedRCourse(bool withProgress)
+    {
+        // Arrange
+        var ct = TestContext.Current.CancellationToken;
+        _context.Terms.Add(new EffortTerm { TermCode = TestTermCode });
+        _context.EffortTypes.Add(new EffortType { Id = "LEC", Description = "Lecture", AllowedOnRCourses = true, IsActive = true });
+        await _context.SaveChangesAsync(ct);
+
+        _rCourseServiceMock
+            .When(s => s.CreateForEligibleInstructorsAsync(TestTermCode, 123, RCourseCreationContext.Harvest, Arg.Any<CancellationToken>()))
+            .Do(_ =>
+            {
+                var rCourse = new EffortCourse { TermCode = TestTermCode, Crn = "RESID", SubjCode = "RES", CrseNumb = "000R", SeqNumb = "001", CustDept = "" };
+                _context.Courses.Add(rCourse);
+                _context.SaveChanges();
+                _context.Records.Add(new EffortRecord { PersonId = 100, TermCode = TestTermCode, CourseId = rCourse.Id, EffortTypeId = "LEC", RoleId = 2, Crn = "RESID" });
+                _context.SaveChanges();
+            });
+
+        var service = new HarvestService(
+            new List<IHarvestPhase> { new TestDataHarvestPhase(_context, TestTermCode) },
+            _context,
+            _viperContext,
+            _coursesContext,
+            _crestContext,
+            _aaudContext,
+            _dictionaryContext,
+            _auditServiceMock,
+            _termServiceMock,
+            _instructorServiceMock,
+            _rCourseServiceMock,
+            _clinicalImportServiceMock,
+            RCourseEnabledSettings,
+            _loggerMock);
+
+        // Act
+        HarvestResultDto? result;
+        if (withProgress)
+        {
+            var channel = Channel.CreateUnbounded<HarvestProgressEvent>();
+            await service.ExecuteHarvestWithProgressAsync(TestTermCode, 123, channel.Writer, ct);
+            var events = await channel.Reader.ReadAllAsync(ct).ToListAsync(ct);
+            Assert.Null(events.Find(e => e.Type == "error")?.Error);
+            result = events.Single(e => e.Type == "complete").Result;
+        }
+        else
+        {
+            result = await service.ExecuteHarvestAsync(TestTermCode, 123, ct);
+        }
+
+        // Assert: the test phase adds 1 person, course and record; the R-course adds 1 course and record
+        Assert.NotNull(result);
+        Assert.Equal(1, result.Summary.TotalInstructors);
+        Assert.Equal(2, result.Summary.TotalCourses);
+        Assert.Equal(2, result.Summary.TotalEffortRecords);
+        _auditServiceMock.Received(1).AddImportAudit(
+            TestTermCode, Arg.Any<string>(), "Harvested: 1 instructors, 2 courses, 2 effort records");
+    }
+
     [Fact]
     public async Task ExecuteHarvestAsync_DoesNotCallRCourseService_WhenAutoCreateDisabled()
     {
@@ -840,6 +1065,24 @@ public sealed class HarvestServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Creates a HarvestContext wired to the test contexts and mocks, for driving a phase directly.
+    /// </summary>
+    private HarvestContext CreateHarvestContext() => new()
+    {
+        TermCode = TestTermCode,
+        EffortContext = _context,
+        CrestContext = _crestContext,
+        CoursesContext = _coursesContext,
+        ViperContext = _viperContext,
+        AaudContext = _aaudContext,
+        DictionaryContext = _dictionaryContext,
+        AuditService = _auditServiceMock,
+        InstructorService = _instructorServiceMock,
+        TermService = _termServiceMock,
+        Logger = _loggerMock
+    };
+
+    /// <summary>
     /// Creates a HarvestService that uses a single custom phase for testing.
     /// </summary>
     private HarvestService CreateServiceWithPhase(IHarvestPhase phase)
@@ -897,6 +1140,25 @@ public sealed class HarvestServiceTests : IDisposable
                     Source = "CREST"
                 });
             }
+            return Task.CompletedTask;
+        }
+
+        public Task ExecuteAsync(HarvestContext context, CancellationToken ct = default)
+            => Task.CompletedTask;
+    }
+
+    private sealed class PreviewEffortPhase : IHarvestPhase
+    {
+        public int Order => 1;
+        public string PhaseName => "PreviewEffort";
+        public bool ShouldExecute(int termCode) => true;
+
+        public Task GeneratePreviewAsync(HarvestContext context, CancellationToken ct = default)
+        {
+            context.Preview.CrestCourses.Add(new HarvestCoursePreview { Crn = "12345", SubjCode = "VET", CrseNumb = "410", Units = 4 });
+            context.Preview.CrestEffort.Add(new HarvestRecordPreview { MothraId = "00000001", CourseCode = "VET 410" });
+            context.Preview.NonCrestEffort.Add(new HarvestRecordPreview { MothraId = "00000001", CourseCode = "VSR 491R" });
+            context.Preview.NonCrestEffort.Add(new HarvestRecordPreview { MothraId = "00000002", CourseCode = "VSR 491R" });
             return Task.CompletedTask;
         }
 
