@@ -221,12 +221,22 @@ namespace Viper.Areas.RAPS.Services
                 return cached;
             }
 
+            // Pre-load the user's active delegate role ids rather than a correlated .Any() over memberships.
+            // A user holds only a handful of delegate roles, so a plain Contains is enough.
+            List<int> appRoleIds = _context.TblRoleMembers
+                    .AsNoTracking()
+                    .Where(rm => rm.MemberId == userId
+                        && rm.Role.Application == 1
+                        && (rm.StartDate == null || rm.StartDate <= DateTime.Today)
+                        && (rm.EndDate == null || rm.EndDate >= DateTime.Today))
+                    .Select(rm => rm.RoleId)
+                    .ToList();
+
             List<TblRole> roles = _context.TblRoles
                     .AsNoTracking()
                     .Include(r => r.ChildRoles)
                         .ThenInclude(cr => cr.Role)
-                    .Where(r => r.Application == 1)
-                    .Where(r => r.TblRoleMembers.Any(rm => rm.MemberId == userId))
+                    .Where(r => appRoleIds.Contains(r.RoleId))
                     .ToList();
 
             _appRolesForUser[key] = roles;

@@ -100,6 +100,8 @@ namespace Viper.test.RAPS
             // arrange
             var mockSet = SetupRoles.MockRoles.BuildMockDbSet();
             rapsContext.TblRoles.Returns(mockSet);
+            var memberSet = new List<TblRoleMember>().BuildMockDbSet();
+            rapsContext.TblRoleMembers.Returns(memberSet);
 
             var mockUser = Substitute.For<IUserHelper>();
             mockUser.GetCurrentUser().Returns(new AaudUser());
