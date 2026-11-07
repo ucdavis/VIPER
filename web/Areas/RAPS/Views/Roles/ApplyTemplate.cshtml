@@ -17,8 +17,11 @@
         <tr>
             <th class="text-left"><span class="text-h6">Review Changes</span></th>
             <th colspan="2" class="text-right">
-                <q-btn label="Apply template to user(s)" color="primary" no-caps :disable="!templateLoaded || isPreviewLoading || isApplying" @@click="applyTemplate" class="q-px-sm q-py-xs"></q-btn>
+                <q-btn label="Apply template to user(s)" color="primary" no-caps :disable="!templateLoaded || isPreviewLoading || isApplying || hasUngrantableRoles()" @@click="applyTemplate" class="q-px-sm q-py-xs"></q-btn>
             </th>
+        </tr>
+        <tr v-if="hasUngrantableRoles()">
+            <td colspan="3" class="text-negative">This template includes roles you cannot grant, so it cannot be applied.</td>
         </tr>
     </thead>
     <tbody>
@@ -28,8 +31,14 @@
             </tr>
             <tr v-for="role in member.roles">
                 <td>
-                    <q-icon :name="role.userHasRole ? 'info' : 'add'" :color="role.userHasRole ? 'info' : 'positive'" size="sm"></q-icon>
-                    {{role.userHasRole ? 'User has role' : 'Role will be added'}}
+                    <template v-if="!role.canGrant">
+                        <q-icon name="block" color="negative" size="sm"></q-icon>
+                        You cannot grant this role
+                    </template>
+                    <template v-else>
+                        <q-icon :name="role.userHasRole ? 'info' : 'add'" :color="role.userHasRole ? 'info' : 'positive'" size="sm"></q-icon>
+                        {{role.userHasRole ? 'User has role' : 'Role will be added'}}
+                    </template>
                 </td>
                 <td>{{role.roleName}}</td>
                 <td>{{role.description}}</td>
@@ -67,6 +76,10 @@
                 }
             },
             methods: {
+                // The server refuses the whole template if any role is out of reach.
+                hasUngrantableRoles: function() {
+                    return (this.members ?? []).some(member => member.roles.some(role => !role.canGrant))
+                },
                 getApplyUrl: function(target) {
                     // Both ids land in the url path, so encode them: a login id is free text
                     // and a stray ? or # would silently truncate the id the server sees.
