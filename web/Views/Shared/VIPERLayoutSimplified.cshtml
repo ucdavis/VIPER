@@ -18,7 +18,7 @@
             <link rel="stylesheet" href="~/css/site-@(HttpHelper.Environment?.EnvironmentName).css" asp-append-version="true" />
         </text>
     }
-    <link href="~/lib/quasar/dist/quasar.prod.css" rel="stylesheet" type="text/css">
+    <link href="~/lib/quasar/dist/quasar.prod.css" asp-append-version="true" rel="stylesheet" type="text/css">
 
     @await RenderSectionAsync("Styles", required: false)
 </head>

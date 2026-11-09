@@ -153,7 +153,7 @@ jobs:
       - name: Install dependencies (root)
         run: npm ci
 
-      - name: Restore dotnet local tools (jb / dotnet-ef / libman)
+      - name: Restore dotnet local tools (jb / dotnet-ef)
         run: dotnet tool restore
 
       - name: Restore NuGet
