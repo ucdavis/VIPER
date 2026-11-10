@@ -172,7 +172,7 @@ namespace Viper.Areas.RAPS.Controllers
             await _context.SaveChangesAsync();
             await transaction.CommitAsync();
 
-            return CreatedAtAction("GetTblRole", new { roleId, permissionId, tblRolePermission.Access }, tblRolePermission);
+            return CreatedAtAction(nameof(GetTblRolePermissions), new { instance, roleId, permissionId }, tblRolePermission);
         }
 
         // DELETE Roles/5/Permissions/123
