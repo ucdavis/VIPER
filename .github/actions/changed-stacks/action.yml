@@ -1,0 +1,53 @@
+name: Changed stacks
+description: >
+  Report whether a pull request touches the C# or Vue stack, so workflows can
+  skip jobs for the stack it leaves alone. Non-PR events report both as changed.
+  Needs a checkout with fetch-depth 0.
+
+inputs:
+  own-paths:
+    description: The calling workflow's own files or folders, space-separated; a change to any runs both stacks.
+    required: true
+
+outputs:
+  csharp:
+    description: "'true' when C# code or its build/tooling changed"
+    value: ${{ steps.filter.outputs.csharp }}
+  vue:
+    description: "'true' when Vue code or its build/tooling changed"
+    value: ${{ steps.filter.outputs.vue }}
+
+runs:
+  using: composite
+  steps:
+    - id: filter
+      shell: bash
+      env:
+        BASE_REF: ${{ github.base_ref }}
+        OWN_PATHS: ${{ inputs.own-paths }}
+      run: |
+        if [ -z "$BASE_REF" ]; then
+          echo "csharp=true" >> "$GITHUB_OUTPUT"
+          echo "vue=true" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+
+        files=$(git -c core.quotePath=false diff --no-renames --name-only "origin/$BASE_REF...HEAD")
+        echo "Changed files:"
+        echo "$files"
+
+        # Shared tooling runs both stacks; other workflow files run neither
+        shared="^(package(-lock)?\.json$|scripts/|\.editorconfig$|\.jscpd\.json$|\.npmrc$|\.github/actions/changed-stacks/)"
+        dot='\.'
+        for p in $OWN_PATHS; do shared="$shared|^${p//./$dot}"; done
+        csharp="$shared|^(web/|test/|Viper\.sln|Directory\.Build\.props$|global\.json$|\.globalconfig$|\.config/)"
+        vue="$shared|^(VueApp/|eslint\.config\.mjs$|\.oxlintrc\.json$|stylelint\.config\.mjs$|\.env)"
+
+        for stack in csharp vue; do
+          if grep -qE "${!stack}" <<< "$files"; then
+            echo "$stack=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "$stack=false" >> "$GITHUB_OUTPUT"
+          fi
+        done
+        cat "$GITHUB_OUTPUT"
