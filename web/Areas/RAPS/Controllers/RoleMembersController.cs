@@ -102,7 +102,7 @@ namespace Viper.Areas.RAPS.Controllers
             }
 
             TblRoleMember? tblRoleMember = await _context.TblRoleMembers.FindAsync(roleId, memberId);
-            return CreatedAtAction("GetTblRole", new { roleId, memberId }, tblRoleMember);
+            return CreatedAtAction(nameof(GetTblRoleMembers), new { instance, roleId, memberId }, tblRoleMember);
         }
 
         //PUT: Roles/5/Members/12345678
