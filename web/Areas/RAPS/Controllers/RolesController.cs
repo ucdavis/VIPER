@@ -7,6 +7,7 @@ using Viper.Classes;
 using Viper.Classes.SQLContext;
 using Viper.Models.RAPS;
 using Microsoft.Data.SqlClient;
+using Web.Authorization;
 
 namespace Viper.Areas.RAPS.Controllers
 {
@@ -55,7 +56,8 @@ namespace Viper.Areas.RAPS.Controllers
                 var q = _context.TblRoles
                     .Include(r => r.TblRoleMembers.Where(rm => rm.ViewName == null))
                     .Where((r => application == null || r.Application == application));
-                if (!(bool)allInstances)
+                // Viewing roles across instances is admin-only, whatever the query string asks for.
+                if (!(bool)allInstances || !SecurityService.IsAllowedTo("Admin", instance))
                 {
                     q = q.Where(RAPSSecurityServiceWrapper.FilterRolesToInstance(instance));
                 }
@@ -80,6 +82,7 @@ namespace Viper.Areas.RAPS.Controllers
 
         // GET: Roles/ControlledBy/5
         [HttpGet("ControlledBy/{roleId}")]
+        [Permission(Allow = "RAPS.Admin")]
 #pragma warning disable IDE0060 // Remove unused parameter
         public async Task<ActionResult<IEnumerable<TblRole>>> GetControlledRoles(string instance, int roleId)
 #pragma warning restore IDE0060 // Remove unused parameter
@@ -129,16 +132,23 @@ namespace Viper.Areas.RAPS.Controllers
 
         // PUT: Roles/5
         [HttpPut("{roleId}")]
+        [Permission(Allow = "RAPS.Admin")]
         public async Task<IActionResult> PutTblRole(string instance, int roleId, RoleCreateUpdate role)
         {
-            TblRole tblRole = CreateTblRoleFromDTO(role);
-            if (roleId != tblRole.RoleId || !SecurityService.RoleBelongsToInstance(instance, tblRole))
+            TblRole updated = CreateTblRoleFromDTO(role);
+            if (roleId != updated.RoleId || !SecurityService.RoleBelongsToInstance(instance, updated))
             {
                 return BadRequest();
             }
 
-            _context.ChangeTracker.Clear();
-            _context.SetModified(tblRole);
+            // Check the stored name as well, or a rename could pull a role in from another instance.
+            TblRole? tblRole = await _context.TblRoles.FindAsync(roleId);
+            if (tblRole == null || !SecurityService.RoleBelongsToInstance(instance, tblRole))
+            {
+                return NotFound();
+            }
+
+            RapsMapper.UpdateRole(role, tblRole);
             AuditService.AuditRoleChange(tblRole, RAPSAuditService.AuditActionType.Update);
 
             try
@@ -160,6 +170,7 @@ namespace Viper.Areas.RAPS.Controllers
 
         // Put: Roles/ControlledBy/5
         [HttpPut("ControlledBy/{roleId}")]
+        [Permission(Allow = "RAPS.Admin")]
 #pragma warning disable IDE0060 // Remove unused parameter
         public async Task<ActionResult<IEnumerable<TblRole>>> UpdateControlledRoles(string instance, int roleId, List<int> roleIds)
 #pragma warning restore IDE0060 // Remove unused parameter
@@ -196,6 +207,7 @@ namespace Viper.Areas.RAPS.Controllers
 
         // POST: Roles
         [HttpPost]
+        [Permission(Allow = "RAPS.Admin")]
         public async Task<ActionResult<TblRole>> PostTblRole(string instance, RoleCreateUpdate role)
         {
             if (_context.TblRoles == null)
@@ -232,6 +244,7 @@ namespace Viper.Areas.RAPS.Controllers
 
         // DELETE: Roles/5
         [HttpDelete("{roleId}")]
+        [Permission(Allow = "RAPS.Admin")]
         public async Task<IActionResult> DeleteTblRole(string instance, int roleId)
         {
             if (_context.TblRoles == null)
@@ -253,14 +266,8 @@ namespace Viper.Areas.RAPS.Controllers
 
         private static TblRole CreateTblRoleFromDTO(RoleCreateUpdate role)
         {
-            var tblRole = new TblRole
-            {
-                Role = role.Role,
-                Description = role.Description,
-                ViewName = role.ViewName,
-                Application = (byte)role.Application,
-                AccessCode = role.AccessCode
-            };
+            var tblRole = new TblRole();
+            RapsMapper.UpdateRole(role, tblRole);
             if (role.RoleId != null && role.RoleId > 0)
             {
                 tblRole.RoleId = (int)role.RoleId;
