@@ -109,7 +109,7 @@ namespace Viper.Areas.RAPS.Controllers
         // POST: Permissions
         [HttpPost]
         [Permission(Allow = "RAPS.Admin,RAPS.CreatePermission")]
-        public async Task<ActionResult<TblPermission>> PostTblPermission(PermissionCreateUpdate permission)
+        public async Task<ActionResult<TblPermission>> PostTblPermission(string instance, PermissionCreateUpdate permission)
         {
             if (_context.TblPermissions == null)
             {
@@ -130,7 +130,7 @@ namespace Viper.Areas.RAPS.Controllers
             await _context.SaveChangesAsync();
             await transaction.CommitAsync();
 
-            return CreatedAtAction("GetTblPermission", new { id = tblPermission.PermissionId }, tblPermission);
+            return CreatedAtAction(nameof(GetTblPermission), new { instance, permissionId = tblPermission.PermissionId }, tblPermission);
         }
 
         // DELETE: Permissions/5

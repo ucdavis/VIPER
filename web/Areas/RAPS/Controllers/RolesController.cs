@@ -229,7 +229,7 @@ namespace Viper.Areas.RAPS.Controllers
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
 
-                return CreatedAtAction("GetTblRole", new { id = tblRole.RoleId }, tblRole);
+                return CreatedAtAction(nameof(GetTblRole), new { instance, roleId = tblRole.RoleId }, tblRole);
             }
             catch (DbUpdateConcurrencyException)
             {

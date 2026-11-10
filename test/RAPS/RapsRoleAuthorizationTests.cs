@@ -219,7 +219,10 @@ namespace Viper.test.RAPS
 
             var result = await MembersAs().PostTblRoleMembers("VIPER", null, TargetId, Member(ControlledRoleId));
 
-            Assert.IsType<CreatedAtActionResult>(result.Result);
+            // The Location link must name an action on this controller, or building it fails after the save.
+            var created = Assert.IsType<CreatedAtActionResult>(result.Result);
+            Assert.Equal(nameof(RoleMembersController.GetTblRoleMembers), created.ActionName);
+            Assert.Equal("VIPER", created.RouteValues!["instance"]);
             Assert.Equal(ControlledRoleId, Assert.Single(await Memberships(TargetId)).RoleId);
         }
 

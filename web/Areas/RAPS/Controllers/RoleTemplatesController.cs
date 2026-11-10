@@ -308,7 +308,7 @@ namespace Viper.Areas.RAPS.Controllers
             _context.RoleTemplates.Add(rt);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction("GetRoleTemplate", new { id = rt.RoleTemplateId }, rt);
+            return CreatedAtAction(nameof(GetRoleTemplate), new { instance, roleTemplateId = rt.RoleTemplateId }, rt);
         }
 
         // DELETE: RoleTemplates/5
