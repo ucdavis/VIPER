@@ -22,7 +22,7 @@ name: Development Merge Check
 on:
   pull_request:
     types: [opened, reopened, synchronize, ready_for_review]
-    branches: [main]
+    branches-ignore: [Development]
   push:
     branches: [Development]
   workflow_dispatch:
@@ -95,7 +95,7 @@ jobs:
             // in Development without a new PR commit. Re-run each still-red PR's
             // check so its verdict refreshes against the updated Development.
             const prs = await github.paginate(github.rest.pulls.list, {
-              owner, repo, state: 'open', base: 'main', per_page: 100,
+              owner, repo, state: 'open', per_page: 100,
             });
             const runs = await github.paginate(github.rest.actions.listWorkflowRuns, {
               owner, repo, workflow_id: WORKFLOW, event: 'pull_request', per_page: 100,
