@@ -2,7 +2,6 @@ name: Code Quality
 
 on:
   pull_request:
-    branches: [main]
 
 # Detects whether a PR *adds* new dead code or duplication compared to main.
 # - fallow covers VueApp (dead code, unused exports, complexity, duplication)
