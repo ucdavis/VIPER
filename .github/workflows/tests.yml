@@ -6,8 +6,28 @@ on:
   pull_request:
 
 jobs:
+  changes:
+    name: Detect changed stacks
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      csharp: ${{ steps.stacks.outputs.csharp }}
+      vue: ${{ steps.stacks.outputs.vue }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: stacks
+        uses: ./.github/actions/changed-stacks
+        with:
+          own-paths: .github/workflows/tests.yml
+
   frontend:
     name: Frontend Tests
+    needs: changes
+    if: needs.changes.outputs.vue == 'true'
     runs-on: ubuntu-latest
     env:
       HAS_CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN != '' }}
@@ -53,6 +73,8 @@ jobs:
 
   backend:
     name: Backend Tests
+    needs: changes
+    if: needs.changes.outputs.csharp == 'true'
     runs-on: ubuntu-latest
     env:
       HAS_CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN != '' }}

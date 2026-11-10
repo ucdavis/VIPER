@@ -12,8 +12,28 @@ on:
 # Passes if counts are equal to or lower than main.
 
 jobs:
+  changes:
+    name: Detect changed stacks
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      csharp: ${{ steps.stacks.outputs.csharp }}
+      vue: ${{ steps.stacks.outputs.vue }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: stacks
+        uses: ./.github/actions/changed-stacks
+        with:
+          own-paths: .github/workflows/code-quality.yml
+
   fallow-regression:
     name: Fallow regression (VueApp)
+    needs: changes
+    if: needs.changes.outputs.vue == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout PR head
@@ -63,6 +83,8 @@ jobs:
 
   jscpd-regression-csharp:
     name: JSCPD regression (C#/Razor)
+    needs: changes
+    if: needs.changes.outputs.csharp == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout PR head
@@ -99,6 +121,8 @@ jobs:
 
   jscpd-regression-vue:
     name: JSCPD regression (Vue/TS)
+    needs: changes
+    if: needs.changes.outputs.vue == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout PR head
@@ -132,6 +156,8 @@ jobs:
 
   resharper-pr-gate:
     name: ReSharper PR-scoped gate (C#)
+    needs: changes
+    if: needs.changes.outputs.csharp == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout PR head
