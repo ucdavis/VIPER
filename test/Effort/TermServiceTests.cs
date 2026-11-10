@@ -641,6 +641,10 @@ public sealed class TermServiceTests : IDisposable
         Assert.Equal(3, await _context.Courses.CountAsync(TestContext.Current.CancellationToken));
         var term = await _context.Terms.SingleAsync(TestContext.Current.CancellationToken);
         Assert.Null(term.ClosedDate);
+        _auditServiceMock.DidNotReceiveWithAnyArgs().AddRecordChangeAudit(default, default, default!, default, default);
+        _auditServiceMock.DidNotReceiveWithAnyArgs().AddCourseChangeAudit(default, default, default!, default, default);
+        _auditServiceMock.DidNotReceive().AddTermChangeAudit(
+            Arg.Any<int>(), EffortAuditActions.CloseTerm, Arg.Any<object?>(), Arg.Any<object?>());
     }
 
     [Fact]

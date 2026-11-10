@@ -74,6 +74,11 @@ public class ClinicalImportService : IClinicalImportService
     /// </summary>
     private HashSet<string>? _excludedTitleCodes;
 
+    /// <summary>
+    /// Source instructors with a CAHFS appointment for the term, loaded once per import.
+    /// </summary>
+    private IReadOnlySet<string> _cahfsMothraIds = new HashSet<string>();
+
     public ClinicalImportService(
         EffortDbContext context,
         VIPERContext viperContext,
@@ -997,20 +1002,19 @@ public class ClinicalImportService : IClinicalImportService
     private async Task TagCahfsOnExistingPersonsAsync(List<ClinicalSourceRecord> sourceData, int termCode, CancellationToken ct)
     {
         var mothraIds = sourceData.Select(s => s.MothraId).Distinct().ToList();
+        _cahfsMothraIds = await _instructorService.GetCahfsMothraIdsAsync(mothraIds, termCode, ct);
+        if (_cahfsMothraIds.Count == 0)
+        {
+            return;
+        }
+
         var untagged = await _context.Persons
             .Where(p => p.TermCode == termCode && string.IsNullOrEmpty(p.ReportUnit))
             .Join(_context.ViperPersons.Where(vp => EF.Parameter(mothraIds).Contains(vp.MothraId)),
                 p => p.PersonId, vp => vp.PersonId, (p, vp) => new { Person = p, vp.MothraId })
             .ToListAsync(ct);
-        if (untagged.Count == 0)
-        {
-            return;
-        }
 
-        var cahfsMothraIds = await _instructorService.GetCahfsMothraIdsAsync(
-            untagged.Select(u => u.MothraId).ToList(), termCode, ct);
-
-        foreach (var person in untagged.Where(u => cahfsMothraIds.Contains(u.MothraId)).Select(u => u.Person))
+        foreach (var person in untagged.Where(u => _cahfsMothraIds.Contains(u.MothraId)).Select(u => u.Person))
         {
             var oldValues = new { person.ReportUnit };
             person.ReportUnit = EffortConstants.CahfsReportUnit;
@@ -1176,9 +1180,7 @@ public class ClinicalImportService : IClinicalImportService
             JobGroupId = _jobGroupLookup?.GetValueOrDefault(titleCode),
             Title = null,
             AdminUnit = null,
-            ReportUnit = await _instructorService.HasCahfsAppointmentAsync(mothraId, termCode, ct)
-                ? EffortConstants.CahfsReportUnit
-                : null
+            ReportUnit = _cahfsMothraIds.Contains(mothraId) ? EffortConstants.CahfsReportUnit : null
         };
 
         _context.Persons.Add(effortPerson);

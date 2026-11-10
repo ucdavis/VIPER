@@ -812,9 +812,11 @@ public sealed class InstructorServiceTests : IDisposable
 
         // Act
         var result = await _instructorService.HasCahfsAppointmentAsync("22220000", 202410, TestContext.Current.CancellationToken);
+        var termIds = await _instructorService.GetCahfsMothraIdsAsync(202410, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(expected, result);
+        Assert.Equal(expected, termIds.Contains("22220000"));
     }
 
     #endregion

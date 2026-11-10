@@ -195,4 +195,9 @@ public interface IInstructorService
     /// The subset of the given MothraIds with an AAUD job in the CAHFS department (072200) for the term.
     /// </summary>
     Task<IReadOnlySet<string>> GetCahfsMothraIdsAsync(IReadOnlyCollection<string> mothraIds, int termCode, CancellationToken ct = default);
+
+    /// <summary>
+    /// All MothraIds with an AAUD job in the CAHFS department (072200) for the term.
+    /// </summary>
+    Task<IReadOnlySet<string>> GetCahfsMothraIdsAsync(int termCode, CancellationToken ct = default);
 }

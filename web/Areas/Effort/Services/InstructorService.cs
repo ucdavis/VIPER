@@ -854,15 +854,25 @@ public class InstructorService : IInstructorService
     }
 
     /// <inheritdoc />
-    public async Task<IReadOnlySet<string>> GetCahfsMothraIdsAsync(IReadOnlyCollection<string> mothraIds, int termCode, CancellationToken ct = default)
+    public Task<IReadOnlySet<string>> GetCahfsMothraIdsAsync(IReadOnlyCollection<string> mothraIds, int termCode, CancellationToken ct = default)
+    {
+        return QueryCahfsMothraIdsAsync(_aaudContext.Ids.Where(i => EF.Parameter(mothraIds).Contains(i.IdsMothraid!)), termCode, ct);
+    }
+
+    /// <inheritdoc />
+    public Task<IReadOnlySet<string>> GetCahfsMothraIdsAsync(int termCode, CancellationToken ct = default)
+    {
+        return QueryCahfsMothraIdsAsync(_aaudContext.Ids, termCode, ct);
+    }
+
+    private async Task<IReadOnlySet<string>> QueryCahfsMothraIdsAsync(IQueryable<Id> candidates, int termCode, CancellationToken ct)
     {
         var termCodeStr = termCode.ToString();
         var matches = await _aaudContext.Jobs
             .AsNoTracking()
             .Where(job => job.JobTermCode == termCodeStr && job.JobDepartmentCode == EffortConstants.CahfsDeptCode)
             .Join(
-                _aaudContext.Ids.Where(i => i.IdsTermCode == termCodeStr && i.IdsMothraid != null
-                    && EF.Parameter(mothraIds).Contains(i.IdsMothraid)),
+                candidates.Where(i => i.IdsTermCode == termCodeStr && i.IdsMothraid != null),
                 job => job.JobPKey,
                 ids => ids.IdsPKey,
                 (job, ids) => ids.IdsMothraid!)

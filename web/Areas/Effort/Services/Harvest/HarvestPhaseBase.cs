@@ -54,6 +54,8 @@ public abstract class HarvestPhaseBase : IHarvestPhase
             return;
         }
 
+        ctx.CahfsMothraIds ??= await ctx.InstructorService.GetCahfsMothraIdsAsync(ctx.TermCode, ct);
+
         var effortPerson = new EffortPerson
         {
             PersonId = person.PersonId,
@@ -67,7 +69,7 @@ public abstract class HarvestPhaseBase : IHarvestPhase
             JobGroupId = !string.IsNullOrEmpty(person.TitleCode) ? ctx.JobGroupLookup?.GetValueOrDefault(person.TitleCode.Trim()) : null,
             Title = null,
             AdminUnit = null,
-            ReportUnit = await ctx.InstructorService.HasCahfsAppointmentAsync(person.MothraId, ctx.TermCode, ct)
+            ReportUnit = ctx.CahfsMothraIds.Contains(person.MothraId)
                 ? EffortConstants.CahfsReportUnit
                 : null
         };

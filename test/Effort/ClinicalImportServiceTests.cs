@@ -386,8 +386,8 @@ public sealed class ClinicalImportServiceTests : IDisposable
         await _aaudContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         _instructorServiceMock
-            .HasCahfsAppointmentAsync("INST0020", TermCode, Arg.Any<CancellationToken>())
-            .Returns(hasCahfsJob);
+            .GetCahfsMothraIdsAsync(Arg.Any<IReadOnlyCollection<string>>(), TermCode, Arg.Any<CancellationToken>())
+            .Returns(hasCahfsJob ? new HashSet<string> { "INST0020" } : new HashSet<string>());
 
         // Act
         var result = await _service.ExecuteImportAsync(TermCode, ClinicalImportMode.AddNewOnly, modifiedBy: 1, TestContext.Current.CancellationToken);
@@ -402,6 +402,9 @@ public sealed class ClinicalImportServiceTests : IDisposable
         Assert.Equal("VME", effortPerson.EffortDept);
         Assert.Equal("1234", effortPerson.EffortTitleCode);
         Assert.Equal(expectedReportUnit, effortPerson.ReportUnit);
+        await _instructorServiceMock.Received(1).GetCahfsMothraIdsAsync(
+            Arg.Any<IReadOnlyCollection<string>>(), TermCode, Arg.Any<CancellationToken>());
+        await _instructorServiceMock.DidNotReceiveWithAnyArgs().HasCahfsAppointmentAsync(default!, default, TestContext.Current.CancellationToken);
     }
 
     [Theory]
