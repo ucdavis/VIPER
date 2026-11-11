@@ -20,8 +20,9 @@ permissions:
   checks: read # read CodeRabbit's check run on the head commit
 
 concurrency:
-  # check_run fires for every check, so its runs must not cancel each other
-  group: coderabbit-gate-${{ github.event.pull_request.number || github.run_id }}
+  # Each trigger type shows as its own check, so only a newer run of the same
+  # type may cancel one. check_run fires for every check, so its runs never do.
+  group: coderabbit-gate-${{ github.event_name }}-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: true
 
 jobs:
@@ -74,17 +75,21 @@ jobs:
     permissions:
       actions: write # list and re-run this workflow's gate runs
     steps:
-      - name: Re-run the commit's failed gate run
+      - name: Re-run the commit's failed gate runs
         env:
           GH_TOKEN: ${{ github.token }}
           HEAD_SHA: ${{ github.event.check_run.head_sha }}
-        # This run reports on the default branch, so re-run the PR's own gate run instead
+        # This run reports on the default branch, so re-run the PR's own gate runs
+        # instead: the latest of each trigger type, since each shows as its own check
         run: |
-          run=$(gh run list -R "$GITHUB_REPOSITORY" --workflow coderabbit-gate.yml --commit "$HEAD_SHA" -L 20 \
+          set -o pipefail
+          runs=$(gh run list -R "$GITHUB_REPOSITORY" --workflow coderabbit-gate.yml --commit "$HEAD_SHA" -L 50 \
             --json databaseId,event,status,conclusion \
-            --jq '[.[] | select(.event != "check_run")][0] | select(.status == "completed" and .conclusion == "failure") | .databaseId')
-          if [ -n "$run" ]; then
-            gh run rerun "$run" -R "$GITHUB_REPOSITORY"
-          else
+            --jq '[.[] | select(.event != "check_run")] | group_by(.event) | map(max_by(.databaseId))
+              | .[] | select(.status == "completed" and (.conclusion == "failure" or .conclusion == "cancelled")) | .databaseId')
+          if [ -z "$runs" ]; then
             echo "No failed gate run to refresh for $HEAD_SHA."
           fi
+          for run in $runs; do
+            gh run rerun "$run" -R "$GITHUB_REPOSITORY"
+          done
