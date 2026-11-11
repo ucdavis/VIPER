@@ -7,7 +7,7 @@ tone_instructions: >
 
 reviews:
   profile: assertive
-  request_changes_workflow: false
+  request_changes_workflow: true
   # No unsolicited summaries: CodeRabbit summarizes only on `@coderabbitai summary`.
   high_level_summary: false
   poem: false
@@ -23,8 +23,6 @@ reviews:
       - ".*"
     ignore_usernames:
       - "dependabot[bot]"
-    ignore_title_keywords:
-      - WIP
 
   path_filters:
     - "!**/node_modules/**"
