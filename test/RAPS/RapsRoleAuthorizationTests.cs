@@ -290,7 +290,7 @@ namespace Viper.test.RAPS
         {
             await AddMembership(VmacsRoleId, TargetId, DateTime.Today.AddDays(-10), DateTime.Today.AddDays(-1));
 
-            await TemplatesAs(HelpDesk).RoleTemplateApply("VMACS.VMTH", VmacsTemplateId, TargetId);
+            Assert.IsType<NoContentResult>((await TemplatesAs(HelpDesk).RoleTemplateApply("VMACS.VMTH", VmacsTemplateId, TargetId)).Result);
 
             var membership = Assert.Single(await Memberships(TargetId));
             Assert.Null(membership.StartDate);
@@ -305,7 +305,7 @@ namespace Viper.test.RAPS
             var end = DateTime.Today.AddDays(10);
             await AddMembership(VmacsRoleId, TargetId, end: end);
 
-            await TemplatesAs(HelpDesk).RoleTemplateApply("VMACS.VMTH", VmacsTemplateId, TargetId);
+            Assert.IsType<NoContentResult>((await TemplatesAs(HelpDesk).RoleTemplateApply("VMACS.VMTH", VmacsTemplateId, TargetId)).Result);
 
             Assert.Equal(end, Assert.Single(await Memberships(TargetId)).EndDate);
         }
@@ -316,7 +316,7 @@ namespace Viper.test.RAPS
             var start = DateTime.Today.AddDays(10);
             await AddMembership(VmacsRoleId, TargetId, start);
 
-            await TemplatesAs(HelpDesk).RoleTemplateApply("VMACS.VMTH", VmacsTemplateId, TargetId);
+            Assert.IsType<NoContentResult>((await TemplatesAs(HelpDesk).RoleTemplateApply("VMACS.VMTH", VmacsTemplateId, TargetId)).Result);
 
             Assert.Equal(start, Assert.Single(await Memberships(TargetId)).StartDate);
         }
