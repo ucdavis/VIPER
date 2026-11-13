@@ -7,7 +7,7 @@ tone_instructions: >
 
 reviews:
   profile: assertive
-  request_changes_workflow: true
+  request_changes_workflow: false
   # No unsolicited summaries: CodeRabbit summarizes only on `@coderabbitai summary`.
   high_level_summary: false
   poem: false
