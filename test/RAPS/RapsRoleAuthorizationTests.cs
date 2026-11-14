@@ -345,6 +345,76 @@ namespace Viper.test.RAPS
             Assert.Equal(expected, Assert.Single(preview.Roles).UserHasRole);
         }
 
+        [Fact]
+        public void RolePermissions_AdmitsRapsUsers()
+        {
+            // Delegates are RAPS Users; without it the lock icon on their role list 403s.
+            var roles = typeof(RolePermissionsController).GetCustomAttribute<Microsoft.AspNetCore.Authorization.AuthorizeAttribute>()!.Roles!;
+
+            Assert.Contains("RAPS Users", roles.Split(','));
+        }
+
+        [Theory]
+        [InlineData(ControlledRoleId, true)]
+        [InlineData(ViperRoleId, false)]
+        public async Task GetRolePermissions_DelegateSeesOnlyRolesTheyControl(int roleId, bool allowed)
+        {
+            await AddMembership(DelegateRoleId, CallerId);
+            _context.TblRolePermissions.Add(new TblRolePermission { RoleId = roleId, PermissionId = PermissionId, Access = 1 });
+            await _context.SaveChangesAsync(Token);
+            var controller = new RolePermissionsController(_context) { SecurityService = SecurityAs() };
+
+            var result = await controller.GetTblRolePermissions("VIPER", roleId, null);
+
+            if (allowed)
+            {
+                Assert.Equal(PermissionId, Assert.Single(result.Value!).PermissionId);
+            }
+            else
+            {
+                Assert.IsType<ForbidResult>(result.Result);
+            }
+        }
+
+        [Theory]
+        [InlineData("VIPER", true)]
+        [InlineData("VMACS.VMTH", false)]
+        public async Task SearchMembers_DelegateAllowedOnlyInTheInstanceOfTheirRoles(string instance, bool allowed)
+        {
+            await AddMembership(DelegateRoleId, CallerId);
+            var controller = new MembersController(_context) { SecurityService = SecurityAs() };
+
+            var result = await controller.Search(instance, "target", "all");
+
+            if (allowed)
+            {
+                Assert.Equal(TargetId, Assert.Single(result.Value!).MemberId);
+            }
+            else
+            {
+                Assert.IsType<ForbidResult>(result.Result);
+            }
+        }
+
+        [Theory]
+        [InlineData("RAPS.UserLookup", true)]
+        [InlineData("RAPS.ViewRoles", false)]
+        public async Task SearchMembers_RequiresALookupPermissionWithoutDelegation(string permission, bool allowed)
+        {
+            var controller = new MembersController(_context) { SecurityService = SecurityAs(permission) };
+
+            var result = await controller.Search("VIPER", "target", "all");
+
+            if (allowed)
+            {
+                Assert.Equal(TargetId, Assert.Single(result.Value!).MemberId);
+            }
+            else
+            {
+                Assert.IsType<ForbidResult>(result.Result);
+            }
+        }
+
         [Theory]
         [InlineData(Admin, 1)]
         [InlineData("RAPS.ViewPermissions", 0)]
