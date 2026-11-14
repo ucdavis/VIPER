@@ -12,12 +12,18 @@ public enum RCourseCreationContext
     Harvest,
 
     /// <summary>R-course created on-demand when an instructor adds their first non-R-course effort record.</summary>
-    OnDemand
+    OnDemand,
+
+    /// <summary>R-course recreated when a closed term is reopened, since closing removes empty R-course records.</summary>
+    Reopen,
+
+    /// <summary>R-course created when an instructor is added to a term.</summary>
+    InstructorAdded
 }
 
 /// <summary>
 /// Service interface for managing generic R-course (resident teaching) effort records.
-/// Provides centralized logic for creating R-courses for instructors who teach non-R-course classes.
+/// Every unverified instructor in a term gets one, as a placeholder for resident teaching.
 /// </summary>
 public interface IRCourseService
 {
@@ -40,4 +46,14 @@ public interface IRCourseService
     /// <param name="context">The context in which the R-course is being created (for audit logging).</param>
     /// <param name="ct">Cancellation token.</param>
     Task CreateRCourseEffortRecordAsync(int personId, int termCode, int modifiedBy, RCourseCreationContext context, CancellationToken ct = default);
+
+    /// <summary>
+    /// Creates R-course effort records for every unverified instructor in the term. Verified
+    /// instructors are skipped: verifying deletes their zero-effort R-course record.
+    /// </summary>
+    /// <param name="termCode">The term code.</param>
+    /// <param name="modifiedBy">The person ID of the user making the change.</param>
+    /// <param name="context">The context in which the R-courses are being created (for audit logging).</param>
+    /// <param name="ct">Cancellation token.</param>
+    Task CreateForEligibleInstructorsAsync(int termCode, int modifiedBy, RCourseCreationContext context, CancellationToken ct = default);
 }

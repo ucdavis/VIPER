@@ -1,4 +1,6 @@
+using System.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Viper.Areas.Curriculum.Services;
 using Viper.Areas.Effort.Constants;
 using Viper.Areas.Effort.Helpers;
@@ -15,15 +17,29 @@ namespace Viper.Areas.Effort.Services;
 /// </summary>
 public class TermService : ITermService
 {
+    private const string CloseCleanupReason = "TermClose";
+
     private readonly EffortDbContext _context;
     private readonly VIPERContext _viperContext;
     private readonly IEffortAuditService _auditService;
+    private readonly ICourseClassificationService _classificationService;
+    private readonly IRCourseService _rCourseService;
+    private readonly EffortSettings _settings;
 
-    public TermService(EffortDbContext context, VIPERContext viperContext, IEffortAuditService auditService)
+    public TermService(
+        EffortDbContext context,
+        VIPERContext viperContext,
+        IEffortAuditService auditService,
+        ICourseClassificationService classificationService,
+        IRCourseService rCourseService,
+        IOptions<EffortSettings> settings)
     {
         _context = context;
         _viperContext = viperContext;
         _auditService = auditService;
+        _classificationService = classificationService;
+        _rCourseService = rCourseService;
+        _settings = settings.Value;
     }
 
     public async Task<List<TermDto>> GetTermsAsync(CancellationToken ct = default)
@@ -280,11 +296,8 @@ public class TermService : ITermService
 
     public async Task<(bool Success, string? ErrorMessage)> CloseTermAsync(int termCode, CancellationToken ct = default)
     {
-        var (canClose, zeroEnrollmentCount) = await CanCloseTermAsync(termCode, ct);
-        if (!canClose)
-        {
-            return (false, $"Cannot close term: {zeroEnrollmentCount} course(s) have zero enrollment");
-        }
+        // Serializable so an edit saved during the close cannot be deleted as zero effort
+        await using var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
 
         var term = await _context.Terms.FirstOrDefaultAsync(t => t.TermCode == termCode, ct);
         if (term == null)
@@ -298,20 +311,68 @@ public class TermService : ITermService
             return (false, "Term must be opened before it can be closed");
         }
 
+        var cleanup = await BuildCloseCleanupAsync(termCode, QueryTrackingBehavior.TrackAll, ct);
+        if (cleanup.BlockingCourses.Count > 0)
+        {
+            var courseCodes = string.Join(", ", cleanup.BlockingCourses.Select(FormatCourseCode));
+            return (false, $"Cannot close term: {cleanup.BlockingCourses.Count} course(s) have zero enrollment and effort on the course or its parent: {courseCodes}");
+        }
+
         var oldStatus = term.Status;
         term.ClosedDate = DateTime.Now;
 
-        await using var transaction = await _context.Database.BeginTransactionAsync(ct);
+        _context.Records.RemoveRange(cleanup.Records);
+        foreach (var record in cleanup.Records)
+        {
+            _auditService.AddRecordChangeAudit(record.Id, termCode, EffortAuditActions.DeleteEffort,
+                new
+                {
+                    Reason = CloseCleanupReason,
+                    record.PersonId,
+                    Course = FormatCourseCode(record.Course),
+                    EffortType = record.EffortTypeId,
+                    record.Hours,
+                    record.Weeks,
+                    record.Notes
+                },
+                null);
+        }
+
+        _context.CourseRelationships.RemoveRange(cleanup.Relationships);
+        _context.Courses.RemoveRange(cleanup.Courses);
+        foreach (var course in cleanup.Courses)
+        {
+            _auditService.AddCourseChangeAudit(course.Id, termCode, EffortAuditActions.DeleteCourse,
+                new
+                {
+                    Reason = CloseCleanupReason,
+                    course.Crn,
+                    course.SubjCode,
+                    course.CrseNumb,
+                    course.SeqNumb,
+                    course.Enrollment,
+                    course.Units,
+                    course.CustDept
+                },
+                null);
+        }
+
         _auditService.AddTermChangeAudit(termCode, EffortAuditActions.CloseTerm,
             new { Status = oldStatus },
-            new { term.Status, term.ClosedDate });
+            new
+            {
+                term.Status,
+                term.ClosedDate,
+                ZeroEffortRecordsRemoved = cleanup.Records.Count,
+                ZeroEnrollmentCoursesRemoved = cleanup.Courses.Count
+            });
         await _context.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
 
         return (true, null);
     }
 
-    public async Task<TermDto?> ReopenTermAsync(int termCode, CancellationToken ct = default)
+    public async Task<TermDto?> ReopenTermAsync(int termCode, int modifiedBy, CancellationToken ct = default)
     {
         var term = await _context.Terms.FirstOrDefaultAsync(t => t.TermCode == termCode, ct);
         if (term == null)
@@ -333,6 +394,13 @@ public class TermService : ITermService
             new { Status = oldStatus },
             new { term.Status });
         await _context.SaveChangesAsync(ct);
+
+        // Closing removes empty generic R-course records, and they cannot be added back by hand
+        if (_settings.AutoCreateGenericRCourse)
+        {
+            await _rCourseService.CreateForEligibleInstructorsAsync(termCode, modifiedBy, RCourseCreationContext.Reopen, ct);
+        }
+
         await transaction.CommitAsync(ct);
 
         return await MapTermToDtoAsync(term, ct);
@@ -381,13 +449,99 @@ public class TermService : ITermService
         return true;
     }
 
-    public async Task<(bool CanClose, int ZeroEnrollmentCount)> CanCloseTermAsync(int termCode, CancellationToken ct = default)
+    public async Task<(bool CanClose, int BlockingCourseCount)> CanCloseTermAsync(int termCode, CancellationToken ct = default)
     {
-        var zeroEnrollmentCount = await _context.Courses
-            .CountAsync(c => c.TermCode == termCode && c.Enrollment == 0, ct);
+        var cleanup = await BuildCloseCleanupAsync(termCode, QueryTrackingBehavior.NoTracking, ct);
 
-        return (zeroEnrollmentCount == 0, zeroEnrollmentCount);
+        return (cleanup.BlockingCourses.Count == 0, cleanup.BlockingCourses.Count);
     }
+
+    /// <summary>
+    /// Works out what closing a term would remove and which courses block it, without changing anything.
+    /// </summary>
+    private async Task<CloseCleanup> BuildCloseCleanupAsync(int termCode, QueryTrackingBehavior tracking, CancellationToken ct)
+    {
+        // Both columns must be empty: a weeks-based record has Hours = null, so checking Hours alone would delete real effort
+        var zeroEffortRecords = await _context.Records
+            .AsTracking(tracking)
+            .Include(r => r.Course)
+            .Where(r => r.TermCode == termCode
+                     && (r.Hours ?? 0) == 0
+                     && (r.Weeks ?? 0) == 0
+                     && r.Person.EffortVerified == null)
+            .ToListAsync(ct);
+        var zeroEffortRecordIds = zeroEffortRecords.Select(r => r.Id).ToHashSet();
+
+        var zeroEnrollmentCourses = await _context.Courses
+            .AsTracking(tracking)
+            .Where(c => c.TermCode == termCode && c.Enrollment == 0)
+            .ToListAsync(ct);
+        var zeroEnrollmentCourseIds = zeroEnrollmentCourses.Select(c => c.Id).ToList();
+
+        var zeroEnrollmentRecords = await _context.Records
+            .AsNoTracking()
+            .Where(r => EF.Parameter(zeroEnrollmentCourseIds).Contains(r.CourseId))
+            .Select(r => new { r.Id, r.CourseId })
+            .ToListAsync(ct);
+        var courseIdsWithEffort = zeroEnrollmentRecords
+            .Where(r => !zeroEffortRecordIds.Contains(r.Id))
+            .Select(r => r.CourseId)
+            .ToHashSet();
+
+        var relationships = await _context.CourseRelationships
+            .AsTracking(tracking)
+            .Where(r => r.ParentCourse.TermCode == termCode)
+            .ToListAsync(ct);
+
+        // Effort belongs on the parent, so a child of a parent with effort counts as having effort
+        var parentIds = relationships.Select(r => r.ParentCourseId).Distinct().ToList();
+        var parentRecords = await _context.Records
+            .AsNoTracking()
+            .Where(r => EF.Parameter(parentIds).Contains(r.CourseId))
+            .Select(r => new { r.Id, r.CourseId })
+            .ToListAsync(ct);
+        var parentIdsWithEffort = parentRecords
+            .Where(r => !zeroEffortRecordIds.Contains(r.Id))
+            .Select(r => r.CourseId)
+            .ToHashSet();
+        courseIdsWithEffort.UnionWith(relationships
+            .Where(r => parentIdsWithEffort.Contains(r.ParentCourseId))
+            .Select(r => r.ChildCourseId));
+
+        // The generic R-course never has enrollment, so its effort cannot block closing
+        var blockingCourses = zeroEnrollmentCourses
+            .Where(c => courseIdsWithEffort.Contains(c.Id) && !_classificationService.IsGenericRCourse(c.Crn))
+            .ToList();
+        var emptyCourses = zeroEnrollmentCourses
+            .Where(c => !courseIdsWithEffort.Contains(c.Id))
+            .ToList();
+        var emptyCourseIds = emptyCourses.Select(c => c.Id).ToHashSet();
+
+        // Keep an empty parent whose children survive, so the cross-listing stays intact
+        var parentIdsToKeep = relationships
+            .Where(r => !emptyCourseIds.Contains(r.ChildCourseId))
+            .Select(r => r.ParentCourseId)
+            .ToHashSet();
+        var coursesToDelete = emptyCourses.Where(c => !parentIdsToKeep.Contains(c.Id)).ToList();
+        var courseIdsToDelete = coursesToDelete.Select(c => c.Id).ToHashSet();
+
+        return new CloseCleanup(
+            zeroEffortRecords,
+            coursesToDelete,
+            relationships
+                .Where(r => courseIdsToDelete.Contains(r.ParentCourseId) || courseIdsToDelete.Contains(r.ChildCourseId))
+                .ToList(),
+            blockingCourses);
+    }
+
+    private static string FormatCourseCode(EffortCourse course) =>
+        $"{course.SubjCode.Trim()} {course.CrseNumb.Trim()}-{course.SeqNumb.Trim()}";
+
+    private sealed record CloseCleanup(
+        List<EffortRecord> Records,
+        List<EffortCourse> Courses,
+        List<CourseRelationship> Relationships,
+        List<EffortCourse> BlockingCourses);
 
     public async Task<List<AvailableTermDto>> GetAvailableTermsAsync(CancellationToken ct = default)
     {

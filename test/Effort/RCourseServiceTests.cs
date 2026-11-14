@@ -272,6 +272,22 @@ public sealed class RCourseServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task CreateRCourseEffortRecordAsync_PrefersVar_WhenAllowedOnRCourses()
+    {
+        var variable = await _context.EffortTypes.SingleAsync(t => t.Id == "VAR", TestContext.Current.CancellationToken);
+        variable.AllowedOnRCourses = true;
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        await _service.CreateRCourseEffortRecordAsync(TestPersonId, TestTermCode, TestModifiedBy, RCourseCreationContext.Harvest, TestContext.Current.CancellationToken);
+
+        var record = await _context.Records.FirstOrDefaultAsync(r => r.PersonId == TestPersonId, TestContext.Current.CancellationToken);
+        Assert.NotNull(record);
+        Assert.Equal("VAR", record.EffortTypeId);
+        Assert.Equal(0, record.Hours);
+        Assert.Null(record.Weeks);
+    }
+
+    [Fact]
     public async Task CreateRCourseEffortRecordAsync_SetsHoursOnly_WhenEffortTypeUsesHours()
     {
         // Arrange - Remove week-based types so LEC (UsesWeeks=false) is selected
@@ -345,6 +361,20 @@ public sealed class RCourseServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task CreateRCourseEffortRecordAsync_CreatesAuditEntry_WithReopenContext()
+    {
+        // Act
+        await _service.CreateRCourseEffortRecordAsync(TestPersonId, TestTermCode, TestModifiedBy, RCourseCreationContext.Reopen, TestContext.Current.CancellationToken);
+
+        // Assert
+        var auditEntry = await _context.Audits
+            .FirstOrDefaultAsync(a => a.Action == EffortAuditActions.RCourseAutoCreated, TestContext.Current.CancellationToken);
+
+        Assert.NotNull(auditEntry);
+        Assert.Contains("when term reopened", auditEntry.Changes);
+    }
+
+    [Fact]
     public async Task CreateRCourseEffortRecordAsync_CreatesSeparateRecords_ForDifferentInstructors()
     {
         // Arrange - Add another instructor
@@ -376,6 +406,118 @@ public sealed class RCourseServiceTests : IDisposable
         // Both share the same course
         var courseIds = records.Select(r => r.CourseId).Distinct().ToList();
         Assert.Single(courseIds);
+    }
+
+    #endregion
+
+    #region CreateForEligibleInstructorsAsync Tests
+
+    private void AddInstructorWithRecord(int personId, int recordId, EffortCourse course, DateTime? verified = null)
+    {
+        _context.Persons.Add(new EffortPerson
+        {
+            PersonId = personId,
+            TermCode = course.TermCode,
+            FirstName = "Test",
+            LastName = "Instructor",
+            EffortDept = "VME",
+            EffortVerified = verified
+        });
+        _context.Records.Add(new EffortRecord
+        {
+            Id = recordId,
+            PersonId = personId,
+            Course = course,
+            TermCode = course.TermCode,
+            EffortTypeId = "LEC",
+            RoleId = 1,
+            Crn = course.Crn,
+            Hours = 5
+        });
+    }
+
+    private static EffortCourse NewCourse(string crn, string crseNumb, int termCode = TestTermCode) => new()
+    {
+        TermCode = termCode,
+        Crn = crn,
+        SubjCode = "DVM",
+        CrseNumb = crseNumb,
+        SeqNumb = "001",
+        CustDept = "VME"
+    };
+
+    [Fact]
+    public async Task CreateForEligibleInstructorsAsync_CreatesRecords_ForEveryUnverifiedInstructorInTerm()
+    {
+        // Arrange - TestPersonId is seeded in the term with no records
+        const int eligible = 201, verified = 202, rCourseOnly = 203, otherTerm = 204, mixed = 205;
+        var regularCourse = NewCourse("12345", "443");
+        AddInstructorWithRecord(eligible, 1, regularCourse);
+        AddInstructorWithRecord(verified, 2, regularCourse, verified: DateTime.Now);
+        AddInstructorWithRecord(rCourseOnly, 3, NewCourse("12346", "410R "));
+        AddInstructorWithRecord(otherTerm, 4, NewCourse("12347", "443", termCode: 202420));
+        AddInstructorWithRecord(mixed, 5, NewCourse("12348", "411R"));
+        _context.Records.Add(new EffortRecord
+        {
+            Id = 6,
+            PersonId = mixed,
+            Course = regularCourse,
+            TermCode = TestTermCode,
+            EffortTypeId = "LEC",
+            RoleId = 1,
+            Crn = regularCourse.Crn,
+            Hours = 5
+        });
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        // Act
+        await _service.CreateForEligibleInstructorsAsync(TestTermCode, TestModifiedBy, RCourseCreationContext.Reopen, TestContext.Current.CancellationToken);
+
+        // Assert
+        var createdFor = await _context.Records
+            .Where(r => r.Crn == "RESID")
+            .Select(r => r.PersonId)
+            .OrderBy(id => id)
+            .ToListAsync(TestContext.Current.CancellationToken);
+        Assert.Equal([TestPersonId, eligible, rCourseOnly, mixed], createdFor);
+    }
+
+    [Fact]
+    public async Task CreateForEligibleInstructorsAsync_AddsOnlyMissingRecords_WithOneAuditEach()
+    {
+        // Arrange - one instructor already has the record, two do not
+        const int alreadyHasRecord = 201, missingA = 202, missingB = 203;
+        var regularCourse = NewCourse("12345", "443");
+        AddInstructorWithRecord(alreadyHasRecord, 1, regularCourse);
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+        await _service.CreateForEligibleInstructorsAsync(TestTermCode, TestModifiedBy, RCourseCreationContext.Reopen, TestContext.Current.CancellationToken);
+
+        AddInstructorWithRecord(missingA, 1002, regularCourse);
+        AddInstructorWithRecord(missingB, 1003, regularCourse);
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        // Act
+        await _service.CreateForEligibleInstructorsAsync(TestTermCode, TestModifiedBy, RCourseCreationContext.Reopen, TestContext.Current.CancellationToken);
+
+        // Assert
+        var createdFor = await _context.Records
+            .Where(r => r.Crn == "RESID")
+            .Select(r => r.PersonId)
+            .OrderBy(id => id)
+            .ToListAsync(TestContext.Current.CancellationToken);
+        Assert.Equal([TestPersonId, alreadyHasRecord, missingA, missingB], createdFor);
+        Assert.Single(await _context.Courses.Where(c => c.Crn == "RESID").ToListAsync(TestContext.Current.CancellationToken));
+        var createdIds = await _context.Records
+            .Where(r => r.Crn == "RESID")
+            .Select(r => r.Id)
+            .OrderBy(id => id)
+            .ToListAsync(TestContext.Current.CancellationToken);
+        var auditedIds = await _context.Audits
+            .Where(a => a.Action == EffortAuditActions.RCourseAutoCreated)
+            .Select(a => a.RecordId)
+            .OrderBy(id => id)
+            .ToListAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(createdIds, auditedIds);
     }
 
     #endregion
