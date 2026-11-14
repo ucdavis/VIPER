@@ -498,13 +498,8 @@ public class HarvestService : IHarvestService
             return;
         }
 
-        var eligibleInstructors = context.Preview.CrestEffort
-            .Concat(context.Preview.NonCrestEffort)
-            .Concat(context.Preview.ClinicalEffort)
-            .Where(e => !e.CourseCode.TrimEnd().EndsWith('R'))
-            .Select(e => e.MothraId)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Count();
+        // Harvest recreates every person unverified, so every instructor gets the R-course
+        var eligibleInstructors = context.Preview.Summary.TotalInstructors;
         if (eligibleInstructors == 0)
         {
             return;

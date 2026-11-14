@@ -150,13 +150,13 @@ public sealed class HarvestServiceTests : IDisposable
     #region GeneratePreviewAsync Tests
 
     [Theory]
-    [InlineData(true, true, 2, 4)]
+    [InlineData(true, true, 2, 5)]
     [InlineData(true, false, 2, 3)]
     [InlineData(false, true, 1, 3)]
     public async Task GeneratePreviewAsync_SummaryIncludesExpectedRCourses(
         bool autoCreate, bool effortTypeActive, int expectedCourses, int expectedRecords)
     {
-        // Arrange: only 00000001 has effort on a non-R course
+        // Arrange: both instructors get the R-course, including 00000002 who only has R-course effort
         var ct = TestContext.Current.CancellationToken;
         _context.EffortTypes.Add(new EffortType { Id = "LEC", Description = "Lecture", AllowedOnRCourses = true, IsActive = effortTypeActive });
         await _context.SaveChangesAsync(ct);
@@ -1155,6 +1155,8 @@ public sealed class HarvestServiceTests : IDisposable
 
         public Task GeneratePreviewAsync(HarvestContext context, CancellationToken ct = default)
         {
+            context.Preview.CrestInstructors.Add(new HarvestPersonPreview { MothraId = "00000001" });
+            context.Preview.NonCrestInstructors.Add(new HarvestPersonPreview { MothraId = "00000002" });
             context.Preview.CrestCourses.Add(new HarvestCoursePreview { Crn = "12345", SubjCode = "VET", CrseNumb = "410", Units = 4 });
             context.Preview.CrestEffort.Add(new HarvestRecordPreview { MothraId = "00000001", CourseCode = "VET 410" });
             context.Preview.NonCrestEffort.Add(new HarvestRecordPreview { MothraId = "00000001", CourseCode = "VSR 491R" });
