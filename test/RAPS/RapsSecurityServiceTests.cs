@@ -93,6 +93,18 @@ namespace Viper.test.RAPS
             Assert.True(service.CanViewRoleList("VIPER"));
         }
 
+        [Theory]
+        [InlineData("VMACS.VMTH", true)]
+        [InlineData("VIPER", false)]
+        [InlineData("ViperForms", false)]
+        public void DelegateCanAccessInstance_OnlyWhereTheyControlARole(string instance, bool expected)
+        {
+            var service = new RAPSSecurityService(ContextWithRoles(RolesWithDelegatedRole("VMACS.VMTH.Controlled")), UserWith());
+
+            // The instance nav listed every instance for any delegate, each one landing on an empty list.
+            Assert.Equal(expected, service.IsAllowedTo("AccessInstance", instance));
+        }
+
         [Fact]
         public void CannotViewRoleList_WithoutPermissionsOrDelegatedRoles()
         {
