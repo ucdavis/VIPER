@@ -443,6 +443,7 @@ public sealed class ClinicalImportServiceTests : IDisposable
         {
             // First import creates the clinical record, so the repeat import skips it
             await _service.ExecuteImportAsync(TermCode, ClinicalImportMode.AddNewOnly, modifiedBy: 1, TestContext.Current.CancellationToken);
+            _auditServiceMock.ClearReceivedCalls();
         }
 
         _instructorServiceMock
@@ -459,6 +460,8 @@ public sealed class ClinicalImportServiceTests : IDisposable
         Assert.True(result.Success);
         var effortPerson = await _context.Persons.AsNoTracking().SingleAsync(p => p.PersonId == 22 && p.TermCode == TermCode, TestContext.Current.CancellationToken);
         Assert.Equal(expectedReportUnit, effortPerson.ReportUnit);
+        _auditServiceMock.Received(expectedReportUnit != existingReportUnit ? 1 : 0).AddPersonChangeAudit(
+            22, TermCode, EffortAuditActions.UpdatePerson, Arg.Any<object>(), Arg.Any<object>());
     }
 
     [Fact]
