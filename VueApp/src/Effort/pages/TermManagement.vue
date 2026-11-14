@@ -722,6 +722,7 @@ function confirmTermAction(config: TermActionConfig) {
     $q.dialog({
         title: config.title,
         message: config.message,
+        class: "term-action-dialog",
         cancel: true,
         persistent: true,
     }).onOk(async () => {
@@ -815,7 +816,11 @@ function confirmOpenTerm(term: TermDto) {
 function confirmCloseTerm(term: TermDto) {
     confirmTermAction({
         title: "Close Term",
-        message: `Are you sure you want to close "${term.termName}"? This permanently removes zero-effort entries for instructors who have not verified, and zero-enrollment courses with no effort. Reopening the term restores at most the generic R-course (RES 000R-001).`,
+        message: `Are you sure you want to close "${term.termName}"?
+
+This permanently removes zero-effort entries for instructors who have not verified, and zero-enrollment courses with no effort.
+
+Reopening the term restores at most the generic R-course (RES 000R-001).`,
         successMessage: "Term closed successfully",
         action: () => termService.closeTerm(term.termCode),
         // The blocking course list can be too long to read in a toast
@@ -884,6 +889,12 @@ onMounted(loadTerms)
 </script>
 
 <style scoped>
+/* Lets confirm messages use 
+ for paragraph breaks */
+:global(.term-action-dialog .q-dialog__message) {
+    white-space: pre-line;
+}
+
 .term-action-btn {
     min-width: 130px;
 }

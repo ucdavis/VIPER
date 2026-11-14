@@ -636,7 +636,7 @@ public sealed class TermServiceTests : IDisposable
 
         // Assert
         Assert.False(success);
-        Assert.Contains("1 course(s) have zero enrollment and effort records: VME 200-001", errorMessage);
+        Assert.Contains("1 course(s) have zero enrollment and effort on the course or its parent: VME 200-001", errorMessage);
         Assert.Equal(2, await _context.Records.CountAsync(TestContext.Current.CancellationToken));
         Assert.Equal(3, await _context.Courses.CountAsync(TestContext.Current.CancellationToken));
         var term = await _context.Terms.SingleAsync(TestContext.Current.CancellationToken);
@@ -736,6 +736,28 @@ public sealed class TermServiceTests : IDisposable
         Assert.True(success);
         Assert.Equal(1, (await _context.Courses.SingleAsync(TestContext.Current.CancellationToken)).Id);
         Assert.Empty(await _context.CourseRelationships.ToListAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task CloseTermAsync_FailsAndKeepsZeroEnrollmentChild_WhenParentHasEffort()
+    {
+        // Arrange - effort is entered on the parent only, never on the child
+        AddOpenTerm();
+        AddPerson(100, verified: false);
+        AddCourse(1, enrollment: 10, crn: "12345");
+        AddCourse(2, enrollment: 0, crn: "12346", subjCode: "SPH", crseNumb: "207");
+        AddRecord(1, personId: 100, courseId: 1, hours: 5);
+        _context.CourseRelationships.Add(new CourseRelationship { Id = 1, ParentCourseId = 1, ChildCourseId = 2, RelationshipType = "CrossList" });
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        // Act
+        var (success, errorMessage) = await _termService.CloseTermAsync(TestTermCode, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.False(success);
+        Assert.Contains("SPH 207-001", errorMessage);
+        Assert.Equal(2, await _context.Courses.CountAsync(TestContext.Current.CancellationToken));
+        Assert.Single(await _context.CourseRelationships.ToListAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]

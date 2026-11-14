@@ -28,14 +28,10 @@ public class RCourseService : IRCourseService
     /// <inheritdoc />
     public async Task CreateForEligibleInstructorsAsync(int termCode, int modifiedBy, RCourseCreationContext context, CancellationToken ct = default)
     {
-        var eligibleInstructors = await _context.Records
+        var eligibleInstructors = await _context.Persons
             .AsNoTracking()
-            // CrseNumb is char(5), so it must be trimmed or "410R " does not end in R
-            .Where(r => r.TermCode == termCode
-                     && r.Person.EffortVerified == null
-                     && !r.Course.CrseNumb.Trim().EndsWith('R'))
-            .Select(r => r.PersonId)
-            .Distinct()
+            .Where(p => p.TermCode == termCode && p.EffortVerified == null)
+            .Select(p => p.PersonId)
             .ToListAsync(ct);
 
         _logger.LogInformation("Found {Count} eligible instructors for R-course generation in term {TermCode}",
@@ -125,10 +121,11 @@ public class RCourseService : IRCourseService
             return;
         }
 
-        // Get default effort type for R-courses (first active type with AllowedOnRCourses=true, ordered by Id)
+        // Prefer VAR; otherwise fall back to the first active R-course type by Id
         var defaultEffortType = await _context.EffortTypes
             .Where(t => t.AllowedOnRCourses && t.IsActive)
-            .OrderBy(t => t.Id)
+            .OrderBy(t => t.Id != EffortConstants.VariableEffortType)
+            .ThenBy(t => t.Id)
             .FirstOrDefaultAsync(ct);
 
         if (defaultEffortType == null)
@@ -161,6 +158,7 @@ public class RCourseService : IRCourseService
         {
             RCourseCreationContext.Harvest => "Generic R-course effort record auto-created during harvest",
             RCourseCreationContext.Reopen => "Generic R-course effort record auto-created when term reopened",
+            RCourseCreationContext.InstructorAdded => "Generic R-course effort record auto-created when instructor added",
             _ => "Generic R-course effort record auto-created when first non-R-course added"
         };
 

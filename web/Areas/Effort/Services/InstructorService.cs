@@ -1,6 +1,7 @@
 using System.Data.Common;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Options;
 using Viper.Areas.Effort.Constants;
 using Viper.Areas.Effort.Exceptions;
 using Viper.Areas.Effort.Models;
@@ -26,6 +27,9 @@ public class InstructorService : IInstructorService
     private readonly ICourseClassificationService _classificationService;
     private readonly ILogger<InstructorService> _logger;
     private readonly IMemoryCache _cache;
+    private readonly IRCourseService _rCourseService;
+    private readonly IUserHelper _userHelper;
+    private readonly EffortSettings _settings;
 
     private const string TitleCacheKey = "effort_title_lookup";
     private const string DeptSimpleNameCacheKey = "effort_dept_simple_name_lookup";
@@ -77,7 +81,10 @@ public class InstructorService : IInstructorService
         IEffortAuditService auditService,
         ICourseClassificationService classificationService,
         ILogger<InstructorService> logger,
-        IMemoryCache cache)
+        IMemoryCache cache,
+        IRCourseService rCourseService,
+        IUserHelper userHelper,
+        IOptions<EffortSettings> settings)
     {
         _context = context;
         _viperContext = viperContext;
@@ -87,6 +94,9 @@ public class InstructorService : IInstructorService
         _classificationService = classificationService;
         _logger = logger;
         _cache = cache;
+        _rCourseService = rCourseService;
+        _userHelper = userHelper;
+        _settings = settings.Value;
     }
 
     public async Task<List<PersonDto>> GetInstructorsAsync(int termCode, string? department = null, bool meritOnly = false, CancellationToken ct = default)
@@ -499,6 +509,13 @@ public class InstructorService : IInstructorService
                 instructor.ReportUnit
             });
         await _context.SaveChangesAsync(ct);
+
+        if (_settings.AutoCreateGenericRCourse)
+        {
+            await _rCourseService.CreateRCourseEffortRecordAsync(request.PersonId, request.TermCode,
+                _userHelper.GetCurrentUser()?.AaudUserId ?? 0, RCourseCreationContext.InstructorAdded, ct);
+        }
+
         await transaction.CommitAsync(ct);
 
         _logger.LogInformation("Created instructor: {PersonId} ({LastName}, {FirstName}) for term {TermCode}",

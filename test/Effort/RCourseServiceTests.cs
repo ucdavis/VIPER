@@ -272,6 +272,22 @@ public sealed class RCourseServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task CreateRCourseEffortRecordAsync_PrefersVar_WhenAllowedOnRCourses()
+    {
+        var variable = await _context.EffortTypes.SingleAsync(t => t.Id == "VAR", TestContext.Current.CancellationToken);
+        variable.AllowedOnRCourses = true;
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        await _service.CreateRCourseEffortRecordAsync(TestPersonId, TestTermCode, TestModifiedBy, RCourseCreationContext.Harvest, TestContext.Current.CancellationToken);
+
+        var record = await _context.Records.FirstOrDefaultAsync(r => r.PersonId == TestPersonId, TestContext.Current.CancellationToken);
+        Assert.NotNull(record);
+        Assert.Equal("VAR", record.EffortTypeId);
+        Assert.Equal(0, record.Hours);
+        Assert.Null(record.Weeks);
+    }
+
+    [Fact]
     public async Task CreateRCourseEffortRecordAsync_SetsHoursOnly_WhenEffortTypeUsesHours()
     {
         // Arrange - Remove week-based types so LEC (UsesWeeks=false) is selected
@@ -431,17 +447,15 @@ public sealed class RCourseServiceTests : IDisposable
     };
 
     [Fact]
-    public async Task CreateForEligibleInstructorsAsync_CreatesRecords_OnlyForUnverifiedInstructorsWithNonRCourseEffort()
+    public async Task CreateForEligibleInstructorsAsync_CreatesRecords_ForEveryUnverifiedInstructorInTerm()
     {
-        // Arrange
+        // Arrange - TestPersonId is seeded in the term with no records
         const int eligible = 201, verified = 202, rCourseOnly = 203, otherTerm = 204, mixed = 205;
         var regularCourse = NewCourse("12345", "443");
         AddInstructorWithRecord(eligible, 1, regularCourse);
         AddInstructorWithRecord(verified, 2, regularCourse, verified: DateTime.Now);
-        // char(5) padding, as stored in SQL Server: must still count as an R-course
         AddInstructorWithRecord(rCourseOnly, 3, NewCourse("12346", "410R "));
         AddInstructorWithRecord(otherTerm, 4, NewCourse("12347", "443", termCode: 202420));
-        // An R-course record must not hide the instructor's other non-R effort
         AddInstructorWithRecord(mixed, 5, NewCourse("12348", "411R"));
         _context.Records.Add(new EffortRecord
         {
@@ -465,7 +479,7 @@ public sealed class RCourseServiceTests : IDisposable
             .Select(r => r.PersonId)
             .OrderBy(id => id)
             .ToListAsync(TestContext.Current.CancellationToken);
-        Assert.Equal([eligible, mixed], createdFor);
+        Assert.Equal([TestPersonId, eligible, rCourseOnly, mixed], createdFor);
     }
 
     [Fact]
@@ -491,7 +505,7 @@ public sealed class RCourseServiceTests : IDisposable
             .Select(r => r.PersonId)
             .OrderBy(id => id)
             .ToListAsync(TestContext.Current.CancellationToken);
-        Assert.Equal([alreadyHasRecord, missingA, missingB], createdFor);
+        Assert.Equal([TestPersonId, alreadyHasRecord, missingA, missingB], createdFor);
         Assert.Single(await _context.Courses.Where(c => c.Crn == "RESID").ToListAsync(TestContext.Current.CancellationToken));
         var createdIds = await _context.Records
             .Where(r => r.Crn == "RESID")

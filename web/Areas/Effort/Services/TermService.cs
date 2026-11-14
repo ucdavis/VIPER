@@ -315,7 +315,7 @@ public class TermService : ITermService
         if (cleanup.BlockingCourses.Count > 0)
         {
             var courseCodes = string.Join(", ", cleanup.BlockingCourses.Select(FormatCourseCode));
-            return (false, $"Cannot close term: {cleanup.BlockingCourses.Count} course(s) have zero enrollment and effort records: {courseCodes}");
+            return (false, $"Cannot close term: {cleanup.BlockingCourses.Count} course(s) have zero enrollment and effort on the course or its parent: {courseCodes}");
         }
 
         var oldStatus = term.Status;
@@ -488,6 +488,26 @@ public class TermService : ITermService
             .Select(r => r.CourseId)
             .ToHashSet();
 
+        var relationships = await _context.CourseRelationships
+            .AsTracking(tracking)
+            .Where(r => r.ParentCourse.TermCode == termCode)
+            .ToListAsync(ct);
+
+        // Effort belongs on the parent, so a child of a parent with effort counts as having effort
+        var parentIds = relationships.Select(r => r.ParentCourseId).Distinct().ToList();
+        var parentRecords = await _context.Records
+            .AsNoTracking()
+            .Where(r => EF.Parameter(parentIds).Contains(r.CourseId))
+            .Select(r => new { r.Id, r.CourseId })
+            .ToListAsync(ct);
+        var parentIdsWithEffort = parentRecords
+            .Where(r => !zeroEffortRecordIds.Contains(r.Id))
+            .Select(r => r.CourseId)
+            .ToHashSet();
+        courseIdsWithEffort.UnionWith(relationships
+            .Where(r => parentIdsWithEffort.Contains(r.ParentCourseId))
+            .Select(r => r.ChildCourseId));
+
         // The generic R-course never has enrollment, so its effort cannot block closing
         var blockingCourses = zeroEnrollmentCourses
             .Where(c => courseIdsWithEffort.Contains(c.Id) && !_classificationService.IsGenericRCourse(c.Crn))
@@ -496,11 +516,6 @@ public class TermService : ITermService
             .Where(c => !courseIdsWithEffort.Contains(c.Id))
             .ToList();
         var emptyCourseIds = emptyCourses.Select(c => c.Id).ToHashSet();
-
-        var relationships = await _context.CourseRelationships
-            .AsTracking(tracking)
-            .Where(r => r.ParentCourse.TermCode == termCode)
-            .ToListAsync(ct);
 
         // Keep an empty parent whose children survive, so the cross-listing stays intact
         var parentIdsToKeep = relationships

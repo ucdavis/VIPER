@@ -120,6 +120,7 @@
                     {{ parentRelationship.parentCourse.courseCode }}-{{ parentRelationship.parentCourse.seqNumb }}
                 </router-link>
                 <span v-else>Course {{ parentRelationship.parentCourseId }}</span>
+                <div class="q-mt-xs">Enter effort on the parent course.</div>
             </StatusBanner>
 
             <!-- Child Relationships Section -->
@@ -236,55 +237,14 @@
                         :label="evaluationTabLabel"
                     />
                 </q-tabs>
-                <q-separator />
-                <q-tab-panels
-                    v-model="activeTab"
-                    keep-alive
-                >
-                    <q-tab-panel
-                        name="effort"
-                        class="q-px-none"
-                    >
-                        <div class="row items-center q-gutter-sm q-mb-sm">
-                            <q-btn
-                                v-if="canEditEffort"
-                                icon="add"
-                                label="Add Effort"
-                                color="primary"
-                                dense
-                                aria-label="Add instructor effort"
-                                @click="showAddEffortDialog = true"
-                            />
-                        </div>
-                        <CourseEffortTable
-                            :records="effortRecords"
-                            :term-code="termCode"
-                            :is-loading="isLoadingEffort"
-                            :load-error="effortLoadError"
-                            @edit="openEditEffortDialog"
-                            @delete="confirmDeleteEffort"
-                        />
-                    </q-tab-panel>
-                    <q-tab-panel
-                        name="evaluation"
-                        class="q-px-none"
-                    >
-                        <EvaluationStatusMatrix
-                            :evaluation-data="evaluationData"
-                            :can-edit-ad-hoc="hasEditAdHocEval && evaluationData.canEditAdHoc"
-                            :is-loading="isLoadingEval"
-                            :load-error="evalLoadError"
-                            :term-code="termCode"
-                            @add="openAddEvalDialog"
-                            @edit="openEditEvalDialog"
-                            @delete="confirmDeleteEval"
-                        />
-                    </q-tab-panel>
-                </q-tab-panels>
+                <q-separator class="q-mb-md" />
             </template>
 
-            <!-- Direct effort section (no tabs) -->
-            <template v-else>
+            <!-- Effort shows alone, or as the effort tab; v-show keeps each tab's state like keep-alive -->
+            <div
+                v-show="!showEvalTab || activeTab === 'effort'"
+                :role="showEvalTab ? 'tabpanel' : undefined"
+            >
                 <div class="row items-center q-gutter-sm q-mb-sm">
                     <q-btn
                         v-if="canEditEffort"
@@ -304,7 +264,23 @@
                     @edit="openEditEffortDialog"
                     @delete="confirmDeleteEffort"
                 />
-            </template>
+            </div>
+            <div
+                v-if="showEvalTab"
+                v-show="activeTab === 'evaluation'"
+                role="tabpanel"
+            >
+                <EvaluationStatusMatrix
+                    :evaluation-data="evaluationData"
+                    :can-edit-ad-hoc="hasEditAdHocEval && evaluationData.canEditAdHoc"
+                    :is-loading="isLoadingEval"
+                    :load-error="evalLoadError"
+                    :term-code="termCode"
+                    @add="openAddEvalDialog"
+                    @edit="openEditEvalDialog"
+                    @delete="confirmDeleteEval"
+                />
+            </div>
         </template>
 
         <!-- Edit Dialog -->
