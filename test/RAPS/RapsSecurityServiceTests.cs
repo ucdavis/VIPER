@@ -19,8 +19,10 @@ namespace Viper.test.RAPS
         {
             // BuildMockDbSet() makes its own NSubstitute calls, so build it before opening the Returns() call
             var mockSet = roles.BuildMockDbSet();
+            var memberSet = roles.SelectMany(r => r.TblRoleMembers).ToList().BuildMockDbSet();
             var context = Substitute.For<RAPSContext>();
             context.TblRoles.Returns(mockSet);
+            context.TblRoleMembers.Returns(memberSet);
             return context;
         }
 
@@ -48,6 +50,8 @@ namespace Viper.test.RAPS
                 TblRoleMembers = { new TblRoleMember { RoleId = 1, MemberId = MemberId } },
                 ChildRoles = { new TblAppRole { AppRoleId = 1, RoleId = 2, Role = controlled } }
             };
+            // The membership query filters on its Role navigation, which a mock does not fix up
+            delegateRole.TblRoleMembers.Single().Role = delegateRole;
             return new List<TblRole> { delegateRole, controlled };
         }
 
@@ -87,6 +91,18 @@ namespace Viper.test.RAPS
             var service = new RAPSSecurityService(ContextWithRoles(RolesWithDelegatedRole("VIPER.Controlled")), UserWith());
 
             Assert.True(service.CanViewRoleList("VIPER"));
+        }
+
+        [Theory]
+        [InlineData("VMACS.VMTH", true)]
+        [InlineData("VIPER", false)]
+        [InlineData("ViperForms", false)]
+        public void DelegateCanAccessInstance_OnlyWhereTheyControlARole(string instance, bool expected)
+        {
+            var service = new RAPSSecurityService(ContextWithRoles(RolesWithDelegatedRole("VMACS.VMTH.Controlled")), UserWith());
+
+            // The instance nav listed every instance for any delegate, each one landing on an empty list.
+            Assert.Equal(expected, service.IsAllowedTo("AccessInstance", instance));
         }
 
         [Fact]
