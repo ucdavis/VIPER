@@ -30,6 +30,7 @@
                 <span style="font-size:.9em">{{props.row.description}}</span>
                 <br />
                 <div class="q-pl-md" style="font-size:.9em" v-if="permissionRoleId == props.row.roleId">
+                    <div v-if="permissions.length === 0" class="text-italic">No permissions</div>
                     <div v-for="permission in permissions" class="row">
                         <div class="col">
                             <q-icon name="lock"></q-icon>

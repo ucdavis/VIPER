@@ -100,6 +100,8 @@ namespace Viper.test.RAPS
             // arrange
             var mockSet = SetupRoles.MockRoles.BuildMockDbSet();
             rapsContext.TblRoles.Returns(mockSet);
+            var memberSet = new List<TblRoleMember>().BuildMockDbSet();
+            rapsContext.TblRoleMembers.Returns(memberSet);
 
             var mockUser = Substitute.For<IUserHelper>();
             mockUser.GetCurrentUser().Returns(new AaudUser());
@@ -291,6 +293,9 @@ namespace Viper.test.RAPS
                 // assert
                 var actionResult = Assert.IsType<ActionResult<TblRole>>(result);
                 var createdAtActionResult = Assert.IsType<CreatedAtActionResult>(actionResult.Result);
+                Assert.Equal(nameof(RolesController.GetTblRole), createdAtActionResult.ActionName);
+                Assert.Equal("VIPER", createdAtActionResult.RouteValues!["instance"]);
+                Assert.Equal(1, createdAtActionResult.RouteValues["roleId"]);
                 var returnValue = Assert.IsType<TblRole>(createdAtActionResult.Value);
                 Assert.Equal(1, returnValue.RoleId);
                 Assert.Equal("VIPER.TestRole", returnValue.Role);

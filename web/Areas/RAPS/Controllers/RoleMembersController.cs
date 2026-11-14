@@ -15,13 +15,13 @@ namespace Viper.Areas.RAPS.Controllers
     public class RoleMembersController : ApiController
     {
         private readonly RAPSContext _context;
-        private readonly RAPSSecurityService _securityService;
+        internal RAPSSecurityService SecurityService { get; set; }
         private readonly RAPSAuditService _auditService;
 
         public RoleMembersController(RAPSContext context)
         {
             _context = context;
-            _securityService = new RAPSSecurityService(_context);
+            SecurityService = new RAPSSecurityService(_context);
             _auditService = new RAPSAuditService(_context);
         }
 
@@ -54,7 +54,7 @@ namespace Viper.Areas.RAPS.Controllers
             }
             else
             {
-                if (!_securityService.IsAllowedTo("ViewAllRoles", instance))
+                if (!SecurityService.IsAllowedTo("ViewAllRoles", instance))
                 {
                     application = 0;
                 }
@@ -80,7 +80,8 @@ namespace Viper.Areas.RAPS.Controllers
             {
                 return NotFound();
             }
-            ActionResult? errorResult = CheckAccess(instance, roleId, memberId);
+            // The member route has no role id, so check the role in the body that will be written.
+            ActionResult? errorResult = CheckAccess(instance, roleId ?? roleMemberCreateUpdate.RoleId, memberId);
             if (errorResult != null)
             {
                 return errorResult;
@@ -101,7 +102,7 @@ namespace Viper.Areas.RAPS.Controllers
             }
 
             TblRoleMember? tblRoleMember = await _context.TblRoleMembers.FindAsync(roleId, memberId);
-            return CreatedAtAction("GetTblRole", new { roleId, memberId }, tblRoleMember);
+            return CreatedAtAction(nameof(GetTblRoleMembers), new { instance, roleId, memberId }, tblRoleMember);
         }
 
         //PUT: Roles/5/Members/12345678
@@ -255,7 +256,7 @@ namespace Viper.Areas.RAPS.Controllers
         private VmacsResponse? GetVMACSExportStatus(List<string> messages)
         {
             //only return vmacs response for admins
-            if (_securityService.IsAllowedTo("RAPS.Admin") && messages.Count > 1)
+            if (SecurityService.IsAllowedTo("Admin") && messages.Count > 1)
             {
                 var finalMessage = messages[^1];
                 try
@@ -298,18 +299,18 @@ namespace Viper.Areas.RAPS.Controllers
             if (roleId != null)
             {
                 //for a role, check that the logged in user can edit role membership for this role.
-                var tblRole = _securityService.GetRoleInInstance(instance, (int)roleId);
+                var tblRole = SecurityService.GetRoleInInstance(instance, (int)roleId);
                 if (tblRole == null)
                 {
                     return NotFound();
                 }
-                if (!_securityService.IsAllowedTo("EditRoleMembership", instance, tblRole))
+                if (!SecurityService.IsAllowedTo("EditRoleMembership", instance, tblRole))
                 {
                     return Forbid();
                 }
             }
             //for a member, check that the user can edit role membership in this instance
-            else if (!_securityService.IsAllowedTo("EditRoleMembership", instance))
+            else if (!SecurityService.IsAllowedTo("EditRoleMembership", instance))
             {
                 return Forbid();
             }

@@ -12,17 +12,17 @@ namespace Viper.Areas.RAPS.Controllers
 {
     [Route("raps/{instance=VIPER}/")]
     [ApiController]
-    [Authorize(Roles = "VMDO SVM-IT", Policy = "2faAuthentication")]
+    [Authorize(Roles = "VMDO SVM-IT,RAPS Users", Policy = "2faAuthentication")]
     public class RolePermissionsController : ApiController
     {
         private readonly RAPSContext _context;
-        private readonly RAPSSecurityService _securityService;
+        internal RAPSSecurityService SecurityService { get; set; }
         private readonly RAPSAuditService _auditService;
 
         public RolePermissionsController(RAPSContext context)
         {
             _context = context;
-            _securityService = new RAPSSecurityService(_context);
+            SecurityService = new RAPSSecurityService(_context);
             _auditService = new RAPSAuditService(_context);
         }
 
@@ -34,7 +34,7 @@ namespace Viper.Areas.RAPS.Controllers
             }
             if (roleId != null)
             {
-                TblRole? tblRole = _securityService.GetRoleInInstance(instance, (int)roleId);
+                TblRole? tblRole = SecurityService.GetRoleInInstance(instance, (int)roleId);
                 if (tblRole == null)
                 {
                     return NotFound();
@@ -42,7 +42,7 @@ namespace Viper.Areas.RAPS.Controllers
             }
             else if (permissionId != null)
             {
-                TblPermission? tblPermission = _securityService.GetPermissionInInstance(instance, (int)permissionId);
+                TblPermission? tblPermission = SecurityService.GetPermissionInInstance(instance, (int)permissionId);
                 if (tblPermission == null)
                 {
                     return NotFound();
@@ -74,12 +74,12 @@ namespace Viper.Areas.RAPS.Controllers
                 {
                     return NotFound();
                 }
-                if (!_securityService.IsAllowedTo("ViewRolePermissions", instance, role))
+                if (!SecurityService.IsAllowedTo("ViewRolePermissions", instance, role))
                 {
                     return Forbid();
                 }
             }
-            else if (permissionId != null && !_securityService.IsAllowedTo("ViewAllRoles", instance))
+            else if (permissionId != null && !SecurityService.IsAllowedTo("ViewAllRoles", instance))
             {
                 return Forbid();
             }
@@ -103,16 +103,16 @@ namespace Viper.Areas.RAPS.Controllers
         [Permission(Allow = "RAPS.Admin,RAPS.EditRoleMembership")]
         public async Task<ActionResult<RolePermissionComparison>> CompareRolePermissions(string instance, int role1Id, int role2Id)
         {
-            TblRole? role1 = _securityService.GetRoleInInstance(instance, role1Id);
-            TblRole? role2 = _securityService.GetRoleInInstance(instance, role2Id);
+            TblRole? role1 = SecurityService.GetRoleInInstance(instance, role1Id);
+            TblRole? role2 = SecurityService.GetRoleInInstance(instance, role2Id);
             if (role1 == null || role2 == null)
             {
                 return NotFound();
             }
 
-            if (!_securityService.IsAllowedTo("EditRoleMembership", instance) ||
-                !_securityService.IsAllowedTo("ViewRolePermissions", instance, role1) ||
-                !_securityService.IsAllowedTo("ViewRolePermissions", instance, role2))
+            if (!SecurityService.IsAllowedTo("EditRoleMembership", instance) ||
+                !SecurityService.IsAllowedTo("ViewRolePermissions", instance, role1) ||
+                !SecurityService.IsAllowedTo("ViewRolePermissions", instance, role2))
             {
                 return Forbid();
             }
@@ -172,7 +172,7 @@ namespace Viper.Areas.RAPS.Controllers
             await _context.SaveChangesAsync();
             await transaction.CommitAsync();
 
-            return CreatedAtAction("GetTblRole", new { roleId, permissionId, tblRolePermission.Access }, tblRolePermission);
+            return CreatedAtAction(nameof(GetTblRolePermissions), new { instance, roleId, permissionId }, tblRolePermission);
         }
 
         // DELETE Roles/5/Permissions/123

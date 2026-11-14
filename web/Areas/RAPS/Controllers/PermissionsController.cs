@@ -16,11 +16,13 @@ namespace Viper.Areas.RAPS.Controllers
     {
         private readonly RAPSContext _context;
         private readonly RAPSAuditService _auditService;
+        internal RAPSSecurityService SecurityService { get; set; }
 
         public PermissionsController(RAPSContext context)
         {
             _context = context;
             _auditService = new RAPSAuditService(context);
+            SecurityService = new RAPSSecurityService(context);
         }
 
         // GET: Permissions
@@ -32,8 +34,12 @@ namespace Viper.Areas.RAPS.Controllers
             {
                 return NotFound();
             }
-            return await _context.TblPermissions
-                .Include(p => p.TblMemberPermissions)
+            // Member assignments are admin-only; only the admin list reads them, for a count.
+            IQueryable<TblPermission> permissions = SecurityService.IsAllowedTo("Admin")
+                ? _context.TblPermissions.Include(p => p.TblMemberPermissions)
+                : _context.TblPermissions;
+            return await permissions
+                .AsNoTracking()
                 .Where(RAPSSecurityService.FilterPermissionsToInstance(instance))
                 .OrderBy(p => p.Permission)
                 .ToListAsync();
@@ -103,7 +109,7 @@ namespace Viper.Areas.RAPS.Controllers
         // POST: Permissions
         [HttpPost]
         [Permission(Allow = "RAPS.Admin,RAPS.CreatePermission")]
-        public async Task<ActionResult<TblPermission>> PostTblPermission(PermissionCreateUpdate permission)
+        public async Task<ActionResult<TblPermission>> PostTblPermission(string instance, PermissionCreateUpdate permission)
         {
             if (_context.TblPermissions == null)
             {
@@ -124,7 +130,7 @@ namespace Viper.Areas.RAPS.Controllers
             await _context.SaveChangesAsync();
             await transaction.CommitAsync();
 
-            return CreatedAtAction("GetTblPermission", new { id = tblPermission.PermissionId }, tblPermission);
+            return CreatedAtAction(nameof(GetTblPermission), new { instance, permissionId = tblPermission.PermissionId }, tblPermission);
         }
 
         // DELETE: Permissions/5

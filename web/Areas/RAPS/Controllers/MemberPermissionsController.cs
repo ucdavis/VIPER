@@ -258,7 +258,7 @@ namespace Viper.Areas.RAPS.Controllers
                 throw;
             }
 
-            return CreatedAtAction("GetTblMemberPermission", new { memberId, permissionId }, tblMemberPermission);
+            return CreatedAtAction(nameof(GetTblMemberPermission), new { instance, memberId, permissionId }, tblMemberPermission);
         }
 
         // DELETE: Members/12345678/Permissions/5

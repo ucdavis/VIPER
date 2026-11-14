@@ -17,11 +17,13 @@ namespace Viper.Areas.RAPS.Controllers
     {
         private readonly RAPSContext _context;
         public IUserHelper UserHelper { get; private set; }
+        internal RAPSSecurityService SecurityService { get; set; }
 
         public RoleTemplatesController(RAPSContext context)
         {
             _context = context;
             UserHelper = new UserHelper();
+            SecurityService = new RAPSSecurityService(_context);
         }
 
         // GET: RoleTemplates
@@ -80,7 +82,7 @@ namespace Viper.Areas.RAPS.Controllers
             // A member id matching nobody is a normal answer to a search, so this returns 200
             // with a null result rather than 404. That lets the page tell "no such user" apart
             // from a read that actually failed. The POST below still 404s on an unknown member.
-            return Ok(await GetRoleTemplateApplyPreview(roleTemplate, memberId));
+            return Ok(await GetRoleTemplateApplyPreview(instance, roleTemplate, memberId));
         }
 
         // Post: RoleTemplates/5/Apply/12345678
@@ -93,34 +95,34 @@ namespace Viper.Areas.RAPS.Controllers
                 return NotFound();
             }
 
+            // The attribute only proves the permission exists; for help desk it counts in VMACS instances only.
+            if (!SecurityService.IsAllowedTo("EditRoleMembership", instance))
+            {
+                return Forbid();
+            }
+
             RoleTemplate? roleTemplate = await GetRoleTemplateForInstance(instance, roleTemplateId);
             if (roleTemplate == null)
             {
                 return NotFound();
             }
 
-            var preview = await GetRoleTemplateApplyPreview(roleTemplate, memberId);
+            var preview = await GetRoleTemplateApplyPreview(instance, roleTemplate, memberId);
             if (preview == null)
             {
                 return NotFound();
             }
 
-            if (memberId.StartsWith("loginid:"))
+            // All or nothing: a template that only partly applies leaves the user with a role set nobody chose.
+            if (preview.Roles.Any(r => !r.CanGrant))
             {
-                var userIdLookup = await _context.VwAaudUser
-                    .Where(u => u.LoginId == memberId.Substring(memberId.IndexOf(":") + 1))
-                    .FirstOrDefaultAsync();
-                if (userIdLookup == null)
-                {
-                    return NotFound();
-                }
-                memberId = userIdLookup.MothraId;
+                return Forbid();
             }
 
             RoleMemberService roleMemberService = new(_context);
             foreach (RoleApplyPreview role in preview.Roles.Where(r => !r.UserHasRole))
             {
-                await roleMemberService.AddMemberToRole(role.RoleId, memberId, null, null, string.Format("Added via role template {0}", roleTemplate.TemplateName));
+                await roleMemberService.AddOrRenewMember(role.RoleId, preview.MemberId, string.Format("Added via role template {0}", roleTemplate.TemplateName));
             }
 
             return NoContent();
@@ -138,8 +140,8 @@ namespace Viper.Areas.RAPS.Controllers
             return roleTemplate;
         }
 
-        // Get a list of roles in the template and whether or not the given user already has them
-        private async Task<RoleTemplateApplyPreview?> GetRoleTemplateApplyPreview(RoleTemplate roleTemplate, string memberId)
+        // Get a list of roles in the template, whether the given user currently holds them, and whether the caller can grant them
+        private async Task<RoleTemplateApplyPreview?> GetRoleTemplateApplyPreview(string instance, RoleTemplate roleTemplate, string memberId)
         {
             VwAaudUser? user = await _context.VwAaudUser
                 .Where(u => memberId.StartsWith("loginid:")
@@ -152,19 +154,26 @@ namespace Viper.Areas.RAPS.Controllers
                 return null;
             }
 
-            List<TblRole> userRoles = await _context.TblRoleMembers
-                .Include(rm => rm.Role)
+            // An expired membership reads as not held so it gets renewed. A future one reads as
+            // held, because renewing it would clear the start date somebody scheduled.
+            HashSet<int> userRoleIds = (await _context.TblRoleMembers
+                .AsNoTracking()
                 .Where(rm => rm.MemberId == user.MothraId)
-                .Select(rm => rm.Role)
-                .ToListAsync();
-            HashSet<int> userRoleIds = userRoles.Select(r => r.RoleId).ToHashSet();
+                .Where(rm => rm.EndDate == null || rm.EndDate >= DateTime.Today)
+                .Select(rm => rm.RoleId)
+                .ToListAsync())
+                .ToHashSet();
+            bool canEditInstance = SecurityService.IsAllowedTo("EditRoleMembership", instance);
             List<RoleApplyPreview> rolesToApply = roleTemplate.RoleTemplateRoles
                 .Select(role => new RoleApplyPreview
                 {
                     RoleId = role.Role.RoleId,
                     RoleName = role.Role.FriendlyName,
                     Description = role.Role.Description,
-                    UserHasRole = userRoleIds.Contains(role.RoleTemplateRoleRoleId)
+                    UserHasRole = userRoleIds.Contains(role.RoleTemplateRoleRoleId),
+                    CanGrant = canEditInstance
+                        && RAPSSecurityService.RoleBelongsToInstance(instance, role.Role)
+                        && SecurityService.IsAllowedTo("EditRoleMembership", instance, role.Role)
                 })
                 .ToList();
 
@@ -299,7 +308,7 @@ namespace Viper.Areas.RAPS.Controllers
             _context.RoleTemplates.Add(rt);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction("GetRoleTemplate", new { id = rt.RoleTemplateId }, rt);
+            return CreatedAtAction(nameof(GetRoleTemplate), new { instance, roleTemplateId = rt.RoleTemplateId }, rt);
         }
 
         // DELETE: RoleTemplates/5
