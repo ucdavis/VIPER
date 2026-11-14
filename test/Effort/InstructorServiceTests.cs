@@ -321,6 +321,53 @@ public sealed class InstructorServiceTests : IDisposable
         Assert.Contains("already exists", ex.Message);
     }
 
+    [Theory]
+    [InlineData("072200", EffortConstants.CahfsReportUnit)]
+    [InlineData("072030", null)]
+    public async Task CreateInstructorAsync_SetsCahfsReportUnit_WhenPersonHasCahfsJob(string jobDept, string? expectedReportUnit)
+    {
+        // Arrange
+        _viperContext.People.Add(new Person
+        {
+            PersonId = 300,
+            ClientId = "33330000",
+            FirstName = "Manual",
+            LastName = "Add",
+            FullName = "Add, Manual",
+            MothraId = "33330000",
+            CurrentEmployee = true
+        });
+        await _viperContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        _aaudContext.Ids.Add(new Id
+        {
+            IdsPKey = "MANUAL01",
+            IdsTermCode = "202410",
+            IdsMothraid = "33330000",
+            IdsClientid = "33330000"
+        });
+        _aaudContext.Jobs.Add(new Job
+        {
+            JobPKey = "MANUAL01",
+            JobSeqNum = 1,
+            JobTermCode = "202410",
+            JobClientid = "33330000",
+            JobDepartmentCode = jobDept,
+            JobPercentFulltime = 100,
+            JobTitleCode = "1234",
+            JobBargainingUnit = "99",
+            JobSchoolDivision = "VM"
+        });
+        await _aaudContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        // Act
+        await _instructorService.CreateInstructorAsync(
+            new CreateInstructorRequest { PersonId = 300, TermCode = 202410 }, TestContext.Current.CancellationToken);
+
+        // Assert
+        var created = await _context.Persons.AsNoTracking().SingleAsync(p => p.PersonId == 300, TestContext.Current.CancellationToken);
+        Assert.Equal(expectedReportUnit, created.ReportUnit);
+    }
+
     #endregion
 
     #region UpdateInstructorAsync Tests
@@ -759,6 +806,45 @@ public sealed class InstructorServiceTests : IDisposable
 
         // Assert
         Assert.Equal("UNK", dept);
+    }
+
+    [Theory]
+    [InlineData("072200", "202410", "22220000", "202410", true)]
+    [InlineData("072030", "202410", "22220000", "202410", false)]
+    [InlineData("072200", "202402", "22220000", "202410", false)]
+    [InlineData("072200", "202410", "33330000", "202410", false)]
+    [InlineData("072200", "202410", "22220000", "202402", false)]
+    public async Task HasCahfsAppointmentAsync_MatchesCahfsJobForTerm(string jobDept, string jobTerm, string idsMothraId, string idsTerm, bool expected)
+    {
+        // Arrange
+        _aaudContext.Ids.Add(new Id
+        {
+            IdsPKey = "CAHFS01",
+            IdsTermCode = idsTerm,
+            IdsMothraid = idsMothraId,
+            IdsClientid = "22220000"
+        });
+        _aaudContext.Jobs.Add(new Job
+        {
+            JobPKey = "CAHFS01",
+            JobSeqNum = 1,
+            JobTermCode = jobTerm,
+            JobClientid = "22220000",
+            JobDepartmentCode = jobDept,
+            JobPercentFulltime = 100,
+            JobTitleCode = "1234",
+            JobBargainingUnit = "99",
+            JobSchoolDivision = "VM"
+        });
+        await _aaudContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        // Act
+        var result = await _instructorService.HasCahfsAppointmentAsync("22220000", 202410, TestContext.Current.CancellationToken);
+        var termIds = await _instructorService.GetCahfsMothraIdsAsync(202410, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.Equal(expected, result);
+        Assert.Equal(expected, termIds.Contains("22220000"));
     }
 
     #endregion
