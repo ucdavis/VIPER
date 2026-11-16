@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Viper.Areas.ReportBuilder.Services;
 
-/// <summary>An object in the [reports] schema, as sys.objects lists it.</summary>
+/// <summary>An object in the [report] schema, as sys.objects lists it.</summary>
 public sealed class ReportSourceObjectRow
 {
     public string Name { get; set; } = string.Empty;
@@ -34,7 +34,7 @@ public sealed class ReportSourceParameterRow
 }
 
 /// <summary>
-/// Reads the shape of the [reports] schema from SQL Server's catalog views. Names are always
+/// Reads the shape of the [report] schema from SQL Server's catalog views. Names are always
 /// passed as parameters, never written into the SQL.
 /// </summary>
 public interface IReportSourceMetadataReader
@@ -62,7 +62,7 @@ public sealed class ReportSourceMetadataReader : IReportSourceMetadataReader
             FROM sys.objects o
             LEFT JOIN sys.extended_properties ep
                 ON ep.class = 1 AND ep.major_id = o.object_id AND ep.minor_id = 0 AND ep.name = 'MS_Description'
-            WHERE o.schema_id = SCHEMA_ID({ReportBuilderDbContext.SourceSchema}) AND o.type IN ('V', 'P')
+            WHERE o.schema_id = SCHEMA_ID({ReportBuilderDbContext.Schema}) AND o.type IN ('V', 'P')
             ORDER BY o.name
             """).ToListAsync(ct);
     }
@@ -103,9 +103,9 @@ public sealed class ReportSourceMetadataReader : IReportSourceMetadataReader
             """).ToListAsync(ct);
     }
 
-    /// <summary>[reports].[name], with any ] in the name doubled, for OBJECT_ID.</summary>
+    /// <summary>[report].[name], with any ] in the name doubled, for OBJECT_ID.</summary>
     private static string Qualify(string name)
     {
-        return $"[{ReportBuilderDbContext.SourceSchema}].[{name.Replace("]", "]]", StringComparison.Ordinal)}]";
+        return $"[{ReportBuilderDbContext.Schema}].[{name.Replace("]", "]]", StringComparison.Ordinal)}]";
     }
 }

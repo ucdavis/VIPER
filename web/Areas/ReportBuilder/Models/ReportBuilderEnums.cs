@@ -1,6 +1,6 @@
 namespace Viper.Areas.ReportBuilder.Models;
 
-/// <summary>What kind of object in the [reports] schema a report reads.</summary>
+/// <summary>What kind of object in the [report] schema a report reads.</summary>
 public enum ReportSourceKind
 {
     View,

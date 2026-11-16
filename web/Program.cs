@@ -315,7 +315,7 @@ try
     RegisterDbContext<EffortDbContext>("VIPER");
     // Phone tables are in the VIPER database's [phones] schema.
     RegisterDbContext<PhonesDbContext>("VIPER");
-    // Report Builder definitions are in the VIPER database's [reportbuilder] schema.
+    // Report Builder tables (and the views and procedures reports read) are in the VIPER database's [report] schema.
     RegisterDbContext<ReportBuilderDbContext>("VIPER");
     RegisterDbContext<EvalHarvestDbContext>("EvalHarvest");
 
@@ -325,8 +325,10 @@ try
     // Code-defined reports (IReportDefinition) and the registry that indexes them
     builder.Services.AddReports(typeof(Program).Assembly);
 
-    // Report Builder: reads the [reports] schema's shape. Not a *Service, so Scrutor skips it.
+    // Report Builder: reads the [report] schema's shape. Not a *Service, so Scrutor skips it.
     builder.Services.AddScoped<IReportSourceMetadataReader, ReportSourceMetadataReader>();
+    // Report Builder: runs report queries on VIPERReports (or VIPER). Not a *Service either.
+    builder.Services.AddScoped<IReportQueryExecutor, ReportQueryExecutor>();
 
     // Shared HTML sanitizer for user-authored content (CMS, CTS, ...). Thread-safe singleton.
     builder.Services.AddSingleton<IHtmlSanitizerService, HtmlSanitizerService>();

@@ -5,7 +5,7 @@ using Viper.Areas.ReportBuilder.Services;
 namespace Viper.test.ReportBuilder;
 
 /// <summary>
-/// The catalog lists the [reports] views and procedures and describes one at a time, only by
+/// The catalog lists the [report] views and procedures and describes one at a time, only by
 /// names it listed. The metadata reader is a fake, so these tests cover the rules, not the SQL.
 /// </summary>
 public sealed class ReportSourceCatalogServiceTests

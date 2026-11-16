@@ -3,15 +3,15 @@ using Viper.Areas.ReportBuilder.Models;
 namespace Viper.Areas.ReportBuilder.Services;
 
 /// <summary>
-/// The allow-list of report sources: the views and procedures in the [reports] schema, with the
+/// The allow-list of report sources: the views and procedures in the [report] schema, with the
 /// columns they return and the parameters they take.
 /// </summary>
 public interface IReportSourceCatalogService
 {
-    /// <summary>Every view and procedure in [reports], by name.</summary>
+    /// <summary>Every view and procedure in [report], by name.</summary>
     Task<IReadOnlyList<ReportSourceSummary>> GetSourcesAsync(CancellationToken ct);
 
-    /// <summary>One source's columns and parameters, or null when [reports] has no such object.</summary>
+    /// <summary>One source's columns and parameters, or null when [report] has no such object.</summary>
     Task<ReportSourceDetail?> GetSourceAsync(string name, CancellationToken ct);
 }
 

@@ -1,6 +1,6 @@
 namespace Viper.Areas.ReportBuilder.Models;
 
-/// <summary>A view or procedure in the [reports] schema that a report can read.</summary>
+/// <summary>A view or procedure in the [report] schema that a report can read.</summary>
 public sealed record ReportSourceSummary
 {
     public required string Name { get; init; }
