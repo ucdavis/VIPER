@@ -1,6 +1,7 @@
 using System.Net;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 using NSubstitute;
@@ -69,7 +70,9 @@ namespace Viper.test.Controllers
             Build(string? forwardTo = ViperOne)
         {
             var store = new EntraSessionRevocationStore(
-                new MemoryCache(new MemoryCacheOptions()), TimeSpan.FromHours(12));
+                new MemoryCache(new MemoryCacheOptions()),
+                new MemoryDistributedCache(Options.Create(new MemoryDistributedCacheOptions())),
+                TimeSpan.FromHours(12));
 
             // Stand in for the request that would have introduced "session-a" to the store.
             store.NoteActive("session-a");
