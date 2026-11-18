@@ -115,9 +115,8 @@ VIPER2 features a sophisticated development setup with hot reload for both front
 - Vite server URL configurable via `VITE_SERVER_URL` environment variable (default: https://localhost:5173)
 
 ### File Watching & Building
-- **Frontend**: `vite-watch.js` debounces build operations to prevent excessive rebuilds
+- **Frontend**: the Vite dev server hot-reloads changes
 - **Backend**: `dotnet-watch.json` configures optimal file watching patterns
-- **Concurrent**: Both systems can run simultaneously without conflicts
 
 ### Path Configuration
 - All Vue applications use `/2/vue/` as the base path
@@ -134,7 +133,6 @@ VIPER2 features a sophisticated development setup with hot reload for both front
 - `VueApp/` - Vue 3 + TypeScript frontend
   - `src/` - Multi-SPA architecture (one SPA per functional area)
   - `vite.config.ts` - Vite configuration with backend proxy
-  - `vite-watch.js` - Debounced build script for development
 - `test/` - Unit tests
 
 ## AI Agent Tooling (Claude Code)
