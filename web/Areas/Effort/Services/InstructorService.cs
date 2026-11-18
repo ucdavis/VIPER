@@ -885,7 +885,7 @@ public class InstructorService : IInstructorService
         return QueryCahfsMothraIdsAsync(null, termCode, ct);
     }
 
-    /// <param name="mothraIds">Limit the result to these MothraIds; null for everyone.</param>
+    // mothraIds limits the result to those people; null means everyone.
     private async Task<IReadOnlySet<string>> QueryCahfsMothraIdsAsync(IReadOnlyCollection<string>? mothraIds, int termCode, CancellationToken ct)
     {
         // PPS first: AAUD has no term row for an inactive person (e.g. on unpaid leave).
