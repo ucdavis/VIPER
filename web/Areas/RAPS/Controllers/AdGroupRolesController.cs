@@ -56,7 +56,7 @@ namespace Viper.Areas.RAPS.Controllers
 
         //POST: Group/5/Roles
         [HttpPost("Groups/{groupId}/Roles")]
-        public async Task<ActionResult<IEnumerable<OuGroupRole>>> AddRoleToGroup(int groupId, int roleId)
+        public async Task<ActionResult<IEnumerable<OuGroupRole>>> AddRoleToGroup(string instance, int groupId, int roleId)
         {
             if (_context.OuGroupRoles == null)
             {
@@ -79,7 +79,7 @@ namespace Viper.Areas.RAPS.Controllers
             await _context.SaveChangesAsync();
             await transaction.CommitAsync();
 
-            return CreatedAtAction("AddRoleToGroup", new { groupId, roleId }, groupRole);
+            return CreatedAtAction(nameof(GetGroupRoles), new { instance, groupId }, groupRole);
         }
 
         //DELETE: Groups/5/Roles/8

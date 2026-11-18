@@ -95,7 +95,7 @@ namespace Viper.Areas.RAPS.Controllers
         }
 
         [HttpPost]
-        public async Task<ActionResult<OuGroup>> CreateGroup(GroupAddEdit group)
+        public async Task<ActionResult<OuGroup>> CreateGroup(string instance, GroupAddEdit group)
         {
             if (_context.OuGroups == null)
             {
@@ -112,7 +112,7 @@ namespace Viper.Areas.RAPS.Controllers
             try
             {
                 OuGroup newOuGroup = await _ouGroupService.CreateRapsGroup(group.Name, group.Description);
-                return CreatedAtAction("CreateGroup", new { id = newOuGroup.OugroupId }, newOuGroup);
+                return CreatedAtAction(nameof(GetOuGroup), new { instance, groupId = newOuGroup.OugroupId }, newOuGroup);
             }
             catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
             {

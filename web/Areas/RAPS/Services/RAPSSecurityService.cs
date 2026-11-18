@@ -160,7 +160,7 @@ namespace Viper.Areas.RAPS.Services
                 "RevertPermissions" => false,
                 //make sure someone can access an instance if they can access vmacs instances, or if they have been delegated a role in the instance
                 "AccessInstance" => (IsVMACSInstance(instance) && _userHelper.HasPermission(_context, _userHelper.GetCurrentUser(), "RAPS.ViewRoles")
-                                        || GetControlledRoleIds(_userHelper.GetCurrentUser()?.MothraId).Count > 0
+                                        || (instance != null && GetControlledRoleIdsInInstance(instance, _userHelper.GetCurrentUser()?.MothraId).Count > 0)
                                         ),
                 //special cases for operations personnel having access to the VMACS instances
                 "ViewAllRoles" => IsVMACSInstance(instance) && _userHelper.HasPermission(_context, _userHelper.GetCurrentUser(), "RAPS.ViewRoles"),
@@ -193,7 +193,9 @@ namespace Viper.Areas.RAPS.Services
             switch (action)
             {
                 case "ViewRolePermissions":
-                    return _userHelper.HasPermission(_context, _userHelper.GetCurrentUser(), "RAPS.ViewRoles");
+                    // A delegate sees what a role they control grants before assigning it
+                    return _userHelper.HasPermission(_context, _userHelper.GetCurrentUser(), "RAPS.ViewRoles")
+                        || GetControlledRoleIds(User?.MothraId).Contains(Role.RoleId);
                 case "EditRoleMembership":
                     if (IsVMACSInstance(instance) && _userHelper.HasPermission(_context, _userHelper.GetCurrentUser(), "RAPS.EditRoleMembership"))
                     {
@@ -221,12 +223,22 @@ namespace Viper.Areas.RAPS.Services
                 return cached;
             }
 
+            // Pre-load the user's active delegate role ids rather than a correlated .Any() over memberships.
+            // A user holds only a handful of delegate roles, so a plain Contains is enough.
+            List<int> appRoleIds = _context.TblRoleMembers
+                    .AsNoTracking()
+                    .Where(rm => rm.MemberId == userId
+                        && rm.Role.Application == 1
+                        && (rm.StartDate == null || rm.StartDate <= DateTime.Today)
+                        && (rm.EndDate == null || rm.EndDate >= DateTime.Today))
+                    .Select(rm => rm.RoleId)
+                    .ToList();
+
             List<TblRole> roles = _context.TblRoles
                     .AsNoTracking()
                     .Include(r => r.ChildRoles)
                         .ThenInclude(cr => cr.Role)
-                    .Where(r => r.Application == 1)
-                    .Where(r => r.TblRoleMembers.Any(rm => rm.MemberId == userId))
+                    .Where(r => appRoleIds.Contains(r.RoleId))
                     .ToList();
 
             _appRolesForUser[key] = roles;
@@ -275,6 +287,20 @@ namespace Viper.Areas.RAPS.Services
             // nav link to a list filtered down to nothing.
             return IsAllowedTo("ViewAllRoles", instance)
                 || GetControlledRoleIdsInInstance(instance, _userHelper.GetCurrentUser()?.MothraId).Count > 0;
+        }
+
+        /// <summary>
+        /// Check if the user can search for members. A delegate needs to find the people to add to
+        /// the roles they control, so a controlled role in the instance counts.
+        /// </summary>
+        /// <param name="instance">The instance</param>
+        /// <returns>true if the user can search members, false otherwise</returns>
+        public bool CanSearchMembers(string instance)
+        {
+            AaudUser? user = _userHelper.GetCurrentUser();
+            return new[] { "RAPS.Admin", "RAPS.UserLookup", "RAPS.EditRoleMembership", "RAPS.EditMemberPermissions" }
+                    .Any(p => _userHelper.HasPermission(_context, user, p))
+                || GetControlledRoleIdsInInstance(instance, user?.MothraId).Count > 0;
         }
 
         /// <summary>
