@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using MockQueryable.NSubstitute;
 using NSubstitute;
 using Viper.Areas.Effort;
 using Viper.Areas.Effort.Constants;
@@ -12,6 +13,7 @@ using Viper.Areas.Effort.Models.Entities;
 using Viper.Areas.Effort.Services;
 using Viper.Classes.SQLContext;
 using Viper.Models.AAUD;
+using Viper.Models.PPS;
 using Person = Viper.Models.VIPER.Person;
 
 namespace Viper.test.Effort;
@@ -24,6 +26,7 @@ public sealed class InstructorServiceTests : IDisposable
     private readonly EffortDbContext _context;
     private readonly VIPERContext _viperContext;
     private readonly AAUDContext _aaudContext;
+    private readonly PPSContext _ppsContext;
     private readonly DictionaryContext _dictionaryContext;
     private readonly IEffortAuditService _auditServiceMock;
     private readonly ICourseClassificationService _classificationServiceMock;
@@ -57,6 +60,11 @@ public sealed class InstructorServiceTests : IDisposable
         _context = new EffortDbContext(effortOptions);
         _viperContext = new VIPERContext(viperOptions);
         _aaudContext = new AAUDContext(aaudOptions);
+        // vw_personJobPosition is keyless, so the in-memory provider cannot seed it
+        _ppsContext = Substitute.ForPartsOf<PPSContext>(new DbContextOptionsBuilder<PPSContext>()
+            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .Options);
+        SetPpsJobs();
         _dictionaryContext = new DictionaryContext(dictionaryOptions);
         _auditServiceMock = Substitute.For<IEffortAuditService>();
         _classificationServiceMock = Substitute.For<ICourseClassificationService>();
@@ -72,6 +80,7 @@ public sealed class InstructorServiceTests : IDisposable
             _context,
             _viperContext,
             _aaudContext,
+            _ppsContext,
             _dictionaryContext,
             _auditServiceMock,
             _classificationServiceMock,
@@ -82,11 +91,18 @@ public sealed class InstructorServiceTests : IDisposable
             Options.Create(new EffortSettings { AutoCreateGenericRCourse = true }));
     }
 
+    private void SetPpsJobs(params VwPersonJobPosition[] jobs)
+    {
+        var jobSet = jobs.ToList().BuildMockDbSet();
+        _ppsContext.VwPersonJobPositions.Returns(jobSet);
+    }
+
     public void Dispose()
     {
         _context.Dispose();
         _viperContext.Dispose();
         _aaudContext.Dispose();
+        _ppsContext.Dispose();
         _dictionaryContext.Dispose();
         _cache.Dispose();
     }
@@ -845,6 +861,42 @@ public sealed class InstructorServiceTests : IDisposable
         // Assert
         Assert.Equal(expected, result);
         Assert.Equal(expected, termIds.Contains("22220000"));
+    }
+
+    [Theory]
+    [InlineData("072200", "Active", "10000001", true)]
+    [InlineData("072200", "Inactive", "10000001", true)] // on leave
+    [InlineData("072200", "Separated", "10000001", false)]
+    [InlineData("072030", "Active", "10000001", false)]
+    [InlineData("072200", "Active", "19999999", false)] // employee ID with no AAUD user
+    public async Task HasCahfsAppointmentAsync_MatchesCurrentPpsJob_WithoutAaudTermRow(string jobDept, string jobStatus, string userEmployeeId, bool expected)
+    {
+        // Arrange - no AAUD ids/jobs rows for the term, as for someone on unpaid leave
+        _aaudContext.AaudUsers.Add(new AaudUser
+        {
+            MothraId = "22220000",
+            EmployeeId = userEmployeeId,
+            ClientId = "22220000",
+            LoginId = "cahfsuser",
+            FirstName = "Cahfs",
+            LastName = "User",
+            DisplayFirstName = "Cahfs",
+            DisplayLastName = "User",
+            DisplayFullName = "User, Cahfs",
+            Current = 1
+        });
+        await _aaudContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        SetPpsJobs(new VwPersonJobPosition { Emplid = "10000001", Deptid = jobDept, JobStatus1 = jobStatus });
+
+        // Act
+        var result = await _instructorService.HasCahfsAppointmentAsync("22220000", 202410, TestContext.Current.CancellationToken);
+        var termIds = await _instructorService.GetCahfsMothraIdsAsync(202410, TestContext.Current.CancellationToken);
+        var otherPerson = await _instructorService.GetCahfsMothraIdsAsync(["33330000"], 202410, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.Equal(expected, result);
+        Assert.Equal(expected, termIds.Contains("22220000"));
+        Assert.Empty(otherPerson);
     }
 
     #endregion
