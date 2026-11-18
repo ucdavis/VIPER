@@ -22,6 +22,7 @@ public class InstructorService : IInstructorService
     private readonly EffortDbContext _context;
     private readonly VIPERContext _viperContext;
     private readonly AAUDContext _aaudContext;
+    private readonly PPSContext _ppsContext;
     private readonly DictionaryContext _dictionaryContext;
     private readonly IEffortAuditService _auditService;
     private readonly ICourseClassificationService _classificationService;
@@ -77,6 +78,7 @@ public class InstructorService : IInstructorService
         EffortDbContext context,
         VIPERContext viperContext,
         AAUDContext aaudContext,
+        PPSContext ppsContext,
         DictionaryContext dictionaryContext,
         IEffortAuditService auditService,
         ICourseClassificationService classificationService,
@@ -89,6 +91,7 @@ public class InstructorService : IInstructorService
         _context = context;
         _viperContext = viperContext;
         _aaudContext = aaudContext;
+        _ppsContext = ppsContext;
         _dictionaryContext = dictionaryContext;
         _auditService = auditService;
         _classificationService = classificationService;
@@ -873,29 +876,58 @@ public class InstructorService : IInstructorService
     /// <inheritdoc />
     public Task<IReadOnlySet<string>> GetCahfsMothraIdsAsync(IReadOnlyCollection<string> mothraIds, int termCode, CancellationToken ct = default)
     {
-        return QueryCahfsMothraIdsAsync(_aaudContext.Ids.Where(i => EF.Parameter(mothraIds).Contains(i.IdsMothraid!)), termCode, ct);
+        return QueryCahfsMothraIdsAsync(mothraIds, termCode, ct);
     }
 
     /// <inheritdoc />
     public Task<IReadOnlySet<string>> GetCahfsMothraIdsAsync(int termCode, CancellationToken ct = default)
     {
-        return QueryCahfsMothraIdsAsync(_aaudContext.Ids, termCode, ct);
+        return QueryCahfsMothraIdsAsync(null, termCode, ct);
     }
 
-    private async Task<IReadOnlySet<string>> QueryCahfsMothraIdsAsync(IQueryable<Id> candidates, int termCode, CancellationToken ct)
+    /// <param name="mothraIds">Limit the result to these MothraIds; null for everyone.</param>
+    private async Task<IReadOnlySet<string>> QueryCahfsMothraIdsAsync(IReadOnlyCollection<string>? mothraIds, int termCode, CancellationToken ct)
     {
+        // PPS first: AAUD has no term row for an inactive person (e.g. on unpaid leave).
+        // This is the job held now, not during the term, so someone who joined CAHFS after
+        // the term is tagged too and someone who has since separated is left to AAUD below.
+        var cahfsEmplIds = await _ppsContext.VwPersonJobPositions
+            .AsNoTracking()
+            .Where(p => p.Deptid == EffortConstants.CahfsDeptCode
+                     && p.JobStatus1 != EffortConstants.PpsSeparatedJobStatus
+                     && p.Emplid != null)
+            .Select(p => p.Emplid!)
+            .Distinct()
+            .ToListAsync(ct);
+
+        var ppsUsers = _aaudContext.AaudUsers
+            .AsNoTracking()
+            .Where(u => u.EmployeeId != null && EF.Parameter(cahfsEmplIds).Contains(u.EmployeeId));
+        if (mothraIds != null)
+        {
+            ppsUsers = ppsUsers.Where(u => EF.Parameter(mothraIds).Contains(u.MothraId));
+        }
+        var result = (await ppsUsers.Select(u => u.MothraId).ToListAsync(ct))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        // Backfill from the AAUD jobs loaded for the term
         var termCodeStr = termCode.ToString();
-        var matches = await _aaudContext.Jobs
+        var candidates = _aaudContext.Ids.Where(i => i.IdsTermCode == termCodeStr && i.IdsMothraid != null);
+        if (mothraIds != null)
+        {
+            candidates = candidates.Where(i => EF.Parameter(mothraIds).Contains(i.IdsMothraid!));
+        }
+        result.UnionWith(await _aaudContext.Jobs
             .AsNoTracking()
             .Where(job => job.JobTermCode == termCodeStr && job.JobDepartmentCode == EffortConstants.CahfsDeptCode)
             .Join(
-                candidates.Where(i => i.IdsTermCode == termCodeStr && i.IdsMothraid != null),
+                candidates,
                 job => job.JobPKey,
                 ids => ids.IdsPKey,
                 (job, ids) => ids.IdsMothraid!)
             .Distinct()
-            .ToListAsync(ct);
-        return matches.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            .ToListAsync(ct));
+        return result;
     }
 
     /// <summary>
