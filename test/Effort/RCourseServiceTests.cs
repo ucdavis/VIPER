@@ -177,11 +177,11 @@ public sealed class RCourseServiceTests : IDisposable
         Assert.NotNull(record);
         Assert.Equal(TestPersonId, record.PersonId);
         Assert.Equal(TestTermCode, record.TermCode);
-        Assert.Equal("CLI", record.EffortTypeId); // First alphabetically among allowed R-course types (CLI < LEC)
+        // Always VAR, even though the seeded VAR is not AllowedOnRCourses and CLI sorts first
+        Assert.Equal("VAR", record.EffortTypeId);
         Assert.Equal(EffortConstants.InstructorRoleId, record.RoleId);
-        // CLI uses weeks, so Hours should be null and Weeks should be 1 (minimum valid value)
-        Assert.Null(record.Hours);
-        Assert.Equal(1, record.Weeks);
+        Assert.Equal(0, record.Hours);
+        Assert.Null(record.Weeks);
         Assert.Equal("RESID", record.Crn);
         Assert.Equal(TestModifiedBy, record.ModifiedBy);
     }
@@ -234,11 +234,11 @@ public sealed class RCourseServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task CreateRCourseEffortRecordAsync_DoesNotCreateRecord_WhenNoEligibleEffortType()
+    public async Task CreateRCourseEffortRecordAsync_DoesNotCreateRecord_WhenVarMissing()
     {
-        // Arrange - Remove all R-course allowed effort types
-        var allowedTypes = await _context.EffortTypes.Where(t => t.AllowedOnRCourses).ToListAsync(TestContext.Current.CancellationToken);
-        _context.EffortTypes.RemoveRange(allowedTypes);
+        // Arrange - Remove VAR; the other allowed R-course types must not be used instead
+        var variable = await _context.EffortTypes.SingleAsync(t => t.Id == "VAR", TestContext.Current.CancellationToken);
+        _context.EffortTypes.Remove(variable);
         await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
@@ -257,76 +257,16 @@ public sealed class RCourseServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task CreateRCourseEffortRecordAsync_SelectsFirstAlphabeticalEffortType()
+    public async Task CreateRCourseEffortRecordAsync_DoesNotCreateRecord_WhenVarUsesWeeks()
     {
-        // The seeded data has CLI and LEC as allowed R-course types
-        // CLI comes first alphabetically
-
-        // Act
-        await _service.CreateRCourseEffortRecordAsync(TestPersonId, TestTermCode, TestModifiedBy, RCourseCreationContext.Harvest, TestContext.Current.CancellationToken);
-
-        // Assert
-        var record = await _context.Records.FirstOrDefaultAsync(r => r.PersonId == TestPersonId, TestContext.Current.CancellationToken);
-        Assert.NotNull(record);
-        Assert.Equal("CLI", record.EffortTypeId);
-    }
-
-    [Fact]
-    public async Task CreateRCourseEffortRecordAsync_PrefersVar_WhenAllowedOnRCourses()
-    {
+        // A weeks placeholder would need Weeks = 1 (CK_Records_Weeks), which is real effort
         var variable = await _context.EffortTypes.SingleAsync(t => t.Id == "VAR", TestContext.Current.CancellationToken);
-        variable.AllowedOnRCourses = true;
+        variable.UsesWeeks = true;
         await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         await _service.CreateRCourseEffortRecordAsync(TestPersonId, TestTermCode, TestModifiedBy, RCourseCreationContext.Harvest, TestContext.Current.CancellationToken);
 
-        var record = await _context.Records.FirstOrDefaultAsync(r => r.PersonId == TestPersonId, TestContext.Current.CancellationToken);
-        Assert.NotNull(record);
-        Assert.Equal("VAR", record.EffortTypeId);
-        Assert.Equal(0, record.Hours);
-        Assert.Null(record.Weeks);
-    }
-
-    [Fact]
-    public async Task CreateRCourseEffortRecordAsync_SetsHoursOnly_WhenEffortTypeUsesHours()
-    {
-        // Arrange - Remove week-based types so LEC (UsesWeeks=false) is selected
-        var weekBasedTypes = await _context.EffortTypes
-            .Where(t => t.AllowedOnRCourses && t.UsesWeeks)
-            .ToListAsync(TestContext.Current.CancellationToken);
-        _context.EffortTypes.RemoveRange(weekBasedTypes);
-        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
-
-        // Act
-        await _service.CreateRCourseEffortRecordAsync(TestPersonId, TestTermCode, TestModifiedBy, RCourseCreationContext.Harvest, TestContext.Current.CancellationToken);
-
-        // Assert - Hours set, Weeks null (XOR constraint: CK_Records_HoursOrWeeks)
-        var record = await _context.Records.FirstOrDefaultAsync(r => r.PersonId == TestPersonId, TestContext.Current.CancellationToken);
-        Assert.NotNull(record);
-        Assert.Equal(0, record.Hours);
-        Assert.Null(record.Weeks);
-        Assert.Equal("LEC", record.EffortTypeId);
-    }
-
-    [Fact]
-    public async Task CreateRCourseEffortRecordAsync_SetsWeeksOnly_WhenEffortTypeUsesWeeks()
-    {
-        // Arrange - Remove hour-based types so CLI (UsesWeeks=true) is selected
-        var hourBasedTypes = await _context.EffortTypes
-            .Where(t => t.AllowedOnRCourses && !t.UsesWeeks)
-            .ToListAsync(TestContext.Current.CancellationToken);
-        _context.EffortTypes.RemoveRange(hourBasedTypes);
-        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
-
-        // Act
-        await _service.CreateRCourseEffortRecordAsync(TestPersonId, TestTermCode, TestModifiedBy, RCourseCreationContext.Harvest, TestContext.Current.CancellationToken);
-
-        // Assert - Weeks set to 1 (min valid value), Hours null (XOR constraint: CK_Records_HoursOrWeeks)
-        var record = await _context.Records.FirstOrDefaultAsync(r => r.PersonId == TestPersonId, TestContext.Current.CancellationToken);
-        Assert.NotNull(record);
-        Assert.Null(record.Hours);
-        Assert.Equal(1, record.Weeks); // Weeks must be > 0 per CK_Records_Weeks constraint
-        Assert.Equal("CLI", record.EffortTypeId);
+        Assert.False(await _context.Records.AnyAsync(r => r.PersonId == TestPersonId, TestContext.Current.CancellationToken));
     }
 
     [Fact]

@@ -121,19 +121,18 @@ public class RCourseService : IRCourseService
             return;
         }
 
-        // Prefer VAR; otherwise fall back to the first active R-course type by Id
-        var defaultEffortType = await _context.EffortTypes
-            .Where(t => t.AllowedOnRCourses && t.IsActive)
-            .OrderBy(t => t.Id != EffortConstants.VariableEffortType)
-            .ThenBy(t => t.Id)
-            .FirstOrDefaultAsync(ct);
+        // Always VAR, whatever its Active/AllowedOnRCourses flags: a fallback type could use
+        // weeks, and a weeks placeholder would need Weeks = 1, which is real effort.
+        var varIsHourBased = await _context.EffortTypes
+            .AsNoTracking()
+            .AnyAsync(t => t.Id == EffortConstants.VariableEffortType && !t.UsesWeeks, ct);
 
-        if (defaultEffortType == null)
+        if (!varIsHourBased)
         {
             _logger.LogWarning(
                 "Cannot create R-course for {Count} instructors in term {TermCode}: " +
-                "No active effort type with AllowedOnRCourses=true exists",
-                missingPersonIds.Count, termCode);
+                "effort type {EffortType} is missing or uses weeks",
+                missingPersonIds.Count, termCode, EffortConstants.VariableEffortType);
             return;
         }
 
@@ -142,9 +141,9 @@ public class RCourseService : IRCourseService
             PersonId = personId,
             CourseId = genericRCourse.Id,
             TermCode = termCode,
-            Hours = defaultEffortType.UsesWeeks ? null : 0,
-            Weeks = defaultEffortType.UsesWeeks ? 1 : null,
-            EffortTypeId = defaultEffortType.Id,
+            Hours = 0,
+            Weeks = null,
+            EffortTypeId = EffortConstants.VariableEffortType,
             RoleId = EffortConstants.InstructorRoleId,
             Crn = "RESID",
             ModifiedDate = DateTime.Now,
@@ -174,7 +173,7 @@ public class RCourseService : IRCourseService
             {
                 ["PersonId"] = effortRecord.PersonId,
                 ["Course"] = "RES 000R",
-                ["Type"] = defaultEffortType.Id,
+                ["Type"] = EffortConstants.VariableEffortType,
                 ["Details"] = details
             })
         }));
