@@ -70,3 +70,29 @@ internal sealed class FakeReportUserService : IReportUserService
         return User is not null && Permissions.Contains(permission);
     }
 }
+
+/// <summary>RAPS with a fixed set of permission names.</summary>
+internal sealed class FakeReportPermissionLookup : IReportPermissionLookupService
+{
+    public HashSet<string> Names { get; } = new(StringComparer.OrdinalIgnoreCase) { "SVMSecure.Personnel", "SVMSecure.Effort" };
+
+    public Task<IReadOnlyList<ReportPermissionOption>> SearchAsync(string? text, CancellationToken ct)
+    {
+        return Task.FromResult<IReadOnlyList<ReportPermissionOption>>(
+            [.. Names.Where(n => n.Contains(text ?? string.Empty, StringComparison.OrdinalIgnoreCase)).Select(n => new ReportPermissionOption { Permission = n })]);
+    }
+
+    public Task<IReadOnlyDictionary<string, string>> FindAsync(IEnumerable<string> names, CancellationToken ct)
+    {
+        var found = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (string name in names)
+        {
+            if (Names.TryGetValue(name, out string? spelled))
+            {
+                found.TryAdd(name, spelled);
+            }
+        }
+
+        return Task.FromResult<IReadOnlyDictionary<string, string>>(found);
+    }
+}

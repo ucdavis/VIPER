@@ -160,7 +160,7 @@ public static class ReportParameterBinder
             case ReportParameterType.Boolean:
                 return bool.TryParse(first, out bool flag) ? flag : Error(errors, $"{label} must be true or false.");
             case ReportParameterType.Choice:
-                return AllowedValues(definition, [first], choices, errors) is [string choice] ? choice : null;
+                return AllowedValues(definition, [first], choices, errors) is [{ } choice] ? choice : null;
             case ReportParameterType.MultiChoice:
                 return AllowedValues(definition, raw, choices, errors);
             default:

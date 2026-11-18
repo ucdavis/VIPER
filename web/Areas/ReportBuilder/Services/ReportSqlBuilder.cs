@@ -71,7 +71,7 @@ public static partial class ReportSqlBuilder
             ? "ORDER BY (SELECT NULL)"
             : $"ORDER BY {Quote(query.SortColumn)} {direction}";
 
-        if (query.Skip is int skip && query.Take is int take)
+        if (query.Skip is { } skip && query.Take is { } take)
         {
             parameters[SkipParameter] = skip;
             parameters[TakeParameter] = take;
@@ -108,7 +108,7 @@ public static partial class ReportSqlBuilder
             parameters[placeholder] = ScalarValue(arguments[i]);
         }
 
-        if (skip is int skipRows && take is int takeRows)
+        if (skip is { } skipRows && take is { } takeRows)
         {
             assignments.Add($"@{ReportSourceCatalogService.SkipParameter} = {SkipParameter}");
             assignments.Add($"@{ReportSourceCatalogService.TakeParameter} = {TakeParameter}");

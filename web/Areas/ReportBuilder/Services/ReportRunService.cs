@@ -1,6 +1,7 @@
 using System.Data.Common;
 using System.Globalization;
 using System.Text.Json;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.ReportBuilder.Models;
 using Viper.Areas.ReportBuilder.Models.Entities;
@@ -15,11 +16,18 @@ public interface IReportRunService
     /// permission is checked before anything they sent is read.
     /// </summary>
     Task<ReportRunOutcome> RunAsync(string slug, ReportRunRequest request, ReportRunMode mode, CancellationToken ct);
+
+    /// <summary>
+    /// A page of a report that isn't saved yet, for the admin form's preview: admins only, a
+    /// fixed page size, and not logged. A database error comes back with SQL Server's message.
+    /// </summary>
+    Task<ReportRunOutcome> PreviewAsync(ReportDefinition report, ReportRunRequest request, CancellationToken ct);
 }
 
 /// <summary>
 /// Runs a report: finds it by slug, checks the user may view it, checks its source and columns
-/// against the [report] catalog, binds the parameters, builds and runs the SQL, and logs the run.
+/// against the [report] catalog, binds the parameters, builds and runs the SQL, and logs the run,
+/// including why it failed when the report itself is at fault.
 /// Views are filtered, searched, sorted and paged in SQL. Procedures that take @Skip and @Take
 /// page themselves; other procedures are read up to the row cap and searched, sorted and paged
 /// here.
@@ -66,82 +74,122 @@ public sealed class ReportRunService : IReportRunService
             return ReportRunOutcome.Fail(ReportRunStatus.Forbidden);
         }
 
-        ReportDefinition? report = await FindAsync(slug, ct);
+        ReportDefinition? report = await ReportAccess.FindAsync(_context, slug, ct);
         if (report is null)
         {
             return ReportRunOutcome.Fail(ReportRunStatus.NotFound);
         }
 
-        if (!CanView(report) || !AllowsMode(report, mode))
+        if (!ReportAccess.CanView(_users, report) || !AllowsMode(report, mode))
         {
             return ReportRunOutcome.Fail(ReportRunStatus.Forbidden);
         }
 
+        return await ExecuteAsync(report, user, request, mode, logRun: true, ct);
+    }
+
+    public async Task<ReportRunOutcome> PreviewAsync(ReportDefinition report, ReportRunRequest request, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(report);
+        ArgumentNullException.ThrowIfNull(request);
+        ReportCurrentUser? user = _users.GetCurrentUser();
+        if (user is null || !_users.HasPermission(ReportBuilderPermissions.Admin))
+        {
+            return ReportRunOutcome.Fail(ReportRunStatus.Forbidden);
+        }
+
+        report.Paginate = true;
+        report.PageSize = ReportLimits.PreviewRows;
+        return await ExecuteAsync(report, user, request with { PerPage = null }, ReportRunMode.Screen, logRun: false, ct);
+    }
+
+    private async Task<ReportRunOutcome> ExecuteAsync(
+        ReportDefinition report,
+        ReportCurrentUser user,
+        ReportRunRequest request,
+        ReportRunMode mode,
+        bool logRun,
+        CancellationToken ct)
+    {
         long started = _clock.GetTimestamp();
+        var attempt = new RunAttempt();
         ReportRunOutcome outcome;
-        IReadOnlyList<BoundReportParameter> parameters;
         try
         {
-            ReportSourceDetail? source = await _catalog.GetSourceAsync(report.Source, ct);
-            if (source is null)
-            {
-                return ReportRunOutcome.Fail(ReportRunStatus.Unavailable, "This report's data source is no longer available.");
-            }
-
-            IReadOnlyDictionary<string, IReadOnlyList<ReportChoice>> choices = await _choices.GetChoicesAsync(report.Parameters, ct);
-            ReportBindResult bound = ReportParameterBinder.Bind(report.Parameters, request.Parameters, user, choices);
-            if (bound.Errors.Count > 0)
-            {
-                return ReportRunOutcome.Fail(ReportRunStatus.Invalid, [.. bound.Errors]);
-            }
-
-            parameters = bound.Parameters;
-            outcome = Plan(report, source, request, mode, parameters, out RunPlan? plan);
-            if (plan is not null)
-            {
-                outcome = new ReportRunOutcome
-                {
-                    Status = ReportRunStatus.Ok,
-                    Result = source.Kind == ReportSourceKind.View
-                        ? await RunViewAsync(plan, ct)
-                        : await RunProcedureAsync(plan, ct),
-                };
-            }
+            outcome = await RunReportAsync(report, request, mode, user, attempt, ct);
         }
         catch (DbException ex)
         {
             _logger.LogError(ex, "Report {ReportId} failed to run", report.Id);
-            return ReportRunOutcome.Fail(ReportRunStatus.Unavailable, "The report couldn't be run. Try again later.");
+            attempt.ErrorNumber = (ex as SqlException)?.Number;
+            attempt.ErrorMessage = ex.Message;
+
+            // Viewers get a general message; an admin previewing a draft sees SQL Server's reason.
+            outcome = logRun
+                ? ReportRunOutcome.Fail(ReportRunStatus.Unavailable, "The report couldn't be run. Try again later.")
+                : ReportRunOutcome.Fail(ReportRunStatus.Unavailable, $"SQL Server couldn't run the report: {ex.Message}");
         }
 
-        if (outcome.Result is not null)
+        // A run that was cancelled tells nothing about the report; one the user sent bad values
+        // for is the user's mistake, not the report's.
+        if (logRun && !ct.IsCancellationRequested && (outcome.Result is not null || outcome.Status == ReportRunStatus.Unavailable))
         {
-            await LogRunAsync(report, user, mode, parameters, outcome.Result, _clock.GetElapsedTime(started), ct);
+            await LogRunAsync(report, user, mode, attempt, outcome, _clock.GetElapsedTime(started), ct);
         }
 
         return outcome;
     }
 
-    private async Task<ReportDefinition?> FindAsync(string slug, CancellationToken ct)
+    /// <summary>What a run got as far as, for the log: the values bound and any database error.</summary>
+    private sealed class RunAttempt
     {
-        if (!Guid.TryParse(slug, out Guid id))
-        {
-            return null;
-        }
-
-        return await _context.Reports
-            .AsNoTracking()
-            .Include(r => r.Permissions)
-            .Include(r => r.Columns)
-            .Include(r => r.Parameters)
-            .FirstOrDefaultAsync(r => r.Slug == id && r.DeletedOn == null, ct);
+        public IReadOnlyList<BoundReportParameter> Parameters { get; set; } = [];
+        public int? ErrorNumber { get; set; }
+        public string? ErrorMessage { get; set; }
     }
 
-    /// <summary>Admins see every report; others need one of its permissions. A report with none is admin-only.</summary>
-    private bool CanView(ReportDefinition report)
+    private async Task<ReportRunOutcome> RunReportAsync(
+        ReportDefinition report,
+        ReportRunRequest request,
+        ReportRunMode mode,
+        ReportCurrentUser user,
+        RunAttempt attempt,
+        CancellationToken ct)
     {
-        return _users.HasPermission(ReportBuilderPermissions.Admin)
-            || report.Permissions.Any(p => !string.IsNullOrWhiteSpace(p.Permission) && _users.HasPermission(p.Permission));
+        ReportSourceDetail? source = await _catalog.GetSourceAsync(report.Source, ct);
+        if (source is null)
+        {
+            return ReportRunOutcome.Fail(ReportRunStatus.Unavailable, "This report's data source is no longer available.");
+        }
+
+        IReadOnlyDictionary<string, IReadOnlyList<ReportChoice>> choices = await _choices.GetChoicesAsync(report.Parameters, ct);
+        ReportBindResult bound = ReportParameterBinder.Bind(report.Parameters, request.Parameters, user, choices);
+        if (bound.Errors.Count > 0)
+        {
+            return ReportRunOutcome.Fail(ReportRunStatus.Invalid, [.. bound.Errors]);
+        }
+
+        attempt.Parameters = bound.Parameters;
+        ReportRunOutcome outcome = Plan(report, source, request, mode, bound.Parameters, out RunPlan? plan);
+        if (plan is null)
+        {
+            return outcome;
+        }
+
+        return new ReportRunOutcome
+        {
+            Status = ReportRunStatus.Ok,
+            Result = source.Kind == ReportSourceKind.View
+                ? await RunViewAsync(plan, ct)
+                : await RunProcedureAsync(plan, ct),
+            Details = new ReportRunDetails
+            {
+                Title = report.Title,
+                SensitiveNotice = string.IsNullOrWhiteSpace(report.SensitiveNotice) ? null : report.SensitiveNotice.Trim(),
+                PdfLandscape = report.PdfLandscape == true,
+                Filters = DescribeFilters(report, bound.Parameters, choices),
+            },
+        };
     }
 
     private static bool AllowsMode(ReportDefinition report, ReportRunMode mode)
@@ -190,17 +238,8 @@ public sealed class ReportRunService : IReportRunService
         // columns are then taken on trust and a missing one shows as empty.
         bool checkColumns = known.Count > 0;
 
-        List<ReportResultColumn> columns = [.. report.Columns
-            .Where(c => c.Visible && !string.IsNullOrWhiteSpace(c.SourceColumn))
-            .OrderBy(c => c.DisplayOrder)
-            .ThenBy(c => c.Id)
-            .Select(c => new ReportResultColumn
-            {
-                Name = known.TryGetValue(c.SourceColumn!, out ReportSourceColumn? match) ? match.Name : c.SourceColumn!,
-                Label = string.IsNullOrWhiteSpace(c.Label) ? c.SourceColumn! : c.Label,
-                Format = c.Format ?? ReportColumnFormat.Text,
-                Sortable = c.Sortable,
-            })];
+        List<ReportResultColumn> columns = [.. ReportAccess.VisibleColumns(report)
+            .Select(c => known.TryGetValue(c.Name, out ReportSourceColumn? match) ? c with { Name = match.Name } : c)];
         if (columns.Count == 0)
         {
             return ReportRunOutcome.Fail(ReportRunStatus.Unavailable, "This report has no columns to show.");
@@ -226,9 +265,9 @@ public sealed class ReportRunService : IReportRunService
         }
 
         bool screen = mode == ReportRunMode.Screen;
-        bool paginate = screen && report.Paginate != false;
-        int perPage = Math.Clamp(report.PageSize ?? ReportLimits.DefaultPageSize, 1, ReportLimits.MaxPageSize);
-        if (paginate && request.PerPage is int asked)
+        bool paginate = screen && ReportAccess.Paginates(report);
+        int perPage = ReportAccess.PageSize(report);
+        if (paginate && request.PerPage is { } asked)
         {
             if (asked is < 1 or > ReportLimits.MaxPageSize)
             {
@@ -472,15 +511,19 @@ public sealed class ReportRunService : IReportRunService
         }
     }
 
+    /// <summary>Logs a run: the rows it returned, or why it failed.</summary>
     private async Task LogRunAsync(
         ReportDefinition report,
         ReportCurrentUser user,
         ReportRunMode mode,
-        IReadOnlyList<BoundReportParameter> parameters,
-        ReportRunResult result,
+        RunAttempt attempt,
+        ReportRunOutcome outcome,
         TimeSpan duration,
         CancellationToken ct)
     {
+        string? error = outcome.Result is not null
+            ? null
+            : attempt.ErrorMessage ?? string.Join(" ", outcome.Errors);
         _context.ReportRunLog.Add(new ReportRunLog
         {
             ReportId = report.Id,
@@ -492,20 +535,63 @@ public sealed class ReportRunService : IReportRunService
             },
             LoginId = user.LoginId,
             RanOn = _clock.GetLocalNow().DateTime,
-            Parameters = LoggedParameters(parameters),
-            RowsReturned = result.Rows.Count,
+            Parameters = LoggedParameters(attempt.Parameters),
+            RowsReturned = outcome.Result?.Rows.Count,
             DurationMs = (int)Math.Min(int.MaxValue, Math.Round(duration.TotalMilliseconds)),
+            ErrorNumber = outcome.Result is null ? attempt.ErrorNumber : null,
+            ErrorMessage = error is { Length: > ReportLimits.MaxErrorLength } ? error[..ReportLimits.MaxErrorLength] : error,
         });
 
         try
         {
             await _context.SaveChangesAsync(ct);
         }
-        catch (DbUpdateException ex)
+        catch (Exception ex) when (ex is DbUpdateException or DbException)
         {
-            // The user still gets their report; a missing log entry isn't worth failing the run.
+            // The user still gets their report (or its error); a missing log entry isn't worth
+            // failing the request over.
             _logger.LogWarning(ex, "Couldn't log a run of report {ReportId}", report.Id);
         }
+    }
+
+    /// <summary>
+    /// The values the user chose, labelled as on the form, for the heading of a download:
+    /// dates as MM/dd/yyyy, choices by their labels, and true/false as Yes/No.
+    /// </summary>
+    private static IReadOnlyList<ReportAppliedFilter> DescribeFilters(
+        ReportDefinition report,
+        IReadOnlyList<BoundReportParameter> parameters,
+        IReadOnlyDictionary<string, IReadOnlyList<ReportChoice>> choices)
+    {
+        var labels = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (ReportParameter definition in report.Parameters.Where(p => !string.IsNullOrWhiteSpace(p.Name)))
+        {
+            labels.TryAdd(definition.Name!, string.IsNullOrWhiteSpace(definition.Label) ? definition.Name! : definition.Label);
+        }
+
+        return [.. parameters.Where(p => p.FromUser).Select(parameter =>
+        {
+            Dictionary<string, string> choiceLabels = choices.TryGetValue(parameter.Name, out IReadOnlyList<ReportChoice>? list)
+                ? list.GroupBy(c => c.Value, StringComparer.OrdinalIgnoreCase).ToDictionary(g => g.Key, g => g.First().Label, StringComparer.OrdinalIgnoreCase)
+                : [];
+            return new ReportAppliedFilter
+            {
+                Label = labels.GetValueOrDefault(parameter.Name, parameter.Name),
+                Value = FilterValue(parameter.Value, choiceLabels),
+            };
+        })];
+    }
+
+    private static string FilterValue(object value, Dictionary<string, string> choiceLabels)
+    {
+        return value switch
+        {
+            DateTime date => ReportCellFormatter.Text(date, ReportColumnFormat.Date),
+            bool flag => ReportCellFormatter.Text(flag, ReportColumnFormat.YesNo),
+            IReadOnlyList<string> values => string.Join(", ", values.Select(v => choiceLabels.GetValueOrDefault(v, v))),
+            string text => choiceLabels.GetValueOrDefault(text, text),
+            _ => ReportCellFormatter.Text(value, ReportColumnFormat.Number),
+        };
     }
 
     /// <summary>The values the user chose, as JSON; current-user values aren't repeated.</summary>

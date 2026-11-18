@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Viper.Areas.ReportBuilder.Models.Entities;
+using Viper.Areas.ReportBuilder.Services;
 
 namespace Viper.Areas.ReportBuilder;
 
@@ -135,6 +136,8 @@ public class ReportBuilderDbContext : DbContext
             entity.Property(e => e.Parameters).HasColumnName("parameters");
             entity.Property(e => e.RowsReturned).HasColumnName("rowsReturned");
             entity.Property(e => e.DurationMs).HasColumnName("duration");
+            entity.Property(e => e.ErrorNumber).HasColumnName("errorNumber");
+            entity.Property(e => e.ErrorMessage).HasColumnName("errorMessage").HasMaxLength(ReportLimits.MaxErrorLength);
         });
     }
 

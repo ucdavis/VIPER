@@ -26,6 +26,9 @@ public sealed class ReportRunServiceTests : IDisposable
     private readonly FakeReportQueryExecutor _executor = new();
     private readonly ReportRunService _service;
 
+    // Cancelled from inside a fake query, so it lives as long as the test class.
+    private readonly CancellationTokenSource _cancel = new();
+
     public ReportRunServiceTests()
     {
         DbContextOptions<ReportBuilderDbContext> options = new DbContextOptionsBuilder<ReportBuilderDbContext>()
@@ -62,6 +65,7 @@ public sealed class ReportRunServiceTests : IDisposable
     public void Dispose()
     {
         _context.Dispose();
+        _cancel.Dispose();
     }
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
@@ -94,7 +98,7 @@ public sealed class ReportRunServiceTests : IDisposable
 
     private sealed class FakeDbException : DbException
     {
-        public FakeDbException() : base("timeout")
+        public FakeDbException(string message = "timeout") : base(message)
         {
         }
     }
@@ -117,7 +121,7 @@ public sealed class ReportRunServiceTests : IDisposable
         return new ReportColumn { SourceColumn = name, Label = label, DisplayOrder = order, Visible = visible, Sortable = sortable, Format = format };
     }
 
-    private async Task<ReportDefinition> AddRosterAsync(Action<ReportDefinition>? configure = null)
+    private async Task AddRosterAsync(Action<ReportDefinition>? configure = null)
     {
         var report = new ReportDefinition
         {
@@ -144,10 +148,9 @@ public sealed class ReportRunServiceTests : IDisposable
         configure?.Invoke(report);
         _context.Reports.Add(report);
         await _context.SaveChangesAsync(Ct);
-        return report;
     }
 
-    private async Task<ReportDefinition> AddLeaveAsync(Action<ReportDefinition>? configure = null)
+    private async Task AddLeaveAsync(Action<ReportDefinition>? configure = null)
     {
         var report = new ReportDefinition
         {
@@ -167,7 +170,6 @@ public sealed class ReportRunServiceTests : IDisposable
         configure?.Invoke(report);
         _context.Reports.Add(report);
         await _context.SaveChangesAsync(Ct);
-        return report;
     }
 
     private Task<ReportRunOutcome> RunAsync(Guid slug, ReportRunRequest? request = null, ReportRunMode mode = ReportRunMode.Screen)
@@ -489,12 +491,67 @@ public sealed class ReportRunServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task View_DatabaseError_IsUnavailableAndNotLogged()
+    public async Task View_DatabaseError_IsUnavailableAndLoggedWithSqlServersReason()
     {
         await AddRosterAsync();
-        _executor.Answer = _ => throw new FakeDbException();
+        _executor.Answer = _ => throw new FakeDbException("The SELECT permission was denied on the object 'FacultyRoster'.");
 
         AssertFails(await RunAsync(RosterSlug), ReportRunStatus.Unavailable, "The report couldn't be run. Try again later.");
+
+        ReportRunLog log = Assert.Single(_context.ReportRunLog);
+        Assert.Equal("The SELECT permission was denied on the object 'FacultyRoster'.", log.ErrorMessage);
+        Assert.Null(log.ErrorNumber);
+        Assert.Null(log.RowsReturned);
+        Assert.Equal(ReportRunAction.Run, log.Action);
+    }
+
+    [Fact]
+    public async Task DatabaseError_LongerThanTheLogKeeps_IsCut()
+    {
+        await AddRosterAsync();
+        _executor.Answer = _ => throw new FakeDbException(new string('x', ReportLimits.MaxErrorLength + 10));
+
+        await RunAsync(RosterSlug);
+
+        Assert.Equal(ReportLimits.MaxErrorLength, Assert.Single(_context.ReportRunLog).ErrorMessage?.Length);
+    }
+
+    [Fact]
+    public async Task DatabaseError_AfterTheUserCancelled_IsNotLogged()
+    {
+        await AddRosterAsync();
+        _executor.Answer = _ =>
+        {
+            _cancel.Cancel();
+            throw new FakeDbException("Operation cancelled by user.");
+        };
+
+        ReportRunOutcome outcome = await _service.RunAsync(RosterSlug.ToString(), new ReportRunRequest(), ReportRunMode.Screen, _cancel.Token);
+
+        Assert.Equal(ReportRunStatus.Unavailable, outcome.Status);
+        Assert.Empty(_context.ReportRunLog);
+    }
+
+    [Fact]
+    public async Task SourceGone_IsLoggedAsAFailure()
+    {
+        await AddRosterAsync(r => r.Source = "Dropped");
+
+        await RunAsync(RosterSlug, mode: ReportRunMode.ExportExcel);
+
+        ReportRunLog log = Assert.Single(_context.ReportRunLog);
+        Assert.Equal("This report's data source is no longer available.", log.ErrorMessage);
+        Assert.Equal(ReportRunAction.ExportExcel, log.Action);
+        Assert.Null(log.Parameters);
+    }
+
+    [Fact]
+    public async Task BadParameters_AreTheUsersMistake_AndNotLogged()
+    {
+        await AddRosterAsync();
+
+        await RunAsync(RosterSlug, new ReportRunRequest { Parameters = Values(("Other", "x")) });
+
         Assert.Empty(_context.ReportRunLog);
     }
 
@@ -641,6 +698,58 @@ public sealed class ReportRunServiceTests : IDisposable
         Assert.Null(row["Comment"]);
     }
 
+    // Preview
+
+    [Fact]
+    public async Task Preview_RunsAnUnsavedReportAPageAtATimeWithoutLogging()
+    {
+        _users.Permissions.Add(ReportBuilderPermissions.Admin);
+        var report = new ReportDefinition
+        {
+            Title = "Draft",
+            Source = "FacultyRoster",
+            Paginate = false,
+            PageSize = 10,
+            Columns = [Column("Name", 1)],
+        };
+
+        ReportRunResult result = Ok(await _service.PreviewAsync(report, new ReportRunRequest { Page = 2, PerPage = 500 }, Ct));
+
+        (ReportSqlCommand command, int maxRows, _) = Assert.Single(_executor.Calls);
+        Assert.Equal((50, 50), (command.Parameters["@__skip"], command.Parameters["@__take"]));
+        Assert.Equal((ReportLimits.PreviewRows, 2), (result.PerPage, result.Page));
+        Assert.Equal(ReportLimits.PreviewRows, maxRows);
+        Assert.Empty(_context.ReportRunLog);
+    }
+
+    [Fact]
+    public async Task Preview_DatabaseError_ShowsSqlServersReasonAndIsNotLogged()
+    {
+        _users.Permissions.Add(ReportBuilderPermissions.Admin);
+        _executor.Answer = _ => throw new FakeDbException("Invalid column name 'Dept'.");
+        var report = new ReportDefinition { Title = "Draft", Source = "FacultyRoster", Columns = [Column("Name", 1)] };
+
+        ReportRunOutcome outcome = await _service.PreviewAsync(report, new ReportRunRequest(), Ct);
+
+        AssertFails(outcome, ReportRunStatus.Unavailable, "SQL Server couldn't run the report: Invalid column name 'Dept'.");
+        Assert.Empty(_context.ReportRunLog);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Preview_IsForAdminsOnly(bool signedIn)
+    {
+        if (!signedIn)
+        {
+            _users.User = null;
+        }
+
+        ReportRunOutcome outcome = await _service.PreviewAsync(new ReportDefinition { Source = "FacultyRoster" }, new ReportRunRequest(), Ct);
+
+        AssertFails(outcome, ReportRunStatus.Forbidden);
+    }
+
     // The run log
 
     [Fact]
@@ -685,6 +794,81 @@ public sealed class ReportRunServiceTests : IDisposable
         Assert.Equal("""{"From":"2026-01-31","Paid":true,"Types":["Vacation","Sick"],"Year":"2026.0"}""", log.Parameters);
         Assert.Equal(2, log.RowsReturned);
         Assert.Equal(15, log.DurationMs);
+        Assert.Null(log.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task Run_DescribesTheReportAndTheUsersFiltersForDownloads()
+    {
+        await AddLeaveAsync(r =>
+        {
+            r.SensitiveNotice = "  Confidential  ";
+            r.PdfLandscape = true;
+            r.Parameters =
+            [
+                new ReportParameter { Name = "LoginId", Binding = ReportParameterBinding.CurrentUserLoginId },
+                new ReportParameter { Name = "Year", Label = "Fiscal year", Type = ReportParameterType.Number, DisplayOrder = 1 },
+                new ReportParameter { Name = "From", Label = "From", Type = ReportParameterType.Date, DisplayOrder = 2 },
+                new ReportParameter { Name = "Paid", Type = ReportParameterType.Boolean, DisplayOrder = 3 },
+                new ReportParameter { Name = "Types", Label = "Leave types", Type = ReportParameterType.MultiChoice, ChoicesList = """[{"value":"S","label":"Sick"},{"value":"V","label":"Vacation"}]""", DisplayOrder = 4 },
+                new ReportParameter { Name = "Kind", Type = ReportParameterType.Choice, ChoicesList = """[{"value":"F","label":"Full time"}]""", DisplayOrder = 5 },
+                new ReportParameter { Name = "Note", DisplayOrder = 6 },
+            ];
+        });
+        _catalog.Sources[1] = _catalog.Sources[1] with
+        {
+            Parameters =
+            [
+                .. _catalog.Sources[1].Parameters,
+                FakeReportSourceCatalog.Parameter("From"),
+                FakeReportSourceCatalog.Parameter("Paid"),
+                FakeReportSourceCatalog.Parameter("Types"),
+                FakeReportSourceCatalog.Parameter("Kind"),
+                FakeReportSourceCatalog.Parameter("Note"),
+            ],
+        };
+
+        ReportRunOutcome outcome = await RunAsync(LeaveSlug, new ReportRunRequest
+        {
+            Parameters = new Dictionary<string, IReadOnlyList<string>>
+            {
+                ["Year"] = ["12345.5"],
+                ["From"] = ["2026-01-31"],
+                ["Paid"] = ["false"],
+                ["Types"] = ["V", "s"],
+                ["Kind"] = ["f"],
+                ["Note"] = ["x"],
+            },
+        });
+
+        Ok(outcome);
+        ReportRunDetails details = Assert.IsType<ReportRunDetails>(outcome.Details);
+        Assert.Equal("My leave", details.Title);
+        Assert.Equal("Confidential", details.SensitiveNotice);
+        Assert.True(details.PdfLandscape);
+        Assert.Equal(
+            [
+                new ReportAppliedFilter { Label = "Fiscal year", Value = "12,345.5" },
+                new ReportAppliedFilter { Label = "From", Value = "01/31/2026" },
+                new ReportAppliedFilter { Label = "Paid", Value = "No" },
+                new ReportAppliedFilter { Label = "Leave types", Value = "Vacation, Sick" },
+                new ReportAppliedFilter { Label = "Kind", Value = "Full time" },
+                new ReportAppliedFilter { Label = "Note", Value = "x" },
+            ],
+            details.Filters);
+    }
+
+    [Fact]
+    public async Task Run_WithoutANotice_HasNoNoticeAndIsPortrait()
+    {
+        await AddRosterAsync(r => r.SensitiveNotice = " ");
+
+        ReportRunOutcome outcome = await RunAsync(RosterSlug);
+
+        ReportRunDetails details = Assert.IsType<ReportRunDetails>(outcome.Details);
+        Assert.Null(details.SensitiveNotice);
+        Assert.False(details.PdfLandscape);
+        Assert.Empty(details.Filters);
     }
 
     [Fact]

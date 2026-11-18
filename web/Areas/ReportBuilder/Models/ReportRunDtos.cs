@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Viper.Areas.ReportBuilder.Models;
 
 /// <summary>Why a report is being run: on screen, or for one of the downloads.</summary>
@@ -19,6 +21,7 @@ public sealed record ReportRunRequest
         new Dictionary<string, IReadOnlyList<string>>();
 
     /// <summary>The page to show, counting from 1. Ignored for downloads and unpaginated reports.</summary>
+    [JsonRequired]
     public int Page { get; init; } = 1;
 
     /// <summary>Rows per page; the report's page size when not given.</summary>
@@ -27,6 +30,7 @@ public sealed record ReportRunRequest
     /// <summary>A visible, sortable column to sort by; the report's default order when not given.</summary>
     public string? SortBy { get; init; }
 
+    [JsonRequired]
     public bool SortDescending { get; init; }
 
     /// <summary>Text to find in the report's visible text columns (views only).</summary>
@@ -80,6 +84,9 @@ public sealed record ReportRunOutcome
     public required ReportRunStatus Status { get; init; }
     public ReportRunResult? Result { get; init; }
 
+    /// <summary>What a download's heading needs to say about the run; set with <see cref="Result"/>.</summary>
+    public ReportRunDetails? Details { get; init; }
+
     /// <summary>What was wrong, for <see cref="ReportRunStatus.Invalid"/> and <see cref="ReportRunStatus.Unavailable"/>.</summary>
     public IReadOnlyList<string> Errors { get; init; } = [];
 
@@ -87,6 +94,25 @@ public sealed record ReportRunOutcome
     {
         return new ReportRunOutcome { Status = status, Errors = errors };
     }
+}
+
+/// <summary>The report's own settings and the filters a run used, for a download's heading.</summary>
+public sealed record ReportRunDetails
+{
+    public required string Title { get; init; }
+
+    /// <summary>The report's confidentiality notice, or null when it has none.</summary>
+    public string? SensitiveNotice { get; init; }
+
+    public required bool PdfLandscape { get; init; }
+    public required IReadOnlyList<ReportAppliedFilter> Filters { get; init; }
+}
+
+/// <summary>A parameter the user filled in, by its label, with the value as text.</summary>
+public sealed record ReportAppliedFilter
+{
+    public required string Label { get; init; }
+    public required string Value { get; init; }
 }
 
 /// <summary>One choice for a choice parameter.</summary>

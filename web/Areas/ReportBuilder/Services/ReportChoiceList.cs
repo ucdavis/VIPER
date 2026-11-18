@@ -69,12 +69,9 @@ public static class ReportChoiceList
 
     private static string? Text(JsonElement item, string name)
     {
-        foreach (JsonProperty property in item.EnumerateObject()
-            .Where(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase)))
-        {
-            return property.Value.ValueKind == JsonValueKind.String ? property.Value.GetString() : property.Value.ToString();
-        }
-
-        return null;
+        return item.EnumerateObject()
+            .Where(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase))
+            .Select(p => p.Value.ValueKind == JsonValueKind.String ? p.Value.GetString() : p.Value.ToString())
+            .FirstOrDefault();
     }
 }

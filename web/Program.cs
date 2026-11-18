@@ -42,7 +42,6 @@ using Viper.Areas.Personnel;
 using Viper.Areas.RAPS.Services;
 using Viper.Areas.ReportBuilder;
 using Viper.Areas.ReportBuilder.Services;
-using Viper.Areas.Reports;
 using Viper.Classes;
 using Viper.Classes.HealthChecks;
 using Viper.Classes.Scheduler;
@@ -65,7 +64,7 @@ if (string.Equals(aspNetEnv, "Development", StringComparison.OrdinalIgnoreCase)
 }
 
 // Centralized SPA application names to avoid duplication
-string[] VueAppNames = { "CAHFS", "ClinicalScheduler", "CMS", "Computing", "CTS", "Effort", "Students", "Personnel" };
+string[] VueAppNames = { "CAHFS", "ClinicalScheduler", "CMS", "Computing", "CTS", "Effort", "Students", "Personnel", "Reports" };
 
 var builder = WebApplication.CreateBuilder(args);
 string awsCredentialsFilePath = Directory.GetCurrentDirectory() + "\\awscredentials.xml";
@@ -322,9 +321,6 @@ try
     // Register UserHelper service (must be before Scrutor to take precedence)
     builder.Services.AddScoped<IUserHelper, UserHelper>();
 
-    // Code-defined reports (IReportDefinition) and the registry that indexes them
-    builder.Services.AddReports(typeof(Program).Assembly);
-
     // Report Builder: reads the [report] schema's shape. Not a *Service, so Scrutor skips it.
     builder.Services.AddScoped<IReportSourceMetadataReader, ReportSourceMetadataReader>();
     // Report Builder: runs report queries on VIPERReports (or VIPER). Not a *Service either.
@@ -353,7 +349,6 @@ try
                 "Viper.Areas.Effort.Services",
                 "Viper.Areas.Personnel.Services",
                 "Viper.Areas.ReportBuilder.Services",
-                "Viper.Areas.Reports.Services",
                 "Viper.Areas.CMS.Services"
             )
             .Where(type => type.Name.EndsWith("Service") || type.Name.EndsWith("Validator")))

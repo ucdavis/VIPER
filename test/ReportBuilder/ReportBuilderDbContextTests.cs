@@ -64,6 +64,8 @@ public sealed class ReportBuilderDbContextTests
         Assert.Equal("changed", Column<ReportDefinitionHistory>(nameof(ReportDefinitionHistory.ChangedOn)));
         Assert.Equal("loginID", Column<ReportRunLog>(nameof(ReportRunLog.LoginId)));
         Assert.Equal("duration", Column<ReportRunLog>(nameof(ReportRunLog.DurationMs)));
+        Assert.Equal("errorNumber", Column<ReportRunLog>(nameof(ReportRunLog.ErrorNumber)));
+        Assert.Equal("errorMessage", Column<ReportRunLog>(nameof(ReportRunLog.ErrorMessage)));
     }
 
     [Fact]
