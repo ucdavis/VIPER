@@ -187,17 +187,17 @@ public interface IInstructorService
         List<string> mothraIds, int termCode, CancellationToken ct = default);
 
     /// <summary>
-    /// Whether the person has an AAUD job in the CAHFS department (072200) for the term.
+    /// Whether the person has a current PPS job, or an AAUD job for the term, in the CAHFS department (072200).
     /// </summary>
     Task<bool> HasCahfsAppointmentAsync(string mothraId, int termCode, CancellationToken ct = default);
 
     /// <summary>
-    /// The subset of the given MothraIds with an AAUD job in the CAHFS department (072200) for the term.
+    /// The subset of the given MothraIds with a current PPS job, or an AAUD job for the term, in the CAHFS department (072200).
     /// </summary>
     Task<IReadOnlySet<string>> GetCahfsMothraIdsAsync(IReadOnlyCollection<string> mothraIds, int termCode, CancellationToken ct = default);
 
     /// <summary>
-    /// All MothraIds with an AAUD job in the CAHFS department (072200) for the term.
+    /// All MothraIds with a current PPS job, or an AAUD job for the term, in the CAHFS department (072200).
     /// </summary>
     Task<IReadOnlySet<string>> GetCahfsMothraIdsAsync(int termCode, CancellationToken ct = default);
 }

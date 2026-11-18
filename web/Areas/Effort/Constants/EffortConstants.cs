@@ -114,10 +114,16 @@ public static class EffortConstants
     public const string ClinicalCustodialDept = "DVM";
 
     /// <summary>
-    /// AAUD department code for CAHFS. Harvested instructors with a job in this
-    /// department get the CAHFS report unit.
+    /// Department code for CAHFS, the same in PPS and AAUD. Harvested instructors
+    /// with a job in this department get the CAHFS report unit.
     /// </summary>
     public const string CahfsDeptCode = "072200";
+
+    /// <summary>
+    /// PPS vw_personJobPosition.JobStatus for a job that has ended (terminated,
+    /// retired, deceased). The other values are Active and Inactive (on leave).
+    /// </summary>
+    public const string PpsSeparatedJobStatus = "Separated";
 
     /// <summary>
     /// Report unit code for CAHFS (effort.ReportUnits.UnitCode).
