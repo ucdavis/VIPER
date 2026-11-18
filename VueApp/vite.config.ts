@@ -173,6 +173,7 @@ export default defineConfig(({ mode }) => {
                     effort: path.resolve(import.meta.dirname, "src/Effort/index.html"),
                     eval: path.resolve(import.meta.dirname, "src/Eval/index.html"),
                     personnel: path.resolve(import.meta.dirname, "src/Personnel/index.html"),
+                    reports: path.resolve(import.meta.dirname, "src/Reports/index.html"),
                 },
                 output: {
                     manualChunks(id) {

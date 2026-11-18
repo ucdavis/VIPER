@@ -41,6 +41,8 @@ using Viper.Areas.Effort.Services.Harvest;
 using Viper.Areas.Eval.Data;
 using Viper.Areas.Personnel;
 using Viper.Areas.RAPS.Services;
+using Viper.Areas.ReportBuilder;
+using Viper.Areas.ReportBuilder.Services;
 using Viper.Classes;
 using Viper.Classes.HealthChecks;
 using Viper.Classes.Scheduler;
@@ -63,7 +65,7 @@ if (string.Equals(aspNetEnv, "Development", StringComparison.OrdinalIgnoreCase)
 }
 
 // Centralized SPA application names to avoid duplication
-string[] VueAppNames = { "CAHFS", "ClinicalScheduler", "CMS", "Computing", "CTS", "Effort", "Eval", "Students", "Personnel" };
+string[] VueAppNames = { "CAHFS", "ClinicalScheduler", "CMS", "Computing", "CTS", "Effort", "Eval", "Students", "Personnel", "Reports" };
 
 var builder = WebApplication.CreateBuilder(args);
 string awsCredentialsFilePath = Directory.GetCurrentDirectory() + "\\awscredentials.xml";
@@ -316,6 +318,8 @@ try
     RegisterDbContext<EffortDbContext>("VIPER");
     // Phone tables are in the VIPER database's [phones] schema.
     RegisterDbContext<PhonesDbContext>("VIPER");
+    // Report Builder tables (and the views and procedures reports read) are in the VIPER database's [report] schema.
+    RegisterDbContext<ReportBuilderDbContext>("VIPER");
     RegisterDbContext<EvalHarvestDbContext>("EvalHarvest");
     RegisterDbContext<EvalDbContext>("Eval");
     // EIS reads MyInfoVault boards and focus areas through MPVote's procedures.
@@ -330,6 +334,10 @@ try
     // UserInfo feature: its EF contexts (equipment loans, ID cards, keys, PPS),
     // HttpClient factory, and service. See UserInfoServiceCollectionExtensions.
     builder.AddUserInfoServices(enableDetailedErrors);
+    // Report Builder: reads the [report] schema's shape. Not a *Service, so Scrutor skips it.
+    builder.Services.AddScoped<IReportSourceMetadataReader, ReportSourceMetadataReader>();
+    // Report Builder: runs report queries on VIPERReports (or VIPER). Not a *Service either.
+    builder.Services.AddScoped<IReportQueryExecutor, ReportQueryExecutor>();
 
     // Shared HTML sanitizer for user-authored content (CMS, CTS, ...). Thread-safe singleton.
     builder.Services.AddSingleton<IHtmlSanitizerService, HtmlSanitizerService>();
@@ -353,6 +361,7 @@ try
                 "Viper.Areas.Curriculum.Services",
                 "Viper.Areas.Effort.Services",
                 "Viper.Areas.Personnel.Services",
+                "Viper.Areas.ReportBuilder.Services",
                 "Viper.Areas.CMS.Services"
             )
             .Where(type => type.Name.EndsWith("Service") || type.Name.EndsWith("Validator")))
