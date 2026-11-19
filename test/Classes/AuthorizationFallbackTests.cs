@@ -17,7 +17,7 @@ namespace Viper.test.Classes
         // VIPER after signing out of Entra, with nothing but a 401 in the logs to show for it.
         public static TheoryData<Type> AnonymousControllers() =>
             new(typeof(CMSController), typeof(LayoutController), typeof(LoggedInUserController),
-                typeof(EntraLogoutController));
+                typeof(EntraLogoutController), typeof(SessionTimeoutController));
 
         [Theory]
         [MemberData(nameof(AnonymousControllers))]
