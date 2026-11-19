@@ -14,6 +14,15 @@
         </div>
 
         <template v-else>
+            <StatusBanner
+                v-if="closeError"
+                type="error"
+                dismissible
+                @update:visible="closeError = null"
+            >
+                {{ closeError }}
+            </StatusBanner>
+
             <!-- Action Buttons -->
             <div class="row q-gutter-sm q-mb-md">
                 <q-btn
@@ -595,6 +604,7 @@ const availableTerms = ref<AvailableTermDto[]>([])
 const selectedNewTerm = ref<AvailableTermDto | null>(null)
 const newTermExpectedCloseDate = ref<string | null>(null)
 const isLoading = ref(false)
+const closeError = ref<string | null>(null)
 const showRolloverForm = ref(false)
 const showAddTermForm = ref(false)
 
@@ -705,21 +715,30 @@ interface TermActionConfig {
     message: string
     successMessage: string
     action: () => Promise<unknown>
+    onFailure?: (message: string) => void
 }
 
 function confirmTermAction(config: TermActionConfig) {
     $q.dialog({
         title: config.title,
         message: config.message,
+        class: "term-action-dialog",
         cancel: true,
         persistent: true,
     }).onOk(async () => {
+        closeError.value = null
         const result = await config.action()
         if (result && (typeof result !== "object" || (result as { success?: boolean }).success !== false)) {
             $q.notify({ type: "positive", message: config.successMessage })
             await loadTerms({ background: true })
+            return
+        }
+
+        const message = (result as { error?: string } | null)?.error ?? `${config.title} failed. Please try again.`
+        if (config.onFailure) {
+            config.onFailure(message)
         } else {
-            $q.notify({ type: "negative", message: `${config.title} failed. Please try again.` })
+            $q.notify({ type: "negative", message })
         }
     })
 }
@@ -797,9 +816,17 @@ function confirmOpenTerm(term: TermDto) {
 function confirmCloseTerm(term: TermDto) {
     confirmTermAction({
         title: "Close Term",
-        message: `Are you sure you want to close "${term.termName}"?`,
+        message: `Are you sure you want to close "${term.termName}"?
+
+This permanently removes zero-effort entries for instructors who have not verified, and zero-enrollment courses with no effort.
+
+Reopening the term restores at most the generic R-course (RES 000R-001).`,
         successMessage: "Term closed successfully",
         action: () => termService.closeTerm(term.termCode),
+        // The blocking course list can be too long to read in a toast
+        onFailure: (message) => {
+            closeError.value = message
+        },
     })
 }
 
@@ -862,6 +889,12 @@ onMounted(loadTerms)
 </script>
 
 <style scoped>
+/* Lets confirm messages use 
+ for paragraph breaks */
+:global(.term-action-dialog .q-dialog__message) {
+    white-space: pre-line;
+}
+
 .term-action-btn {
     min-width: 130px;
 }

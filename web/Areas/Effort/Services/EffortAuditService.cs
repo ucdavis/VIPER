@@ -83,6 +83,11 @@ public class EffortAuditService : IEffortAuditService
         AddAuditEntry(EffortAuditTables.Terms, termCode, termCode, action, SerializeChanges(oldValues, newValues));
     }
 
+    public void AddRecordChangeAudit(int recordId, int termCode, string action, object? oldValues, object? newValues)
+    {
+        AddAuditEntry(EffortAuditTables.Records, recordId, termCode, action, SerializeChanges(oldValues, newValues));
+    }
+
     public void AddCourseChangeAudit(int courseId, int termCode, string action, object? oldValues, object? newValues)
     {
         AddAuditEntry(EffortAuditTables.Courses, courseId, termCode, action, SerializeChanges(oldValues, newValues));
@@ -216,27 +221,8 @@ public class EffortAuditService : IEffortAuditService
     {
         try
         {
-            var (ipAddress, userAgent) = GetRequestInfo();
-            var changedBy = GetCurrentPersonId();
-
-            var audit = new Audit
-            {
-                TableName = tableName,
-                RecordId = recordId,
-                TermCode = termCode,
-                Action = action,
-                ChangedBy = changedBy,
-                ChangedDate = DateTime.Now,
-                Changes = changes,
-                IpAddress = ipAddress,
-                UserAgent = userAgent?.Length > 500 ? userAgent[..500] : userAgent
-            };
-
-            _context.Audits.Add(audit);
+            AddAuditEntry(tableName, recordId, termCode, action, changes);
             await _context.SaveChangesAsync(ct);
-
-            _logger.LogDebug("Created audit entry: {Action} on {TableName} record {RecordId} by user {ChangedBy}",
-                action, tableName, recordId, LogSanitizer.SanitizeId(changedBy.ToString()));
         }
         catch (DbUpdateException ex)
         {
@@ -639,6 +625,11 @@ public class EffortAuditService : IEffortAuditService
             return query.Where(_ => false);
         }
 
+        return WhereInDepartments(query, normalizedDeptCodes);
+    }
+
+    private IQueryable<Audit> WhereInDepartments(IQueryable<Audit> query, List<string> normalizedDeptCodes)
+    {
         // Find PersonIds in the specified departments
         var personIdsInDepts = _context.Persons
             .Where(p => normalizedDeptCodes.Contains(p.EffortDept.Trim().ToUpper()))
@@ -781,27 +772,7 @@ public class EffortAuditService : IEffortAuditService
 
             if (normalizedDeptCodes.Count > 0)
             {
-                // Find PersonIds in the specified departments
-                var personIdsInDepts = _context.Persons
-                    .Where(p => normalizedDeptCodes.Contains(p.EffortDept.Trim().ToUpper()))
-                    .Select(p => p.PersonId)
-                    .Distinct();
-
-                // Find RecordIds for persons in these departments
-                var recordIdsInDepts = _context.Records
-                    .Where(r => personIdsInDepts.Contains(r.PersonId))
-                    .Select(r => r.Id);
-
-                // Find PercentageIds for persons in these departments
-                var percentageIdsInDepts = _context.Percentages
-                    .Where(p => personIdsInDepts.Contains(p.PersonId))
-                    .Select(p => p.Id);
-
-                // Filter audit entries to only those related to these departments
-                query = query.Where(a =>
-                    (a.TableName == EffortAuditTables.Records && recordIdsInDepts.Contains(a.RecordId)) ||
-                    (a.TableName == EffortAuditTables.Persons && personIdsInDepts.Contains(a.RecordId)) ||
-                    (a.TableName == EffortAuditTables.Percentages && percentageIdsInDepts.Contains(a.RecordId)));
+                query = WhereInDepartments(query, normalizedDeptCodes);
             }
         }
 

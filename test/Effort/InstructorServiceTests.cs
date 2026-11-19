@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using NSubstitute;
 using Viper.Areas.Effort;
 using Viper.Areas.Effort.Constants;
@@ -28,6 +29,7 @@ public sealed class InstructorServiceTests : IDisposable
     private readonly ICourseClassificationService _classificationServiceMock;
     private readonly ILogger<InstructorService> _loggerMock;
     private readonly IMemoryCache _cache;
+    private readonly IRCourseService _rCourseServiceMock;
     private readonly InstructorService _instructorService;
 
     public InstructorServiceTests()
@@ -60,6 +62,7 @@ public sealed class InstructorServiceTests : IDisposable
         _classificationServiceMock = Substitute.For<ICourseClassificationService>();
         _loggerMock = Substitute.For<ILogger<InstructorService>>();
         _cache = new MemoryCache(new MemoryCacheOptions());
+        _rCourseServiceMock = Substitute.For<IRCourseService>();
 
         // Setup synchronous audit methods used within transactions
         _auditServiceMock
@@ -73,7 +76,10 @@ public sealed class InstructorServiceTests : IDisposable
             _auditServiceMock,
             _classificationServiceMock,
             _loggerMock,
-            _cache);
+            _cache,
+            _rCourseServiceMock,
+            Substitute.For<IUserHelper>(),
+            Options.Create(new EffortSettings { AutoCreateGenericRCourse = true }));
     }
 
     public void Dispose()
@@ -266,6 +272,28 @@ public sealed class InstructorServiceTests : IDisposable
     #endregion
 
     #region CreateInstructorAsync Tests
+
+    [Fact]
+    public async Task CreateInstructorAsync_CreatesGenericRCourseRecord()
+    {
+        _viperContext.People.Add(new Person
+        {
+            PersonId = 100,
+            ClientId = "NEWINST",
+            MothraId = "NEWINST",
+            FirstName = "New",
+            LastName = "Instructor",
+            FullName = "Instructor, New",
+            CurrentEmployee = true
+        });
+        await _viperContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        await _instructorService.CreateInstructorAsync(
+            new CreateInstructorRequest { PersonId = 100, TermCode = 202410 }, TestContext.Current.CancellationToken);
+
+        await _rCourseServiceMock.Received(1).CreateRCourseEffortRecordAsync(
+            100, 202410, Arg.Any<int>(), RCourseCreationContext.InstructorAdded, Arg.Any<CancellationToken>());
+    }
 
     [Fact]
     public async Task CreateInstructorAsync_ThrowsInstructorAlreadyExistsException_WhenInstructorExists()

@@ -18,12 +18,15 @@ namespace Viper.Areas.Effort.Controllers;
 public class TermsController : BaseEffortController
 {
     private readonly ITermService _termService;
+    private readonly IEffortPermissionService _permissionService;
 
     public TermsController(
         ITermService termService,
+        IEffortPermissionService permissionService,
         ILogger<TermsController> logger) : base(logger)
     {
         _termService = termService;
+        _permissionService = permissionService;
     }
 
     /// <summary>
@@ -178,7 +181,8 @@ public class TermsController : BaseEffortController
     }
 
     /// <summary>
-    /// Close a term. Validates no courses have zero enrollment.
+    /// Close a term, removing zero-effort records of unverified instructors and empty zero-enrollment courses.
+    /// Fails if a zero-enrollment course would still have effort records.
     /// </summary>
     [HttpPost("{termCode:int}/close")]
     [Permission(Allow = EffortPermissions.ManageTerms)]
@@ -211,7 +215,7 @@ public class TermsController : BaseEffortController
         TermDto? term;
         try
         {
-            term = await _termService.ReopenTermAsync(termCode, ct);
+            term = await _termService.ReopenTermAsync(termCode, _permissionService.GetCurrentPersonId(), ct);
         }
         catch (InvalidOperationException ex)
         {
@@ -272,15 +276,15 @@ public class TermsController : BaseEffortController
     }
 
     /// <summary>
-    /// Check if a term can be closed and get zero enrollment count.
+    /// Check if a term can be closed and get the count of zero-enrollment courses blocking it.
     /// </summary>
     [HttpGet("{termCode:int}/can-close")]
     [Permission(Allow = EffortPermissions.ManageTerms)]
     public async Task<ActionResult<object>> CanCloseTerm(int termCode, CancellationToken ct)
     {
         SetExceptionContext("termCode", termCode);
-        var (canClose, zeroEnrollmentCount) = await _termService.CanCloseTermAsync(termCode, ct);
-        return Ok(new { canClose, zeroEnrollmentCount });
+        var (canClose, blockingCourseCount) = await _termService.CanCloseTermAsync(termCode, ct);
+        return Ok(new { canClose, blockingCourseCount });
     }
 
     /// <summary>
