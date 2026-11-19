@@ -244,6 +244,7 @@
             <div
                 v-show="!showEvalTab || activeTab === 'effort'"
                 :role="showEvalTab ? 'tabpanel' : undefined"
+                :tabindex="showEvalTab ? 0 : undefined"
             >
                 <div class="row items-center q-gutter-sm q-mb-sm">
                     <q-btn
@@ -269,6 +270,7 @@
                 v-if="showEvalTab"
                 v-show="activeTab === 'evaluation'"
                 role="tabpanel"
+                tabindex="0"
             >
                 <EvaluationStatusMatrix
                     :evaluation-data="evaluationData"
