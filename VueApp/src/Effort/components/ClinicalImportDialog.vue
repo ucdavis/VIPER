@@ -106,12 +106,7 @@
                         </span>
                     </div>
                     <div class="text-caption text-grey-7">
-                        <template v-if="selectedMode === 'ClearReplace'">
-                            Clear & Replace mode will delete all existing clinical records before importing.
-                        </template>
-                        <template v-else>
-                            Sync mode will remove clinical records that no longer exist in the source.
-                        </template>
+                        {{ DELETE_EXPLANATIONS[selectedMode] }}
                     </div>
                 </StatusBanner>
 
@@ -232,6 +227,14 @@ const isCommitting = ref(false)
 const importProgress = ref(0)
 const importPhase = ref("")
 const importDetail = ref("")
+
+// Why the preview lists deletions, per mode
+const DELETE_EXPLANATIONS: Record<ClinicalImportMode, string> = {
+    ClearReplace: "Clear & Replace mode will delete all existing clinical records before importing.",
+    Sync: "Sync mode will remove clinical records that no longer exist in the source.",
+    AddNewOnly:
+        "A course being added takes every scheduled week from these records, so they are removed to keep each week credited to one course.",
+}
 
 // Computed total changes (excluding skipped)
 const totalChanges = computed(() => {
