@@ -899,6 +899,90 @@ public sealed class InstructorServiceTests : IDisposable
         Assert.Empty(otherPerson);
     }
 
+    [Theory]
+    [InlineData("Y", "N", "N", "Active", "50", 1, true)]
+    [InlineData("N", "Y", "N", "Inactive", "50", 1, true)] // on leave
+    [InlineData("N", "N", "Y", "Active", "50", 1, true)]
+    [InlineData("N", "N", "N", "Active", "50", 1, false)]
+    [InlineData("Y", "N", "N", "Separated", "50", 1, false)]
+    [InlineData("Y", "N", "N", "Active", "300000", 1, false)] // primary job in another college
+    [InlineData("Y", "N", "N", "Active", "50", 0, false)] // secondary job
+    public async Task GetPpsFacultyAsync_ReturnsFlaggedUnseparatedSvmPrimaryJobs(
+        string senate, string federation, string teaching, string jobStatus, string subDiv, int isPrimary, bool expected)
+    {
+        // Arrange
+        SetPpsJobs(new VwPersonJobPosition
+        {
+            Emplid = "10000001",
+            FirstName = "Fay",
+            LastName = "Culty",
+            Jobcode = "001901",
+            JobcodeDesc = "PROF-SFT-VM",
+            Deptid = "072030",
+            EmpAcdmcSenateFlg = senate,
+            EmpAcdmcFederationFlg = federation,
+            EmpTeachingFacultyFlg = teaching,
+            JobStatus1 = jobStatus,
+            SubDivCd = subDiv,
+            Isprimary = isPrimary
+        });
+
+        // Act
+        var result = await _instructorService.GetPpsFacultyAsync(TestContext.Current.CancellationToken);
+
+        // Assert
+        if (expected)
+        {
+            Assert.Equal(new PpsFacultyMember(null, "Fay", "Culty", "001901", "PROF-SFT-VM", "072030"), Assert.Single(result));
+        }
+        else
+        {
+            Assert.Empty(result);
+        }
+    }
+
+    [Fact]
+    public async Task GetPpsFacultyAsync_MapsEmployeeIdToCurrentMothraId()
+    {
+        // Arrange - 10000001 had their MothraId reissued, 10000002 is on leave with only a
+        // non-current row, 10000003 has no AAUD user
+        AaudUser User(string employeeId, string mothraId, int current) => new()
+        {
+            MothraId = mothraId,
+            EmployeeId = employeeId,
+            ClientId = mothraId,
+            FirstName = "F",
+            LastName = "L",
+            DisplayFirstName = "F",
+            DisplayLastName = "L",
+            DisplayFullName = "L, F",
+            Current = current
+        };
+        _aaudContext.AaudUsers.AddRange(
+            User("10000001", "NEW00001", 1),
+            User("10000001", "OLD00001", 0),
+            User("10000002", "LEAVE002", 0));
+        await _aaudContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        VwPersonJobPosition Job(string emplid) => new()
+        {
+            Emplid = emplid,
+            FirstName = "F",
+            LastName = "L",
+            EmpAcdmcSenateFlg = "Y",
+            JobStatus1 = "Active",
+            SubDivCd = "50",
+            Isprimary = 1
+        };
+        SetPpsJobs(Job("10000001"), Job("10000002"), Job("10000003"));
+
+        // Act
+        var result = await _instructorService.GetPpsFacultyAsync(TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.Equal(["NEW00001", "LEAVE002", null], result.Select(f => f.MothraId));
+    }
+
     #endregion
 
     #region PersonDto Mapping Tests

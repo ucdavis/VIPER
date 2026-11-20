@@ -393,6 +393,107 @@ public sealed class HarvestServiceTests : IDisposable
         Assert.Null(_context.Persons.Local.Single(p => p.PersonId == 25757).ReportUnit);
     }
 
+    [Fact]
+    public async Task FacultyPhase_Preview_AddsOnlyFacultyTheOtherPhasesMissed()
+    {
+        // Arrange
+        var ct = TestContext.Current.CancellationToken;
+        var termStr = TestTermCode.ToString();
+        _instructorServiceMock.GetPpsFacultyAsync(Arg.Any<CancellationToken>()).Returns(
+        [
+            new PpsFacultyMember("00000001", "Ina", "Crest", "001901", "PROF-SFT-VM", "072030"),
+            new PpsFacultyMember("00000002", "Lee", "Onleave", "001901", "PROF-SFT-VM", "072030"),
+            new PpsFacultyMember("00000003", "Em", "Eritus", "001132", "PROF EMERITUS(WOS)", "072030"),
+            new PpsFacultyMember(null, "No", "Aaud", "001901", "PROF-SFT-VM", "072030"),
+            new PpsFacultyMember("00000005", "Ann", "Active", "000900", "DIRECTOR", "072000"),
+            new PpsFacultyMember("00000006", "No", "Viper", "001901", "PROF-SFT-VM", "072030"),
+            // Job code missing from the title dictionary, so only the PPS title marks it as recall
+            new PpsFacultyMember("00000007", "Re", "Call", "003805", "RECALL (WOS)", "072030"),
+            // PPS job is fine, but the AAUD effort title for the term is emeritus
+            new PpsFacultyMember("00000008", "Em", "Aaud", "001901", "PROF-SFT-VM", "072030")
+        ]);
+        _instructorServiceMock
+            .GetExcludedTitleCodesAsync(Arg.Any<CancellationToken>())
+            .Returns(new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "001132" });
+        _instructorServiceMock
+            .GetDepartmentSimpleNameLookupAsync(Arg.Any<CancellationToken>())
+            .Returns(new Dictionary<string, string> { ["072030"] = "VME" });
+        _instructorServiceMock
+            .BatchResolveDepartmentsAsync(Arg.Any<List<string>>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(new Dictionary<string, string> { ["00000002"] = "UNK", ["00000005"] = "VSR", ["00000006"] = "UNK" });
+
+        // Only 00000005 and 00000008 have AAUD rows for the term, and their effort titles differ from the PPS job
+        void AddAaudTermRow(string pKey, string mothraId, string effortTitleCode)
+        {
+            _aaudContext.Ids.Add(new Models.AAUD.Id { IdsPKey = pKey, IdsTermCode = termStr, IdsClientid = pKey, IdsMothraid = mothraId, IdsPidm = pKey });
+            _aaudContext.Employees.Add(new Models.AAUD.Employee
+            {
+                EmpPKey = pKey,
+                EmpTermCode = termStr,
+                EmpClientid = pKey,
+                EmpHomeDept = "072035",
+                EmpAltDeptCode = "",
+                EmpSchoolDivision = "VM",
+                EmpCbuc = "99",
+                EmpStatus = "A",
+                EmpEffortTitleCode = effortTitleCode
+            });
+        }
+        AddAaudTermRow("PK5", "00000005", "001917");
+        AddAaudTermRow("PK8", "00000008", "001132");
+        _viperContext.People.Add(new Person { PersonId = 102, ClientId = "C2", MothraId = "00000002", FirstName = "Lee", LastName = "Onleave", FullName = "Onleave, Lee" });
+        _viperContext.People.Add(new Person { PersonId = 105, ClientId = "C5", MothraId = "00000005", FirstName = "Ann", LastName = "Active", FullName = "Active, Ann" });
+        _viperContext.People.Add(new Person { PersonId = 108, ClientId = "C8", MothraId = "00000008", FirstName = "Em", LastName = "Aaud", FullName = "Aaud, Em" });
+        await _aaudContext.SaveChangesAsync(ct);
+        await _viperContext.SaveChangesAsync(ct);
+
+        var context = CreateHarvestContext();
+        context.Preview.CrestInstructors.Add(new HarvestPersonPreview { MothraId = "00000001", PersonId = 101 });
+
+        // Act
+        await new FacultyHarvestPhase().GeneratePreviewAsync(context, ct);
+
+        // Assert: AAUD title and dept win; PPS fills in for the person with no AAUD term row
+        Assert.Equal(["00000005", "00000002"], context.Preview.FacultyInstructors.Select(i => i.MothraId));
+        var active = context.Preview.FacultyInstructors[0];
+        Assert.Equal(("001917", "VSR", 105), (active.TitleCode, active.Department, active.PersonId));
+        var onLeave = context.Preview.FacultyInstructors[1];
+        Assert.Equal(("001901", "VME", EffortConstants.SourceFaculty), (onLeave.TitleCode, onLeave.Department, onLeave.Source));
+        Assert.Equal("PROF-SFT-VM", onLeave.TitleDescription);
+
+        var warning = Assert.Single(context.Preview.Warnings);
+        Assert.StartsWith("2 faculty not added", warning.Message);
+        Assert.Equal("Aaud, No; Viper, No", warning.Details);
+    }
+
+    [Fact]
+    public async Task FacultyPhase_Execute_CreatesPersonWithNoEffortRecords()
+    {
+        // Arrange
+        var ct = TestContext.Current.CancellationToken;
+        IReadOnlySet<string> cahfsIds = new HashSet<string> { "00000002" };
+        _instructorServiceMock.GetCahfsMothraIdsAsync(TestTermCode, Arg.Any<CancellationToken>()).Returns(cahfsIds);
+        var context = CreateHarvestContext();
+        context.Preview.FacultyInstructors.Add(new HarvestPersonPreview
+        {
+            MothraId = "00000002",
+            PersonId = 102,
+            FirstName = "Lee",
+            LastName = "Onleave",
+            Department = "VME",
+            TitleCode = "001901"
+        });
+
+        // Act
+        await new FacultyHarvestPhase().ExecuteAsync(context, ct);
+
+        // Assert
+        var person = Assert.Single(_context.Persons.Local);
+        Assert.Equal((102, "001901", "VME", EffortConstants.CahfsReportUnit), (person.PersonId, person.EffortTitleCode, person.EffortDept, person.ReportUnit));
+        Assert.Empty(_context.Records.Local);
+        Assert.Equal(1, context.InstructorsImported);
+    }
+
     #endregion
 
     #region ExecuteHarvestAsync Tests

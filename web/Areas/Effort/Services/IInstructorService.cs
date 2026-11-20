@@ -200,4 +200,15 @@ public interface IInstructorService
     /// All MothraIds with a current PPS job, or an AAUD job for the term, in the CAHFS department (072200).
     /// </summary>
     Task<IReadOnlySet<string>> GetCahfsMothraIdsAsync(int termCode, CancellationToken ct = default);
+
+    /// <summary>
+    /// Everyone whose current primary PPS job is in the school, is not separated, and carries
+    /// a senate, federation, or teaching faculty flag. Includes people on leave.
+    /// </summary>
+    Task<List<PpsFacultyMember>> GetPpsFacultyAsync(CancellationToken ct = default);
 }
+
+/// <summary>
+/// A faculty member from PPS. MothraId is null when the employee ID matches no AAUD user.
+/// </summary>
+public sealed record PpsFacultyMember(string? MothraId, string FirstName, string LastName, string JobCode, string JobTitle, string? DeptId);
