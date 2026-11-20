@@ -1249,7 +1249,12 @@ public class ClinicalImportService : IClinicalImportService
             return courses[0];
         }
 
-        return courses.MinBy(c => ClinicalCoursePriority.GetValueOrDefault(c, int.MaxValue)) ?? courses[0];
+        // Ties (courses not in the table) go to the lowest course code, never to list order:
+        // the list follows database row order, which differs between preview and import.
+        return courses
+            .OrderBy(c => ClinicalCoursePriority.GetValueOrDefault(c, int.MaxValue))
+            .ThenBy(c => c, StringComparer.Ordinal)
+            .First();
     }
 
     /// <summary>

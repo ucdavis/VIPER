@@ -96,6 +96,20 @@ public sealed class ClinicalImportServiceTests : IDisposable
         _coursesContext.Dispose();
     }
 
+    #region GetPriorityCourse Tests
+
+    [Theory]
+    [InlineData("DVM 463", "DVM 478", "DVM 463")] // neither in the priority table: lowest code
+    [InlineData("DVM 478", "DVM 463", "DVM 463")] // same answer whatever the list order
+    [InlineData("DVM 492", "DVM 491", "DVM 491")] // table priority still wins
+    [InlineData("DVM 400", "DVM 447", "DVM 447")] // a listed course beats an unlisted one
+    public void GetPriorityCourse_IsIndependentOfListOrder(string first, string second, string expected)
+    {
+        Assert.Equal(expected, ClinicalImportService.GetPriorityCourse([first, second]));
+    }
+
+    #endregion
+
     #region GetPreviewAsync Validation Tests
 
     [Fact]
