@@ -10,7 +10,14 @@ import type { EisAcademics as EisAcademicsData, EisAppointmentCategories } from 
  * lets EIS administrators set and clear the manual categories.
  */
 
-vi.mock("vue-router", () => ({ useRoute: () => ({ params: { employeeId: "10123456" } }) }))
+const EMPLOYEE_ID = "10123456"
+const mocked = vi.hoisted(() => ({ route: { params: { employeeId: "" } } }))
+vi.mock("vue-router", async () => {
+    // Reactive, so a test can move to another employee the way the person picker does.
+    const { reactive } = await import("vue")
+    mocked.route = reactive({ params: { employeeId: "" } })
+    return { useRoute: () => mocked.route }
+})
 vi.mock("../services/eis-service", () => ({
     eisService: {
         getAcademics: vi.fn<(...args: unknown[]) => unknown>(),
@@ -40,6 +47,10 @@ function categories(canEditFlags: boolean, directorApplies = false): EisAppointm
         ],
     }
 }
+
+beforeEach(() => {
+    mocked.route.params.employeeId = EMPLOYEE_ID
+})
 
 async function mountTab(component: object) {
     const wrapper = mount(component, { global: { plugins: [Quasar] } })
@@ -133,9 +144,32 @@ describe("eisAppointmentCategory.vue", () => {
         await wrapper.find('[role="checkbox"]').trigger("click")
         await flushPromises()
 
-        expect(eisService.setFlag).toHaveBeenCalledWith("10123456", 4, true)
+        expect(eisService.setFlag).toHaveBeenCalledWith(EMPLOYEE_ID, 4, true)
         expect(wrapper.find('[role="checkbox"]').attributes("aria-checked")).toBe("true")
         expect(wrapper.text()).not.toContain("Only EIS administrators")
+    })
+
+    it("ignores a save that finishes after the user has moved to another employee", async () => {
+        expect.hasAssertions()
+        vi.mocked(eisService.getCategories).mockResolvedValue(categories(true))
+        const save: { finish?: (updated: EisAppointmentCategories | null) => void } = {}
+        vi.mocked(eisService.setFlag).mockReturnValue(
+            new Promise((resolve) => {
+                save.finish = resolve
+            }),
+        )
+        const wrapper = await mountTab(EisAppointmentCategory)
+        await wrapper.find('[role="checkbox"]').trigger("click")
+
+        mocked.route.params.employeeId = "10765432"
+        await flushPromises()
+        save.finish?.(categories(true, true))
+        await flushPromises()
+
+        expect(eisService.setFlag).toHaveBeenCalledWith(EMPLOYEE_ID, 4, true)
+        expect(eisService.getCategories).toHaveBeenLastCalledWith("10765432")
+        expect(wrapper.find('[role="checkbox"]').attributes("aria-checked")).toBe("false")
+        expect(wrapper.find('[role="checkbox"]').attributes("aria-disabled")).not.toBe("true")
     })
 
     it("says when a change fails or the categories could not be loaded", async () => {

@@ -73,7 +73,7 @@
                 <td class="text-right">
                     {{ formatMoney(distribution.amount) }}
                     <span
-                        v-if="distribution.amount < 0"
+                        v-if="distribution.amount !== null && distribution.amount < 0"
                         class="text-weight-bold"
                         >(reduction)</span
                     >

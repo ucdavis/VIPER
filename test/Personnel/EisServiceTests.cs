@@ -242,7 +242,7 @@ public sealed class EisServiceTests
         Assert.Equal("1", first.Number);
         Assert.Equal("PROF-AY", first.Title);
         Assert.Null(first.Grade);
-        Assert.Equal([75_000m, -2_000m], first.Distributions.Select(distribution => distribution.Amount));
+        Assert.Equal<decimal?>([75_000m, -2_000m], first.Distributions.Select(distribution => distribution.Amount));
         Assert.Equal("12345", first.Distributions[0].Account);
         Assert.Equal("5", first.Distributions[0].Step);
         Assert.Equal(100_000m, first.Total);
@@ -252,7 +252,7 @@ public sealed class EisServiceTests
         Assert.Null(result.Appointments[1].Total);
         await _data.Received(1).GetDistributionsAsync(EmployeeId, Arg.Any<string>(), Arg.Any<CancellationToken>());
 
-        Assert.Equal([6_000m, 1_000m], result.Stipends.Select(stipend => stipend.AnnualAmount));
+        Assert.Equal<decimal?>([6_000m, 1_000m], result.Stipends.Select(stipend => stipend.AnnualAmount));
         Assert.Equal(new DateOnly(2026, 6, 30), result.Stipends[1].EndDate);
         Assert.Equal(107_000m, result.TotalAnnual);
     }
@@ -265,6 +265,20 @@ public sealed class EisServiceTests
         Assert.Equal(0m, distribution.Amount);
         Assert.Null(distribution.EndDate);
         Assert.Equal("1", distribution.Number);
+    }
+
+    [Fact]
+    public void ToDistributionAndToStipend_WithNullColumns_LeaveThoseValuesOut()
+    {
+        EisDistribution distribution = EisService.ToDistribution(new EisDistributionRow());
+        EisStipend stipend = EisService.ToStipend(new EisStipendRow());
+
+        Assert.Null(distribution.BeginDate);
+        Assert.Null(distribution.Step);
+        Assert.Null(distribution.Amount);
+        Assert.Null(stipend.EffectiveDate);
+        Assert.Equal(string.Empty, stipend.EarningsCode);
+        Assert.Null(stipend.AnnualAmount);
     }
 
     [Theory]
@@ -369,6 +383,30 @@ public sealed class EisServiceTests
         Assert.Equal(new EisHomePhone { Phone = "530-555-1000", ReleaseCampus = "1" }, address.HomePhone);
         Assert.Equal([listing], address.CampusListings);
         Assert.True(address.CampusDirectoryAvailable);
+    }
+
+    [Fact]
+    public async Task GetAddressAndHistory_WithNullColumns_ShowThemBlank()
+    {
+        Ids(null);
+        _directory.GetCampusListings(EmployeeId, null).Returns([]);
+        _data.GetPermanentAddressAsync(EmployeeId, Arg.Any<CancellationToken>()).Returns(new EisPermanentAddressRow());
+        _data.GetHomePhoneAsync(EmployeeId, Arg.Any<CancellationToken>()).Returns(new EisHomePhoneRow());
+        _data.GetHistoryAsync(EmployeeId, Arg.Any<CancellationToken>()).Returns([new EisHistoryRow()]);
+        _data.GetLeavesAsync(EmployeeId, Arg.Any<CancellationToken>()).Returns([]);
+
+        EisAddress address = await _service.GetAddressAsync(EmployeeId, Ct);
+        EisHistory history = await _service.GetHistoryAsync(EmployeeId, Ct);
+
+        Assert.NotNull(address.Permanent);
+        Assert.Equal(string.Empty, address.Permanent.Line1);
+        Assert.Null(address.Permanent.Line2);
+        Assert.Equal(string.Empty, address.Permanent.ReleaseCampus);
+        Assert.Equal(string.Empty, address.HomePhone?.Phone);
+        EisHistoryEntry entry = Assert.Single(history.Appointments);
+        Assert.Null(entry.ActionDate);
+        Assert.Null(entry.BeginDate);
+        Assert.Null(entry.Step);
     }
 
     [Fact]

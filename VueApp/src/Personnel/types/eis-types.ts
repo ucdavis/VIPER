@@ -41,13 +41,13 @@ interface EisPersonHeader {
 
 interface EisDistribution {
     number: string | null
-    beginDate: string
+    beginDate: string | null
     endDate: string | null
     percent: number | null
     account: string | null
-    step: string
+    step: string | null
     dosCode: string | null
-    amount: number
+    amount: number | null
 }
 
 interface EisAppointment {
@@ -64,10 +64,10 @@ interface EisAppointment {
 }
 
 interface EisStipend {
-    effectiveDate: string
+    effectiveDate: string | null
     endDate: string | null
     earningsCode: string
-    annualAmount: number
+    annualAmount: number | null
 }
 
 interface EisAppointments {

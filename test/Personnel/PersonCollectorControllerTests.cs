@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
+using Viper.Areas.Personnel;
 using Viper.Areas.Personnel.Controllers;
 using Viper.Areas.Personnel.Models.PersonCollector;
 using Viper.Areas.Personnel.Services;
@@ -22,13 +23,15 @@ public sealed class PersonCollectorControllerTests
     };
 
     private readonly IPersonCollectorService _collector = Substitute.For<IPersonCollectorService>();
-    private readonly ILogger<PersonCollectorController> _logger = Substitute.For<ILogger<PersonCollectorController>>();
+    private readonly ILogger _logger = Substitute.For<ILogger>();
     private readonly PersonCollectorController _controller;
 
     public PersonCollectorControllerTests()
     {
+        var loggerFactory = Substitute.For<ILoggerFactory>();
+        loggerFactory.CreateLogger(PersonnelAudit.LoggerName).Returns(_logger);
         _controller = new PersonCollectorController(
-            _collector, Substitute.For<IUserHelper>(), _logger)
+            _collector, Substitute.For<IUserHelper>(), loggerFactory)
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() },
         };

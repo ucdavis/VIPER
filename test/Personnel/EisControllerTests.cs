@@ -1,8 +1,9 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Logging;
 using NSubstitute;
 using NSubstitute.ReturnsExtensions;
+using Viper.Areas.Personnel;
 using Viper.Areas.Personnel.Controllers;
 using Viper.Areas.Personnel.Models.Eis;
 using Viper.Areas.Personnel.Services;
@@ -21,13 +22,17 @@ public sealed class EisControllerTests
 
     private readonly IEisService _eis = Substitute.For<IEisService>();
     private readonly IPhotoService _photos = Substitute.For<IPhotoService>();
+    private readonly ILogger _audit = Substitute.For<ILogger>();
     private readonly EisController _controller;
 
     public EisControllerTests()
     {
         var userHelper = Substitute.For<IUserHelper>();
         userHelper.GetCurrentUser().Returns(User());
-        _controller = new EisController(_eis, _photos, userHelper, NullLogger<EisController>.Instance)
+        var loggerFactory = Substitute.For<ILoggerFactory>();
+        loggerFactory.CreateLogger(PersonnelAudit.LoggerName).Returns(_audit);
+        _audit.IsEnabled(LogLevel.Information).Returns(true);
+        _controller = new EisController(_eis, _photos, userHelper, loggerFactory)
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() },
         };
@@ -200,6 +205,23 @@ public sealed class EisControllerTests
         Assert.Same(categories, ValueOf((await _controller.ClearFlag(EmployeeId, 4, Ct)).Result));
         await _eis.Received(1).SetFlagAsync(EmployeeId, 4, true, Arg.Any<CancellationToken>());
         await _eis.Received(1).SetFlagAsync(EmployeeId, 4, false, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SetFlag_IsWrittenToThePersonnelAuditLog()
+    {
+        Allow();
+        _eis.SetFlagAsync(EmployeeId, 4, true, Arg.Any<CancellationToken>()).Returns(new EisAppointmentCategories
+        {
+            Categories = [],
+            AcademicYear = "2026-2027",
+            CanEditFlags = true,
+        });
+
+        await _controller.SetFlag(EmployeeId, 4, Ct);
+
+        // One entry for viewing the employee, one for the change.
+        Assert.Equal(2, _audit.ReceivedCalls().Count(call => call.GetMethodInfo().Name == nameof(ILogger.Log)));
     }
 
     [Fact]
