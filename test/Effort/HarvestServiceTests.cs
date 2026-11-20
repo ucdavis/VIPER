@@ -150,15 +150,24 @@ public sealed class HarvestServiceTests : IDisposable
     #region GeneratePreviewAsync Tests
 
     [Theory]
-    [InlineData(true, true, 2, 5)]
-    [InlineData(true, false, 2, 3)]
-    [InlineData(false, true, 1, 3)]
+    [InlineData(true, EffortConstants.VariableEffortType, false, 2, 5)]
+    [InlineData(true, EffortConstants.VariableEffortType, true, 2, 3)]
+    [InlineData(true, "LEC", false, 2, 3)]
+    [InlineData(false, EffortConstants.VariableEffortType, false, 1, 3)]
     public async Task GeneratePreviewAsync_SummaryIncludesExpectedRCourses(
-        bool autoCreate, bool effortTypeActive, int expectedCourses, int expectedRecords)
+        bool autoCreate, string effortTypeId, bool usesWeeks, int expectedCourses, int expectedRecords)
     {
-        // Arrange: both instructors get the R-course, including 00000002 who only has R-course effort
+        // Arrange: both instructors get the R-course, including 00000002 who only has R-course effort.
+        // Only an hour-based VAR yields records, whatever its Active/AllowedOnRCourses flags.
         var ct = TestContext.Current.CancellationToken;
-        _context.EffortTypes.Add(new EffortType { Id = "LEC", Description = "Lecture", AllowedOnRCourses = true, IsActive = effortTypeActive });
+        _context.EffortTypes.Add(new EffortType
+        {
+            Id = effortTypeId,
+            Description = effortTypeId,
+            UsesWeeks = usesWeeks,
+            AllowedOnRCourses = effortTypeId != EffortConstants.VariableEffortType,
+            IsActive = effortTypeId != EffortConstants.VariableEffortType
+        });
         await _context.SaveChangesAsync(ct);
 
         var service = new HarvestService(

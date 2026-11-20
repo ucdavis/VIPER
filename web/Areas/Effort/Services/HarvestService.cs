@@ -505,9 +505,10 @@ public class HarvestService : IHarvestService
             return;
         }
 
-        // The course is created even when no effort type allows R-course records.
+        // The course is created even when VAR can't hold the placeholder record.
         context.Preview.Summary.TotalCourses++;
-        if (await _context.EffortTypes.AnyAsync(t => t.AllowedOnRCourses && t.IsActive, ct))
+        if (await _context.EffortTypes.AsNoTracking()
+                .AnyAsync(t => t.Id == EffortConstants.VariableEffortType && !t.UsesWeeks, ct))
         {
             context.Preview.Summary.TotalEffortRecords += eligibleInstructors;
         }

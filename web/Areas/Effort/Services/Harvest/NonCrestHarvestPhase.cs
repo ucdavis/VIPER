@@ -152,7 +152,7 @@ public sealed class NonCrestHarvestPhase : HarvestPhaseBase
         }
 
         // Get instructors and effort records. Effort belongs to the CRN, not a unit
-        // variant, so a POA CREST already supplies effort for on that CRN (at any units)
+        // variant, so a POA on a CRN that CREST already supplies effort for (at any units)
         // only feeds the director dept fallback.
         var crestCrns = context.Preview.CrestCourses.Select(c => c.Crn).ToHashSet();
         var crestEffortKeys = context.Preview.CrestEffort
