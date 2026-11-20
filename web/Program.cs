@@ -22,6 +22,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Rewrite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Options;
@@ -132,6 +133,24 @@ try
     builder.Services.AddMemoryCache();
     builder.Services.AddHttpContextAccessor();
 
+    // State both blue/green slots must agree on (today: Entra logout revocations). Deployed
+    // environments name a SQL table in ConnectionStrings:VIPER; the key is unset locally, so dev
+    // keeps it in process.
+    var distributedCacheTable = builder.Configuration["DistributedCache:TableName"];
+    if (string.IsNullOrWhiteSpace(distributedCacheTable))
+    {
+        builder.Services.AddDistributedMemoryCache();
+    }
+    else
+    {
+        builder.Services.AddDistributedSqlServerCache(options =>
+        {
+            options.ConnectionString = builder.Configuration.GetConnectionString("VIPER");
+            options.SchemaName = "dbo";
+            options.TableName = distributedCacheTable;
+        });
+    }
+
     // Cross site request forgery security
     // For AJAX calls be sure to set the header name to this value and pass the antiforgery token
     builder.Services.AddAntiforgery(options =>
@@ -146,7 +165,10 @@ try
     var authCookieLifetime = TimeSpan.FromHours(12);
 
     builder.Services.AddSingleton(sp =>
-        new EntraSessionRevocationStore(sp.GetRequiredService<IMemoryCache>(), authCookieLifetime));
+        new EntraSessionRevocationStore(
+            sp.GetRequiredService<IMemoryCache>(),
+            sp.GetRequiredService<IDistributedCache>(),
+            authCookieLifetime));
 
     // Setup the shared sign-in cookie. Both CAS and Entra ID sign in to this same cookie, so a
     // session looks identical downstream no matter which provider issued it.
