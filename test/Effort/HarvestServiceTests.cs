@@ -18,8 +18,6 @@ namespace Viper.test.Effort;
 /// <summary>
 /// Unit tests for HarvestService harvest operations.
 /// Tests focus on preview generation, harvest execution, and error handling.
-/// Note: Clinical data tests are excluded as VIPERContext.Weeks/InstructorSchedules
-/// require cross-database access not available in unit tests.
 /// </summary>
 public sealed class HarvestServiceTests : IDisposable
 {
@@ -493,6 +491,61 @@ public sealed class HarvestServiceTests : IDisposable
         Assert.Equal((102, "001901", "VME", EffortConstants.CahfsReportUnit), (person.PersonId, person.EffortTitleCode, person.EffortDept, person.ReportUnit));
         Assert.Empty(_context.Records.Local);
         Assert.Equal(1, context.InstructorsImported);
+    }
+
+    [Fact]
+    public async Task ClinicalPhase_Preview_CreditsEachWeekOnceToPriorityCourse()
+    {
+        // Arrange: week 1 has DVM 463 on two rotations plus DVM 478; week 2 is DVM 478 alone
+        var ct = TestContext.Current.CancellationToken;
+        const int semesterTerm = 202409;
+        const string mothraId = "00000030";
+        _viperContext.Weeks.AddRange(
+            new Viper.Models.CTS.Week { WeekId = 1, TermCode = semesterTerm },
+            new Viper.Models.CTS.Week { WeekId = 2, TermCode = semesterTerm });
+        var rows = new[] { (1, 1, "463"), (1, 2, "463"), (1, 1, "478"), (2, 1, "478") };
+        foreach (var (weekId, rotationId, crseNumb) in rows)
+        {
+            _viperContext.InstructorSchedules.Add(new Viper.Models.CTS.InstructorSchedule
+            {
+                MothraId = mothraId,
+                WeekId = weekId,
+                RotationId = rotationId,
+                SubjCode = "DVM",
+                CrseNumb = crseNumb,
+                FirstName = "Cli",
+                LastName = "Nician",
+                FullName = "Nician, Cli",
+                RotationName = $"Rotation {rotationId}",
+                Abbreviation = $"R{rotationId}",
+                ServiceName = "Service"
+            });
+        }
+        await _viperContext.SaveChangesAsync(ct);
+
+        var validation = new ImportValidationResult();
+        validation.ImportableMothraIds.Add(mothraId);
+        validation.TitleCodeByMothraId[mothraId] = "001901";
+        _clinicalImportServiceMock
+            .ValidateImportableInstructorsAsync(Arg.Any<List<string>>(), semesterTerm, Arg.Any<CancellationToken>())
+            .Returns(validation);
+        _instructorServiceMock.GetTitleCodesAsync(Arg.Any<CancellationToken>())
+            .Returns([new TitleCodeDto { Code = "001901", Name = "PROF-SFT-VM" }]);
+        _instructorServiceMock
+            .BatchResolveDepartmentsAsync(Arg.Any<List<string>>(), semesterTerm, Arg.Any<CancellationToken>())
+            .Returns(new Dictionary<string, string> { [mothraId] = "VMB" });
+
+        var context = CreateHarvestContext(semesterTerm);
+
+        // Act
+        await new ClinicalHarvestPhase(_clinicalImportServiceMock).GeneratePreviewAsync(context, ct);
+
+        // Assert
+        Assert.Equal(
+            [("DVM 463", 1), ("DVM 478", 1)],
+            context.Preview.ClinicalEffort.OrderBy(e => e.CourseCode).Select(e => (e.CourseCode, e.Weeks ?? 0)));
+        var instructor = Assert.Single(context.Preview.ClinicalInstructors);
+        Assert.Equal(("001901", "PROF-SFT-VM", "VMB"), (instructor.TitleCode, instructor.TitleDescription, instructor.Department));
     }
 
     #endregion
@@ -1178,9 +1231,9 @@ public sealed class HarvestServiceTests : IDisposable
     /// <summary>
     /// Creates a HarvestContext wired to the test contexts and mocks, for driving a phase directly.
     /// </summary>
-    private HarvestContext CreateHarvestContext() => new()
+    private HarvestContext CreateHarvestContext(int termCode = TestTermCode) => new()
     {
-        TermCode = TestTermCode,
+        TermCode = termCode,
         EffortContext = _context,
         CrestContext = _crestContext,
         CoursesContext = _coursesContext,

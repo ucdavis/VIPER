@@ -195,8 +195,18 @@ public class ClinicalImportService : IClinicalImportService
         var uniqueMothraIds = sourceData.Select(s => s.MothraId).Distinct().ToList();
         var validation = await ValidateImportableInstructorsAsync(uniqueMothraIds, termCode, ct);
 
+        // Execution also imports for anyone already in the term, valid AAUD data or not
+        // (EnsureEffortPersonAsync), so the preview has to count them too.
+        var existingPersonMothraIds = (await _context.Persons
+            .AsNoTracking()
+            .Where(p => p.TermCode == termCode)
+            .Join(_context.ViperPersons, p => p.PersonId, vp => vp.PersonId, (p, vp) => vp.MothraId)
+            .ToListAsync(ct))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
         var filteredSourceData = sourceData
-            .Where(s => validation.ImportableMothraIds.Contains(s.MothraId))
+            .Where(s => validation.ImportableMothraIds.Contains(s.MothraId)
+                     || existingPersonMothraIds.Contains(s.MothraId))
             .ToList();
 
         // Get existing clinical records for comparison
@@ -441,7 +451,7 @@ public class ClinicalImportService : IClinicalImportService
                 personWeekCourses[schedule.MothraId][schedule.WeekId] = [];
             }
 
-            var courseKey = $"{schedule.SubjCode} {schedule.CrseNumb}";
+            var courseKey = BuildNormalizedCourseKey(schedule.SubjCode, schedule.CrseNumb);
             if (!personWeekCourses[schedule.MothraId][schedule.WeekId].Contains(courseKey))
             {
                 personWeekCourses[schedule.MothraId][schedule.WeekId].Add(courseKey);
@@ -454,7 +464,7 @@ public class ClinicalImportService : IClinicalImportService
         foreach (var schedule in clinicalData.Where(s =>
             !string.IsNullOrEmpty(s.MothraId) && !string.IsNullOrEmpty(s.SubjCode)))
         {
-            var courseKey = $"{schedule.SubjCode} {schedule.CrseNumb}";
+            var courseKey = BuildNormalizedCourseKey(schedule.SubjCode, schedule.CrseNumb);
 
             // Check if this course is the priority for this person/week
             var weekCourses = personWeekCourses[schedule.MothraId][schedule.WeekId];
@@ -470,6 +480,7 @@ public class ClinicalImportService : IClinicalImportService
                 SubjCode = schedule.SubjCode ?? "",
                 CrseNumb = schedule.CrseNumb ?? "",
                 CourseKey = courseKey,
+                WeekCourses = weekCourses,
                 RotationName = schedule.RotationName ?? "",
                 ServiceName = schedule.ServiceName ?? "",
                 PersonName = schedule.PersonName ?? ""
@@ -560,19 +571,39 @@ public class ClinicalImportService : IClinicalImportService
         switch (mode)
         {
             case ClinicalImportMode.AddNewOnly:
+                var displaced = GetDisplacedRecords(sourceData, existingLookup,
+                    sourceKeys.Where(k => !existingLookup.ContainsKey(k)).ToHashSet());
+
                 foreach (var source in sourceAggregated)
                 {
                     var key = (source.MothraId, source.CourseKey);
                     var hasExisting = existingLookup.TryGetValue(key, out var existing);
 
+                    var isDisplaced = hasExisting && existing != null && displaced.ContainsKey(existing.Id);
+                    var existingStatus = isDisplaced ? "Update" : "Skip";
+
                     assignments.Add(new ClinicalAssignmentPreview
                     {
-                        Status = hasExisting ? "Skip" : "New",
+                        Status = hasExisting ? existingStatus : "New",
                         ExistingRecordId = hasExisting && existing != null ? existing.Id : null,
                         MothraId = source.FirstRecord.MothraId,
                         InstructorName = source.FirstRecord.PersonName,
                         CourseNumber = source.FirstRecord.CourseKey,
-                        Weeks = hasExisting && existing != null ? existing.Weeks : source.Weeks
+                        Weeks = hasExisting && existing != null && !isDisplaced ? existing.Weeks : source.Weeks,
+                        ExistingWeeks = isDisplaced ? existing!.Weeks : null
+                    });
+                }
+
+                foreach (var (removed, _) in displaced.Values.Where(d => d.Weeks == 0))
+                {
+                    assignments.Add(new ClinicalAssignmentPreview
+                    {
+                        Status = "Delete",
+                        ExistingRecordId = removed.Id,
+                        MothraId = removed.MothraId,
+                        InstructorName = removed.PersonName,
+                        CourseNumber = $"{removed.SubjCode} {removed.CrseNumb}",
+                        Weeks = removed.Weeks
                     });
                 }
                 break;
@@ -693,6 +724,7 @@ public class ClinicalImportService : IClinicalImportService
         switch (mode)
         {
             case ClinicalImportMode.AddNewOnly:
+                var addedKeys = new HashSet<(string MothraId, string CourseKey)>();
                 foreach (var source in sourceAggregated)
                 {
                     ct.ThrowIfCancellationRequested();
@@ -709,12 +741,16 @@ public class ClinicalImportService : IClinicalImportService
                     if (created)
                     {
                         result.RecordsAdded++;
+                        addedKeys.Add(key);
                     }
                     else
                     {
                         result.RecordsSkipped++;
                     }
                 }
+
+                await ApplyDisplacedRecordsAsync(
+                    GetDisplacedRecords(sourceData, existingLookup, addedKeys), modifiedBy, result, ct);
                 break;
 
             case ClinicalImportMode.ClearReplace:
@@ -858,6 +894,7 @@ public class ClinicalImportService : IClinicalImportService
         switch (mode)
         {
             case ClinicalImportMode.AddNewOnly:
+                var addedKeys = new HashSet<(string MothraId, string CourseKey)>();
                 foreach (var source in sourceAggregated)
                 {
                     ct.ThrowIfCancellationRequested();
@@ -874,6 +911,7 @@ public class ClinicalImportService : IClinicalImportService
                         if (created)
                         {
                             result.RecordsAdded++;
+                            addedKeys.Add(key);
                         }
                         else
                         {
@@ -884,6 +922,9 @@ public class ClinicalImportService : IClinicalImportService
                     currentOperation++;
                     await progressChannel.WriteAsync(ClinicalImportProgressEvent.Importing(currentOperation, totalOperations), ct);
                 }
+
+                await ApplyDisplacedRecordsAsync(
+                    GetDisplacedRecords(sourceData, existingLookup, addedKeys), modifiedBy, result, ct);
                 break;
 
             case ClinicalImportMode.ClearReplace:
@@ -993,6 +1034,83 @@ public class ClinicalImportService : IClinicalImportService
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// AddNewOnly leaves existing records alone, with one exception. When it adds a course that
+    /// took a week from a course the person already has a record for (the priority winner
+    /// changed since that record was imported), the older record drops to its scheduled weeks.
+    /// Otherwise the same week is credited to both courses.
+    /// </summary>
+    /// <returns>Affected records by ID with their scheduled weeks; 0 means none are left.</returns>
+    private static Dictionary<int, (ExistingClinicalRecord Existing, int Weeks)> GetDisplacedRecords(
+        List<ClinicalSourceRecord> sourceData,
+        Dictionary<(string MothraId, string CourseKey), ExistingClinicalRecord> existingLookup,
+        HashSet<(string MothraId, string CourseKey)> addedKeys)
+    {
+        var scheduledWeeks = sourceData
+            .GroupBy(s => (MothraId: s.MothraId.ToUpperInvariant(), CourseKey: s.CourseKey.ToUpperInvariant()))
+            .ToDictionary(g => g.Key, g => g.Select(s => s.WeekId).Distinct().Count());
+
+        var displaced = new Dictionary<int, (ExistingClinicalRecord Existing, int Weeks)>();
+
+        foreach (var source in sourceData)
+        {
+            var mothraId = source.MothraId.ToUpperInvariant();
+            if (!addedKeys.Contains((mothraId, source.CourseKey.ToUpperInvariant())))
+            {
+                continue;
+            }
+
+            foreach (var loserKey in source.WeekCourses
+                         .Where(c => c != source.CourseKey)
+                         .Select(c => (mothraId, c.ToUpperInvariant())))
+            {
+                if (!existingLookup.TryGetValue(loserKey, out var existing))
+                {
+                    continue;
+                }
+
+                // Only ever lowers weeks: a record at or below its schedule is not double-credited.
+                var weeks = scheduledWeeks.GetValueOrDefault(loserKey);
+                if (weeks < existing.Weeks)
+                {
+                    displaced[existing.Id] = (existing, weeks);
+                }
+            }
+        }
+
+        return displaced;
+    }
+
+    private async Task ApplyDisplacedRecordsAsync(
+        Dictionary<int, (ExistingClinicalRecord Existing, int Weeks)> displaced,
+        int modifiedBy,
+        ClinicalImportResultDto result,
+        CancellationToken ct)
+    {
+        foreach (var (id, (_, weeks)) in displaced)
+        {
+            var record = await _context.Records.FindAsync([id], ct);
+            if (record == null)
+            {
+                continue;
+            }
+
+            if (weeks == 0)
+            {
+                _context.Records.Remove(record);
+                result.RecordsDeleted++;
+            }
+            else if (weeks < (record.Weeks ?? 0)) // recheck: the plan came from an earlier snapshot
+            {
+                record.Weeks = weeks;
+                record.ModifiedDate = DateTime.Now;
+                record.ModifiedBy = modifiedBy;
+                result.RecordsUpdated++;
+                result.RecordsSkipped--; // counted as skipped when the loop passed over it
+            }
+        }
     }
 
     /// <summary>
@@ -1261,7 +1379,7 @@ public class ClinicalImportService : IClinicalImportService
     /// <summary>
     /// Creates a normalized course key for case-insensitive lookups (uppercase, trimmed whitespace).
     /// </summary>
-    private static string BuildNormalizedCourseKey(string? subjCode, string? crseNumb) =>
+    internal static string BuildNormalizedCourseKey(string? subjCode, string? crseNumb) =>
         $"{subjCode?.Trim()} {crseNumb?.Trim()}".ToUpperInvariant();
 
     /// <summary>
@@ -1275,6 +1393,8 @@ public class ClinicalImportService : IClinicalImportService
         public string SubjCode { get; set; } = "";
         public string CrseNumb { get; set; } = "";
         public string CourseKey { get; set; } = "";
+        /// <summary>Every course the person is scheduled on that week, including this one.</summary>
+        public List<string> WeekCourses { get; set; } = [];
         public string RotationName { get; set; } = "";
         public string ServiceName { get; set; } = "";
         public string PersonName { get; set; } = "";
