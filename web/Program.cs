@@ -347,6 +347,7 @@ try
     builder.Services.AddScoped<IHarvestPhase, CrestHarvestPhase>();
     builder.Services.AddScoped<IHarvestPhase, NonCrestHarvestPhase>();
     builder.Services.AddScoped<IHarvestPhase, ClinicalHarvestPhase>();
+    builder.Services.AddScoped<IHarvestPhase, FacultyHarvestPhase>();
 
 
     // Scrutor: auto-register services and validators by convention
