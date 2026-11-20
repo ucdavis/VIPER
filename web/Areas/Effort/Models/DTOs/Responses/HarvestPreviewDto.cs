@@ -23,6 +23,9 @@ public class HarvestPreviewDto
     public List<HarvestCoursePreview> ClinicalCourses { get; set; } = [];
     public List<HarvestRecordPreview> ClinicalEffort { get; set; } = [];
 
+    // Phase 4: PPS faculty with no effort in the phases above
+    public List<HarvestPersonPreview> FacultyInstructors { get; set; } = [];
+
     // Items that exist but won't be re-imported (will be deleted)
     public List<HarvestPersonPreview> RemovedInstructors { get; set; } = [];
     public List<HarvestCoursePreview> RemovedCourses { get; set; } = [];

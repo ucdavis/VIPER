@@ -84,7 +84,7 @@ public sealed class ClinicalHarvestPhase : HarvestPhaseBase
                 personWeekCourses[schedule.MothraId][schedule.WeekId] = [];
             }
 
-            var courseKey = $"{schedule.SubjCode} {schedule.CrseNumb}";
+            var courseKey = ClinicalImportService.BuildNormalizedCourseKey(schedule.SubjCode, schedule.CrseNumb);
             if (!personWeekCourses[schedule.MothraId][schedule.WeekId].Contains(courseKey))
             {
                 personWeekCourses[schedule.MothraId][schedule.WeekId].Add(courseKey);
@@ -101,25 +101,17 @@ public sealed class ClinicalHarvestPhase : HarvestPhaseBase
         var aaudTitleLookup = validation.TitleCodeByMothraId;
 
         // Populate title lookup on context for BuildClinicalInstructorPreviewsAsync
-        context.TitleLookup ??= (await context.InstructorService.GetTitleCodesAsync(ct))
-            .ToDictionary(t => t.Code, t => t.Name, StringComparer.OrdinalIgnoreCase);
-
-        context.JobGroupLookup ??= (await context.DictionaryContext.Titles
-            .AsNoTracking()
-            .Where(t => t.Code != null && t.JobGroupId != null)
-            .Select(t => new { Code = t.Code!.Trim(), t.JobGroupId })
-            .ToListAsync(ct))
-            .GroupBy(t => t.Code, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(g => g.Key, g => g.First().JobGroupId, StringComparer.OrdinalIgnoreCase);
+        await EnsureTitleLookupsAsync(context, ct);
 
         // Build effort records with priority resolution (uses shared priority from ClinicalImportService)
         var effortByPersonCourse = new Dictionary<string, HarvestRecordPreview>();
+        var countedWeeks = new HashSet<(string EffortKey, int WeekId)>();
 
         foreach (var schedule in clinicalData.Where(s =>
             !string.IsNullOrEmpty(s.MothraId) && !string.IsNullOrEmpty(s.SubjCode)
             && importableMothraIds.Contains(s.MothraId)))
         {
-            var courseKey = $"{schedule.SubjCode} {schedule.CrseNumb}";
+            var courseKey = ClinicalImportService.BuildNormalizedCourseKey(schedule.SubjCode, schedule.CrseNumb);
             var effortKey = $"{schedule.MothraId}-{courseKey}";
 
             // Check if this course is the priority for this person/week
@@ -144,7 +136,11 @@ public sealed class ClinicalHarvestPhase : HarvestPhaseBase
                 };
             }
 
-            effortByPersonCourse[effortKey].Weeks = (effortByPersonCourse[effortKey].Weeks ?? 0) + 1;
+            // Two rotations for one course in one week are still one week, as in the import.
+            if (countedWeeks.Add((effortKey, schedule.WeekId)))
+            {
+                effortByPersonCourse[effortKey].Weeks = (effortByPersonCourse[effortKey].Weeks ?? 0) + 1;
+            }
         }
 
         context.Preview.ClinicalEffort.AddRange(effortByPersonCourse.Values.Where(e => e.Weeks > 0));
