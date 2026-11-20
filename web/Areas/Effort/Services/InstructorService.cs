@@ -930,6 +930,48 @@ public class InstructorService : IInstructorService
         return result;
     }
 
+    /// <inheritdoc />
+    public async Task<List<PpsFacultyMember>> GetPpsFacultyAsync(CancellationToken ct = default)
+    {
+        // Emeriti hold active WOS jobs, so callers still have to drop excluded title codes
+        var jobs = await _ppsContext.VwPersonJobPositions
+            .AsNoTracking()
+            .Where(p => p.Isprimary == 1
+                     && p.SubDivCd == EffortConstants.SvmSubDivCode
+                     && p.JobStatus1 != EffortConstants.PpsSeparatedJobStatus
+                     && p.Emplid != null
+                     && (p.EmpAcdmcSenateFlg == EffortConstants.PpsFlagSet
+                      || p.EmpAcdmcFederationFlg == EffortConstants.PpsFlagSet
+                      || p.EmpTeachingFacultyFlg == EffortConstants.PpsFlagSet))
+            .Select(p => new { Emplid = p.Emplid!, p.FirstName, p.LastName, p.Jobcode, p.JobcodeDesc, p.Deptid })
+            .ToListAsync(ct);
+
+        var emplIds = jobs.Select(j => j.Emplid).Distinct().ToList();
+
+        // A reissued MothraId leaves the old aaudUser row behind under the same employee ID,
+        // so prefer the current row. Someone on leave may only have a non-current row.
+        var mothraIdByEmplId = (await _aaudContext.AaudUsers
+            .AsNoTracking()
+            .Where(u => u.EmployeeId != null && EF.Parameter(emplIds).Contains(u.EmployeeId))
+            .Select(u => new { EmployeeId = u.EmployeeId!, u.MothraId, u.Current, u.AaudUserId })
+            .ToListAsync(ct))
+            .GroupBy(u => u.EmployeeId)
+            .ToDictionary(
+                g => g.Key,
+                g => g.OrderByDescending(u => u.Current).ThenByDescending(u => u.AaudUserId).First().MothraId);
+
+        return jobs
+            .DistinctBy(j => j.Emplid)
+            .Select(j => new PpsFacultyMember(
+                mothraIdByEmplId.GetValueOrDefault(j.Emplid),
+                j.FirstName,
+                j.LastName,
+                j.Jobcode?.Trim() ?? "",
+                j.JobcodeDesc?.Trim() ?? "",
+                j.Deptid?.Trim()))
+            .ToList();
+    }
+
     /// <summary>
     /// Determine the effort department from AAUD data using pre-fetched job departments.
     /// Used by batch operations to avoid N+1 queries.
