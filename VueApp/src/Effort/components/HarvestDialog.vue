@@ -152,6 +152,10 @@
                         name="clinical"
                         label="Clinical"
                     />
+                    <q-tab
+                        name="faculty"
+                        label="Other Faculty"
+                    />
                 </q-tabs>
 
                 <q-separator />
@@ -495,6 +499,54 @@
                             :pagination="{ rowsPerPage: 5 }"
                         />
                     </q-tab-panel>
+
+                    <!-- Other Faculty Tab -->
+                    <q-tab-panel
+                        name="faculty"
+                        class="q-pa-none q-pt-md"
+                    >
+                        <div class="text-caption text-grey-8 q-mb-sm">
+                            Active senate, federation, and teaching faculty with no effort in CREST, Non-CREST, or
+                            Clinical. They are added with no effort records so they can verify "no effort".
+                        </div>
+                        <div class="row items-center justify-between q-mb-sm">
+                            <div class="text-subtitle2">Instructors ({{ preview.facultyInstructors.length }})</div>
+                            <q-input
+                                v-model="facultyInstructorFilter"
+                                placeholder="Search..."
+                                dense
+                                outlined
+                                clearable
+                                class="compact-search"
+                            >
+                                <template #prepend>
+                                    <q-icon
+                                        name="search"
+                                        size="xs"
+                                    />
+                                </template>
+                            </q-input>
+                        </div>
+                        <q-table
+                            :rows="preview.facultyInstructors"
+                            :columns="instructorColumns"
+                            row-key="personId"
+                            :filter="facultyInstructorFilter"
+                            dense
+                            flat
+                            bordered
+                            v-model:pagination="facultyInstructorPagination"
+                        >
+                            <template #body-cell-status="slotProps">
+                                <q-td :props="slotProps">
+                                    <StatusBadge
+                                        :color="getStatusColor(slotProps.value)"
+                                        :label="slotProps.value"
+                                    />
+                                </q-td>
+                            </template>
+                        </q-table>
+                    </q-tab-panel>
                 </q-tab-panels>
             </q-card-section>
 
@@ -572,6 +624,7 @@ const nonCrestCoursePagination = ref({ rowsPerPage: 5 })
 const nonCrestEffortPagination = ref({ rowsPerPage: 5 })
 const clinicalInstructorPagination = ref({ rowsPerPage: 5 })
 const clinicalCoursePagination = ref({ rowsPerPage: 5 })
+const facultyInstructorPagination = ref({ rowsPerPage: 5 })
 
 // Table filters
 const crestInstructorFilter = ref("")
@@ -582,6 +635,7 @@ const nonCrestCourseFilter = ref("")
 const nonCrestEffortFilter = ref("")
 const clinicalInstructorFilter = ref("")
 const clinicalCourseFilter = ref("")
+const facultyInstructorFilter = ref("")
 
 // Computed for removed items warning
 const hasRemovedItems = computed(

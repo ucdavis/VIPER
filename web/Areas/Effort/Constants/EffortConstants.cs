@@ -126,6 +126,17 @@ public static class EffortConstants
     public const string PpsSeparatedJobStatus = "Separated";
 
     /// <summary>
+    /// PPS vw_personJobPosition.SUB_DIV_CD for the School of Veterinary Medicine.
+    /// The view also lists people whose primary job is in another college.
+    /// </summary>
+    public const string SvmSubDivCode = "50";
+
+    /// <summary>
+    /// Value of a set PPS employee flag (senate, federation, teaching faculty).
+    /// </summary>
+    public const string PpsFlagSet = "Y";
+
+    /// <summary>
     /// Report unit code for CAHFS (effort.ReportUnits.UnitCode).
     /// </summary>
     public const string CahfsReportUnit = "CAHFS";
@@ -170,6 +181,11 @@ public static class EffortConstants
     public const string SourceClinical = "Clinical";
 
     /// <summary>
+    /// Source identifier for faculty added from PPS with no effort in the other sources.
+    /// </summary>
+    public const string SourceFaculty = "Faculty";
+
+    /// <summary>
     /// Source identifier for existing data (shown in removed items list).
     /// </summary>
     public const string SourceExisting = "Existing";
@@ -183,6 +199,11 @@ public static class EffortConstants
     /// Phase name for clinical import.
     /// </summary>
     public const string PhaseClinical = "Clinical";
+
+    /// <summary>
+    /// Phase name for the import of faculty with no effort.
+    /// </summary>
+    public const string PhaseFaculty = "Faculty";
 
     #endregion
 }
