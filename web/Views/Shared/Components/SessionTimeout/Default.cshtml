@@ -43,66 +43,69 @@
             }
         },
         methods: {
-            checkSessionTimeout: async function () {
-                // One live timer only: a refresh that overlaps an in-flight poll must not leave two chains running.
+            // Timeout so a hung request still rejects instead of stalling the chain.
+            fetchJson: function (url) {
+                return fetch(url, { signal: AbortSignal.timeout(10000) })
+                    .then(r => r.ok ? r.json() : Promise.reject(new Error(url + ' returned ' + r.status)))
+            },
+            formatTime: function (dateTime) {
+                return new Date(dateTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+            },
+            checkSessionTimeout: function () {
+                // One live timer, and only the newest poll may act: a renewal or later poll makes this one stale.
                 clearTimeout(this.sessionTimeoutCheckEventId)
-                // Only the newest poll may act: a renewal or a later poll makes this response stale.
                 var pollId = ++this.sessionPollId
-                // Timeout so a request that hangs rather than fails still reaches the catch below.
-                fetch(this.sessionRefreshUrl, { signal: AbortSignal.timeout(10000) })
-                    .then(r => r.ok ? r.json() : Promise.reject(new Error('Session check returned ' + r.status)))
+                this.fetchJson(this.sessionRefreshUrl)
                     .then(r => {
                         if (pollId !== this.sessionPollId) { return }
+                        var s = r.secondsUntilTimeout
                         var nextCheck = 300
-                        if (r.secondsUntilTimeout !== undefined) {
-                            this.sessionDeadline = Date.now() + r.secondsUntilTimeout * 1000
-                            // Aim the next poll at the five-minute mark, so one poll cannot jump from 5:01 left to 0:01 and skip the warning.
-                            nextCheck = Math.min(300, Math.max(r.secondsUntilTimeout - 300, 5))
+                        if (s !== undefined) {
+                            this.sessionDeadline = Date.now() + s * 1000
+                            // "<=" so an exact 300 still warns: otherwise the next poll lands at expiry.
+                            if (s <= 300) {
+                                this.showSessionTimeoutWarning = true
+                                this.sessionExpired = s < 15
+                                this.sessionExpireTime = this.formatTime(r.sessionTimeoutDateTime)
+                                nextCheck = this.sessionExpired ? 0 : Math.max(s - 15, 5)
+                            } else {
+                                // Aim at the five-minute mark so one poll cannot skip the warning.
+                                nextCheck = Math.min(300, Math.max(s - 300, 5))
+                            }
                         }
-                        // "<=" so an exact 300 still warns: otherwise the next poll lands at expiry.
-                        if (r.secondsUntilTimeout !== undefined && r.secondsUntilTimeout <= 300) {
-                            this.showSessionTimeoutWarning = true
-                            this.sessionExpired = r.secondsUntilTimeout < 15
-                            var d = new Date(r.sessionTimeoutDateTime)
-                            this.sessionExpireTime = (d.getHours() > 12 ? d.getHours() - 12 : d.getHours()) + ":"
-                                + ("0" + d.getMinutes()).slice(-2)
-                                + (d.getHours() >= 12 ? " PM" : " AM")
-                            nextCheck = this.sessionExpired ? 0 : Math.max(r.secondsUntilTimeout - 15, 5)
-                        }
-                        if(nextCheck > 0) {
+                        if (nextCheck > 0) {
                             this.sessionTimeoutCheckEventId = window.setTimeout(this.checkSessionTimeout, nextCheck * 1000)
                         }
                     })
-                    // Silent, but reschedule: one failed poll must not stop the checks for the life of
-                    // the page. Retry quickly once the warning is up, since expiry is minutes away.
+                    // Silent, but reschedule so one failed poll cannot stop checks or sleep through the warning.
                     .catch(() => {
                         if (pollId !== this.sessionPollId) { return }
-                        // Without the warning up, still cap the wait by the last known expiry so a failed poll cannot sleep through the five-minute mark.
-                        var retry = this.showSessionTimeoutWarning ? 15
-                            : this.sessionDeadline ? Math.min(300, Math.max((this.sessionDeadline - Date.now()) / 1000 - 300, 15)) : 300
+                        var retry = 300
+                        if (this.showSessionTimeoutWarning) {
+                            retry = 15
+                        } else if (this.sessionDeadline) {
+                            retry = Math.min(300, Math.max((this.sessionDeadline - Date.now()) / 1000 - 300, 15))
+                        }
                         this.sessionTimeoutCheckEventId = window.setTimeout(this.checkSessionTimeout, retry * 1000)
                     })
             },
-            extendSession: async function() {
+            extendSession: function() {
                 this.sessionExtendFailed = false
                 this.sessionExtending = true
-                // "~/" keeps the app's PathBase. A bare "/" resolves to the domain root, outside this app.
-                fetch('@Url.Content("~/RefreshSession")', { signal: AbortSignal.timeout(10000) })
-                    .then(r => r.ok ? r.json() : Promise.reject(new Error('RefreshSession returned ' + r.status)))
+                // "~/" keeps the app's PathBase; a bare "/" resolves to the domain root.
+                this.fetchJson('@Url.Content("~/RefreshSession")')
                     .then(r => {
                         this.sessionPollId++
                         clearTimeout(this.sessionTimeoutCheckEventId)
-                        var d = new Date(r.sessionTimeoutDateTime)
-                        this.sessionExpireTime = (d.getHours() > 12 ? d.getHours() - 12 : d.getHours()) + ":"
-                            + ("0" + d.getMinutes()).slice(-2)
-                            + (d.getHours() >= 12 ? " PM" : " AM")
+                        this.sessionExpireTime = this.formatTime(r.sessionTimeoutDateTime)
+                        // A poll that landed mid-renewal may have marked it expired; the renewal wins.
+                        this.sessionExpired = false
                         this.sessionReloaded = true
                         this.sessionTimeoutCheckEventId = window.setTimeout(this.checkSessionTimeout, 5000)
 
                         window.setTimeout(this.hideSessionTimeoutWarning, 1000)
                     })
-                    // Leave the dialog up so the user can retry or log in, and say so: the session was not extended.
-                    // Only while it is up: a banner set on a closed dialog would greet the next warning.
+                    // Keep the dialog up to retry or log in; skip the banner if it closed, or it greets the next warning.
                     .catch(() => { this.sessionExtendFailed = this.showSessionTimeoutWarning })
                     .finally(() => { this.sessionExtending = false })
             },
