@@ -23,14 +23,14 @@ public class EisController : ApiController
     private readonly IEisService _eis;
     private readonly IPhotoService _photos;
     private readonly IUserHelper _userHelper;
-    private readonly ILogger<EisController> _logger;
+    private readonly ILogger _audit;
 
-    public EisController(IEisService eis, IPhotoService photos, IUserHelper userHelper, ILogger<EisController> logger)
+    public EisController(IEisService eis, IPhotoService photos, IUserHelper userHelper, ILoggerFactory loggerFactory)
     {
         _eis = eis;
         _photos = photos;
         _userHelper = userHelper;
-        _logger = logger;
+        _audit = loggerFactory.CreateLogger(PersonnelAudit.LoggerName);
     }
 
     /// <summary>The people this user may look up, for the person picker.</summary>
@@ -136,9 +136,9 @@ public class EisController : ApiController
             return ForbidApi("You do not have permission to change appointment categories.");
         }
 
-        if (_logger.IsEnabled(LogLevel.Information))
+        if (_audit.IsEnabled(LogLevel.Information))
         {
-            _logger.LogInformation(
+            _audit.LogInformation(
                 "EIS category {Code} {Action} for employee {EmployeeId} by {LoginId}",
                 code,
                 isSet ? "set" : "cleared",
@@ -165,9 +165,9 @@ public class EisController : ApiController
             return ForbidApi("You do not have access to this employee.");
         }
 
-        if (_logger.IsEnabled(LogLevel.Information))
+        if (_audit.IsEnabled(LogLevel.Information))
         {
-            _logger.LogInformation(
+            _audit.LogInformation(
                 "EIS {Page} for employee {EmployeeId} viewed by {LoginId}",
                 page,
                 LogSanitizer.SanitizeId(employeeId),

@@ -95,11 +95,13 @@ public partial class EisService : IEisService
         IReadOnlyList<EisPersonRow>? rows = await GetVisiblePeopleAsync(ct);
         return rows is null
             ? []
-            : [.. rows.Select(row => new EisPersonOption
-            {
-                EmployeeId = row.EmployeeId.Trim(),
-                Name = row.Name.Trim(),
-            })];
+            : [.. rows
+                .Where(row => Clean(row.EmployeeId) is not null)
+                .Select(row => new EisPersonOption
+                {
+                    EmployeeId = Text(row.EmployeeId),
+                    Name = Text(row.Name),
+                })];
     }
 
     public async Task<bool> CanViewAsync(string employeeId, CancellationToken ct)
@@ -121,7 +123,7 @@ public partial class EisService : IEisService
         }
 
         IReadOnlyList<EisPersonRow> unit = await GetUnitPeopleAsync(user, ct);
-        return unit.Any(row => string.Equals(row.EmployeeId.Trim(), employeeId, StringComparison.Ordinal));
+        return unit.Any(row => string.Equals(row.EmployeeId?.Trim(), employeeId, StringComparison.Ordinal));
     }
 
     public async Task<EisPersonHeader?> GetHeaderAsync(string employeeId, CancellationToken ct)
@@ -180,7 +182,7 @@ public partial class EisService : IEisService
 
         List<EisStipend> stipends = [.. (await _data.GetStipendsAsync(employeeId, ct)).Select(ToStipend)];
         decimal total = appointments.Sum(appointment => appointment.Total ?? 0m)
-            + stipends.Sum(stipend => stipend.AnnualAmount);
+            + stipends.Sum(stipend => stipend.AnnualAmount ?? 0m);
         return new EisAppointments { Appointments = appointments, Stipends = stipends, TotalAnnual = total };
     }
 
@@ -305,11 +307,11 @@ public partial class EisService : IEisService
         return new EisAppointment
         {
             Number = Clean(row.Number),
-            Title = row.Title.Trim(),
-            TitleCode = row.TitleCode.Trim(),
+            Title = Text(row.Title),
+            TitleCode = Text(row.TitleCode),
             Grade = Clean(row.Grade),
-            ExemptStatus = row.ExemptStatus.Trim(),
-            Department = row.Department.Trim(),
+            ExemptStatus = Text(row.ExemptStatus),
+            Department = Text(row.Department),
             BeginDate = Clean(row.BeginDate),
             EndDate = Clean(row.EndDate),
             Distributions = [.. distributions.Select(ToDistribution)],
@@ -322,11 +324,11 @@ public partial class EisService : IEisService
         return new EisDistribution
         {
             Number = row.Number?.ToString("0.###", CultureInfo.InvariantCulture),
-            BeginDate = DateOnly.FromDateTime(row.BeginDate),
+            BeginDate = ToDate(row.BeginDate),
             EndDate = ToDate(row.EndDate),
             Percent = row.Percent,
             Account = Clean(row.Account),
-            Step = row.Step.ToString("0.##", CultureInfo.InvariantCulture),
+            Step = FormatStep(row.Step),
             DosCode = Clean(row.DosCode),
             Amount = row.AnnualAmount * (row.Percent ?? 0m) / Hundred,
         };
@@ -334,14 +336,14 @@ public partial class EisService : IEisService
 
     internal static EisStipend ToStipend(EisStipendRow row)
     {
-        decimal annual = string.Equals(row.PayFrequency.Trim(), PeriodicPay, StringComparison.OrdinalIgnoreCase)
+        decimal? annual = string.Equals(row.PayFrequency?.Trim(), PeriodicPay, StringComparison.OrdinalIgnoreCase)
             ? row.Pay * MonthsPerYear
             : row.Pay;
         return new EisStipend
         {
-            EffectiveDate = DateOnly.FromDateTime(row.EffectiveDate),
+            EffectiveDate = ToDate(row.EffectiveDate),
             EndDate = ToDate(row.EndDate),
-            EarningsCode = row.EarningsCode.Trim(),
+            EarningsCode = Text(row.EarningsCode),
             AnnualAmount = annual,
         };
     }
@@ -373,13 +375,13 @@ public partial class EisService : IEisService
     {
         return new EisHistoryEntry
         {
-            ActionDate = DateOnly.FromDateTime(row.ActionDate),
+            ActionDate = ToDate(row.ActionDate),
             Title = Clean(row.Title),
             TitleCode = Clean(row.TitleCode),
             Department = Clean(row.Department),
-            BeginDate = DateOnly.FromDateTime(row.BeginDate),
+            BeginDate = ToDate(row.BeginDate),
             EndDate = ToDate(row.EndDate),
-            Step = row.Step.ToString("0.##", CultureInfo.InvariantCulture),
+            Step = FormatStep(row.Step),
             Percent = row.Percent,
             PayRate = row.PayRate,
             Comment = Clean(row.Comment),
@@ -417,13 +419,13 @@ public partial class EisService : IEisService
     {
         return new EisPermanentAddress
         {
-            Line1 = row.Line1.Trim(),
+            Line1 = Text(row.Line1),
             Line2 = Clean(row.Line2),
-            City = row.City.Trim(),
-            State = row.State.Trim(),
-            Zip = row.Zip.Trim(),
-            ReleaseCampus = row.ReleaseCampus.Trim(),
-            ReleaseOrganization = row.ReleaseOrganization.Trim(),
+            City = Text(row.City),
+            State = Text(row.State),
+            Zip = Text(row.Zip),
+            ReleaseCampus = Text(row.ReleaseCampus),
+            ReleaseOrganization = Text(row.ReleaseOrganization),
         };
     }
 
@@ -431,7 +433,7 @@ public partial class EisService : IEisService
     {
         return new EisHomePhone
         {
-            Phone = row.Phone.Trim(),
+            Phone = Text(row.Phone),
             ReleaseCampus = row.ReleaseCampus?.ToString(CultureInfo.InvariantCulture),
             ReleaseOrganization = row.ReleaseOrganization?.ToString(CultureInfo.InvariantCulture),
         };
@@ -488,6 +490,18 @@ public partial class EisService : IEisService
     private static string? Clean(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
+
+    /// <summary>Text the page always shows: trimmed, with a missing value shown as blank.</summary>
+    private static string Text(string? value)
+    {
+        return value?.Trim() ?? string.Empty;
+    }
+
+    /// <summary>A step without trailing zeros, such as "5" or "5.5".</summary>
+    private static string? FormatStep(decimal? step)
+    {
+        return step?.ToString("0.##", CultureInfo.InvariantCulture);
     }
 
     private static DateOnly? ToDate(DateTime? value)

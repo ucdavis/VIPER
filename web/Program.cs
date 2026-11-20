@@ -322,7 +322,6 @@ try
     RegisterDbContext<ReportBuilderDbContext>("VIPER");
     RegisterDbContext<EvalHarvestDbContext>("EvalHarvest");
     RegisterDbContext<EvalDbContext>("Eval");
-    // EIS reads MyInfoVault boards and focus areas through MPVote's procedures.
     RegisterDbContext<MPVoteContext>("MPVote");
 
     // The clock services read "now" from, so tests can fix it (EIS uses it for the academic year).

@@ -23,14 +23,14 @@ public class PersonCollectorController : ApiController
 
     private readonly IPersonCollectorService _collector;
     private readonly IUserHelper _userHelper;
-    private readonly ILogger<PersonCollectorController> _logger;
+    private readonly ILogger _audit;
 
     public PersonCollectorController(
-        IPersonCollectorService collector, IUserHelper userHelper, ILogger<PersonCollectorController> logger)
+        IPersonCollectorService collector, IUserHelper userHelper, ILoggerFactory loggerFactory)
     {
         _collector = collector;
         _userHelper = userHelper;
-        _logger = logger;
+        _audit = loggerFactory.CreateLogger(PersonnelAudit.LoggerName);
     }
 
     /// <summary>The form's choices and the columns this user will see.</summary>
@@ -87,9 +87,9 @@ public class PersonCollectorController : ApiController
     /// <summary>Logs who pulled which lists: they hold names, email addresses and IDs.</summary>
     private void Audit(string action, PersonCollectorResult result)
     {
-        if (_logger.IsEnabled(LogLevel.Information))
+        if (_audit.IsEnabled(LogLevel.Information))
         {
-            _logger.LogInformation(
+            _audit.LogInformation(
                 "Person Collector {Action} by {LoginId}: {Sections}",
                 action,
                 LogSanitizer.SanitizeId(_userHelper.GetCurrentUser()?.LoginId),

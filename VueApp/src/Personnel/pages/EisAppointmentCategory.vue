@@ -26,7 +26,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue"
+import { computed, ref, watch } from "vue"
 import { useRoute } from "vue-router"
 import StatusBanner from "@/components/StatusBanner.vue"
 import EisCategoryList from "../components/EisCategoryList.vue"
@@ -45,15 +45,28 @@ const { data, loading } = useEisSection((id) => eisService.getCategories(id))
 const saving = ref(false)
 const saveFailed = ref(false)
 
+// A failed save belongs to the employee it was made for.
+watch(employeeId, () => {
+    saveFailed.value = false
+})
+
 async function changeFlag(code: number, value: boolean) {
+    const savedFor = employeeId.value
     saving.value = true
     saveFailed.value = false
-    const updated = await eisService.setFlag(employeeId.value, code, value)
-    if (updated === null) {
-        saveFailed.value = true
-    } else {
-        data.value = updated
+    try {
+        const updated = await eisService.setFlag(savedFor, code, value)
+        // The user may have moved to another employee while this saved; leave that page alone.
+        if (savedFor !== employeeId.value) {
+            return
+        }
+        if (updated === null) {
+            saveFailed.value = true
+        } else {
+            data.value = updated
+        }
+    } finally {
+        saving.value = false
     }
-    saving.value = false
 }
 </script>

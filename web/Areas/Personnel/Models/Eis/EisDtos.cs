@@ -50,14 +50,17 @@ public sealed record EisPersonHeader
 public sealed record EisDistribution
 {
     public string? Number { get; init; }
-    public required DateOnly BeginDate { get; init; }
+    public DateOnly? BeginDate { get; init; }
     public DateOnly? EndDate { get; init; }
     public decimal? Percent { get; init; }
     public string? Account { get; init; }
-    public required string Step { get; init; }
+    public string? Step { get; init; }
     public string? DosCode { get; init; }
-    /// <summary>The annual amount times the distribution percent; negative for reductions.</summary>
-    public required decimal Amount { get; init; }
+    /// <summary>
+    /// The annual amount times the distribution percent; negative for reductions, and null when
+    /// UCPath has no annual amount.
+    /// </summary>
+    public decimal? Amount { get; init; }
 }
 
 /// <summary>
@@ -81,10 +84,11 @@ public sealed record EisAppointment
 /// <summary>A stipend, with its pay converted to an annual amount.</summary>
 public sealed record EisStipend
 {
-    public required DateOnly EffectiveDate { get; init; }
+    public DateOnly? EffectiveDate { get; init; }
     public DateOnly? EndDate { get; init; }
     public required string EarningsCode { get; init; }
-    public required decimal AnnualAmount { get; init; }
+    /// <summary>Null when UCPath has no pay for the stipend; it then adds nothing to the total.</summary>
+    public decimal? AnnualAmount { get; init; }
 }
 
 /// <summary>The Appointments page: appointments, stipends and the annual total of both.</summary>
