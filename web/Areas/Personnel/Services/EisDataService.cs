@@ -173,8 +173,10 @@ public class EisDataService : IEisDataService
     {
         SqlParameter id = Id(employeeId);
         SqlParameter appointment = Text("@apptNumber", appointmentNumber, AppointmentNumberLength);
+        // usp_eis_getPersonDistRecords is still used by the ColdFusion VIPER 1 app, so its
+        // duplicate-row/history/percent bugs are fixed in this VIPER2-only copy instead of in place.
         return await Query<EisDistributionRow>(
-            $"EXEC dbo.usp_eis_getPersonDistRecords @employeeID = {id}, @apptNumber = {appointment}", ct);
+            $"EXEC dbo.usp_eis_getPersonDistRecords_viper2 @employeeID = {id}, @apptNumber = {appointment}", ct);
     }
 
     public async Task<IReadOnlyList<EisStipendRow>> GetStipendsAsync(string employeeId, CancellationToken ct)

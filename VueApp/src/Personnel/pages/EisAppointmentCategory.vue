@@ -9,7 +9,8 @@
         <p>
             Categories are worked out from the employee's current UCPath jobs. The categories with a checkbox are set by
             hand for academic year {{ categories.academicYear }}.
-            <template v-if="!categories.canEditFlags">Only EIS administrators can change them.</template>
+            <template v-if="categories.canEditFlags">Changes save as soon as you check or uncheck one.</template>
+            <template v-else>Only EIS administrators can change them.</template>
         </p>
         <StatusBanner
             v-if="saveFailed"
@@ -29,6 +30,7 @@
 import { computed, ref, watch } from "vue"
 import { useRoute } from "vue-router"
 import StatusBanner from "@/components/StatusBanner.vue"
+import { showStatusNotification } from "@/composables/status-notification"
 import EisCategoryList from "../components/EisCategoryList.vue"
 import EisSectionState from "../components/EisSectionState.vue"
 import { useEisSection } from "../composables/use-eis-section"
@@ -64,6 +66,7 @@ async function changeFlag(code: number, value: boolean) {
             saveFailed.value = true
         } else {
             data.value = updated
+            showStatusNotification("Category updated.")
         }
     } finally {
         saving.value = false

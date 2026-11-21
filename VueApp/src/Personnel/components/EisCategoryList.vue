@@ -15,9 +15,10 @@
             />
             <template v-else>
                 <q-icon
-                    :name="category.applies ? 'check_box' : 'check_box_outline_blank'"
-                    :color="category.applies ? 'positive' : 'grey-5'"
+                    name="check"
+                    color="positive"
                     size="sm"
+                    :style="category.applies ? undefined : { visibility: 'hidden' }"
                     aria-hidden="true"
                 />
                 <span :class="{ 'text-weight-medium': category.applies }">{{ category.label }}</span>

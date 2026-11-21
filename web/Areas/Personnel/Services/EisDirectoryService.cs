@@ -84,12 +84,23 @@ public class EisDirectoryService : IEisDirectoryService
             new LdapDirectoryIdentifier(LdapServer, LdapSslPort),
             new NetworkCredential(LdapUser, password),
             AuthType.Basic);
-        connection.SessionOptions.ProtocolVersion = 3;
-        connection.SessionOptions.SecureSocketLayer = true;
-        // A slow directory should fall back to "unavailable" quickly rather than hold up the page.
-        connection.Timeout = LdapTimeout;
-        connection.Bind();
-        return connection;
+        try
+        {
+            connection.SessionOptions.ProtocolVersion = 3;
+            connection.SessionOptions.SecureSocketLayer = true;
+            // A slow directory should fall back to "unavailable" quickly rather than hold up the page.
+            connection.Timeout = LdapTimeout;
+            connection.Bind();
+            return connection;
+        }
+        catch (DirectoryException)
+        {
+            // Bind() (or the setup before it) failed, so the caller's using declaration never
+            // receives this connection to dispose - dispose it here before the same exception
+            // reaches GetCampusListings' existing LdapException/DirectoryOperationException handling.
+            connection.Dispose();
+            throw;
+        }
     }
 
     private static List<Dictionary<string, string>> Search(LdapConnection connection, string filter)

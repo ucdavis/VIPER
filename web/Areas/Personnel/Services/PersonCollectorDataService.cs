@@ -51,12 +51,15 @@ public class PersonCollectorDataService : IPersonCollectorDataService
     private const int ListParameterSize = 4000;
     private const int TermParameterSize = 6;
 
-    private readonly AAUDContext _aaudContext;
+    private readonly string _aaudConnectionString;
     private readonly VIPERContext _viperContext;
 
-    public PersonCollectorDataService(AAUDContext aaudContext, VIPERContext viperContext)
+    // A connection of its own, built from the AAUD connection string rather than an AAUDContext -
+    // mixing raw SQL and EF entities on the same context causes auth failures.
+    public PersonCollectorDataService(IConfiguration configuration, VIPERContext viperContext)
     {
-        _aaudContext = aaudContext;
+        _aaudConnectionString = configuration.GetConnectionString("AAUD")
+            ?? throw new InvalidOperationException("Connection string 'AAUD' not configured");
         _viperContext = viperContext;
     }
 
@@ -126,45 +129,31 @@ public class PersonCollectorDataService : IPersonCollectorDataService
     private async Task<IReadOnlyList<PersonCollectorRow>> ReadAsync(
         string procedure, SqlParameter[] parameters, CancellationToken ct)
     {
-        DbConnection connection = _aaudContext.Database.GetDbConnection();
-        bool opened = connection.State != ConnectionState.Open;
-        if (opened)
+        await using var connection = new SqlConnection(_aaudConnectionString);
+        await connection.OpenAsync(ct);
+
+        await using SqlCommand command = connection.CreateCommand();
+        command.CommandText = procedure;
+        command.CommandType = CommandType.StoredProcedure;
+        command.Parameters.AddRange(parameters);
+        await using DbDataReader reader = await command.ExecuteReaderAsync(ct);
+        Dictionary<string, int> columns = Enumerable.Range(0, reader.FieldCount)
+            .ToDictionary(reader.GetName, i => i, StringComparer.OrdinalIgnoreCase);
+        var rows = new List<PersonCollectorRow>();
+        while (await reader.ReadAsync(ct))
         {
-            await connection.OpenAsync(ct);
+            rows.Add(new PersonCollectorRow(
+                await TextAsync(reader, columns, "PERSON_NAME", ct),
+                await TextAsync(reader, columns, "EMAIL", ct),
+                await TextAsync(reader, columns, "LOGIN_ID", ct),
+                await TextAsync(reader, columns, "EMPLOYEE_ID", ct),
+                await TextAsync(reader, columns, "MOTHRA_ID", ct),
+                await TextAsync(reader, columns, "MAIL_ID", ct),
+                await TextAsync(reader, columns, "PIDM", ct),
+                await TextAsync(reader, columns, "BANNER_ID", ct)));
         }
 
-        try
-        {
-            await using DbCommand command = connection.CreateCommand();
-            command.CommandText = procedure;
-            command.CommandType = CommandType.StoredProcedure;
-            command.Parameters.AddRange(parameters);
-            await using DbDataReader reader = await command.ExecuteReaderAsync(ct);
-            Dictionary<string, int> columns = Enumerable.Range(0, reader.FieldCount)
-                .ToDictionary(reader.GetName, i => i, StringComparer.OrdinalIgnoreCase);
-            var rows = new List<PersonCollectorRow>();
-            while (await reader.ReadAsync(ct))
-            {
-                rows.Add(new PersonCollectorRow(
-                    await TextAsync(reader, columns, "PERSON_NAME", ct),
-                    await TextAsync(reader, columns, "EMAIL", ct),
-                    await TextAsync(reader, columns, "LOGIN_ID", ct),
-                    await TextAsync(reader, columns, "EMPLOYEE_ID", ct),
-                    await TextAsync(reader, columns, "MOTHRA_ID", ct),
-                    await TextAsync(reader, columns, "MAIL_ID", ct),
-                    await TextAsync(reader, columns, "PIDM", ct),
-                    await TextAsync(reader, columns, "BANNER_ID", ct)));
-            }
-
-            return rows;
-        }
-        finally
-        {
-            if (opened)
-            {
-                await connection.CloseAsync();
-            }
-        }
+        return rows;
     }
 
     private static async Task<string?> TextAsync(

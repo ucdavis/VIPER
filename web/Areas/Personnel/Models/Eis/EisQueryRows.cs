@@ -152,7 +152,7 @@ public sealed class EisAppointmentRow
     [Column("EXEMPT_STATUS")] public string? ExemptStatus { get; set; }
 }
 
-/// <summary>usp_eis_getPersonDistRecords: one appointment's distributions.</summary>
+/// <summary>usp_eis_getPersonDistRecords_viper2: one appointment's distributions.</summary>
 public sealed class EisDistributionRow
 {
     [Column("EMPLOYEE_ID")] public string? EmployeeId { get; set; }
