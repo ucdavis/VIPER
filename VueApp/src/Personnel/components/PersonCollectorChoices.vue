@@ -62,7 +62,9 @@ const props = withDefaults(
     { allLabel: "Select all" },
 )
 
-const selected = defineModel<string[]>({ required: true })
+// Clearing a QSelect emits null, which clear-value alone doesn't stop - normalize it here so
+// callers and .length/.filter() always see an array.
+const selected = defineModel<string[]>({ required: true, set: (value) => value ?? [] })
 
 const options = computed(() => props.choices.map((choice) => ({ label: choice.label, value: choice.key })))
 

@@ -6,7 +6,7 @@
         dense
         active-color="primary"
         indicator-color="primary"
-        class="text-grey-8"
+        class="text-grey-8 tabs-no-fade"
     >
         <q-tab
             v-for="section in result.sections"
@@ -15,7 +15,7 @@
         >
             <span class="row items-center no-wrap q-gutter-x-sm">
                 <span>{{ section.title }}</span>
-                <q-badge
+                <StatusBadge
                     :color="section.people.length > 0 ? 'primary' : 'grey-6'"
                     :label="section.people.length"
                     :aria-label="countLabel(section.people.length)"
@@ -85,6 +85,7 @@ import { inflect } from "inflection"
 import { copyToClipboard, useQuasar } from "quasar"
 import type { QTableColumn } from "quasar"
 import { computed, reactive, ref, watch } from "vue"
+import StatusBadge from "@/components/StatusBadge.vue"
 import type {
     PersonCollectorPerson,
     PersonCollectorResult,

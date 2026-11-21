@@ -266,7 +266,7 @@ describe("personCollectorResults.vue", () => {
         await flushPromises()
 
         expect(wrapper.findAll("tbody tr").map((row) => row.text())).toStrictEqual(["Byron, Adaada@ucdavis.edu"])
-        expect(wrapper.findAll(".q-badge").at(-1)?.classes()).toContain("bg-grey-6")
+        expect(wrapper.findAll(".q-badge").at(-1)?.classes()).toContain("bg-grey-7")
     })
 
     it("keeps the open tab when it still exists and moves to the first when it doesn't", async () => {
