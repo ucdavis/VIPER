@@ -63,13 +63,19 @@ describe("report basics section", () => {
     it("updates the title, area and description, keeping blanks as empty", async () => {
         expect.hasAssertions()
         const wrapper = mountBasics()
-        const [title, area] = wrapper.findAllComponents({ name: "QInput" })
+        const [title, area, description] = wrapper.findAllComponents({ name: "QInput" })
 
         title?.vm.$emit("update:modelValue", "Roster")
         await wrapper.setProps({ modelValue: lastForm(wrapper) })
         area?.vm.$emit("update:modelValue", "  ")
+        await wrapper.setProps({ modelValue: lastForm(wrapper) })
+        description?.vm.$emit("update:modelValue", "A roster of faculty.")
 
-        expect([lastForm(wrapper).title, lastForm(wrapper).area]).toStrictEqual(["Roster", null])
+        expect([lastForm(wrapper).title, lastForm(wrapper).area, lastForm(wrapper).description]).toStrictEqual([
+            "Roster",
+            null,
+            "A roster of faculty.",
+        ])
     })
 
     it("asks for a new source rather than changing it itself", () => {
@@ -89,19 +95,55 @@ describe("report basics section", () => {
         expect(text).toContain("The list of data sources couldn't be loaded.")
         expect(text).toContain("SQL Server can't describe this procedure's columns (Uses a temp table.)")
     })
+
+    // QSelect virtualizes its option list, which jsdom's layout never populates, so a mount of
+    // the real component never renders the #option slot. Stub QSelect to render it directly.
+    it("shows each source's kind and description in the option list", () => {
+        expect.hasAssertions()
+        const QSelectStub = {
+            name: "QSelect",
+            props: ["options"],
+            template: `
+                <template v-for="opt in options" :key="opt.value">
+                    <slot name="option" :opt="opt" :item-props="{}" />
+                </template>
+            `,
+        }
+
+        const wrapper = mount(ReportAdminBasics, {
+            props: {
+                modelValue: toForm(rosterReport),
+                sources: [
+                    { name: "FacultyRoster", kind: "View", description: "Current faculty" },
+                    { name: "usp_Leave", kind: "Procedure", description: null },
+                ],
+            },
+            global: { ...global, stubs: { QSelect: QSelectStub } },
+        })
+
+        expect(wrapper.text()).toContain("FacultyRoster")
+        expect(wrapper.text()).toContain("View: Current faculty")
+        expect(wrapper.text()).toContain("usp_Leave")
+        expect(wrapper.text()).toContain("Procedure")
+    })
 })
 
 describe("report columns section", () => {
-    it("edits a column's heading, format and flags", async () => {
+    it("edits a column's heading, format and flags, leaving the others alone", async () => {
         expect.hasAssertions()
         const column = newColumn("Name")
-        const wrapper = mountColumns([column])
+        const other = newColumn("Hired")
+        const wrapper = mountColumns([column, other])
 
         wrapper.findComponent({ name: "QInput" }).vm.$emit("update:modelValue", "Full name")
         await wrapper.setProps({ modelValue: lastColumns(wrapper) })
+        wrapper.findComponent({ name: "QInput" }).vm.$emit("update:modelValue", " ")
+        await wrapper.setProps({ modelValue: lastColumns(wrapper) })
         wrapper.findAllComponents({ name: "QCheckbox" })[0]?.vm.$emit("update:modelValue", false)
+        await wrapper.setProps({ modelValue: lastColumns(wrapper) })
+        wrapper.findAllComponents({ name: "QCheckbox" })[1]?.vm.$emit("update:modelValue", false)
 
-        expect(lastColumns(wrapper)).toStrictEqual([{ ...column, label: "Full name", visible: false }])
+        expect(lastColumns(wrapper)).toStrictEqual([{ ...column, label: null, visible: false, sortable: false }, other])
     })
 
     it("changes the source column and format", () => {
@@ -139,6 +181,17 @@ describe("report columns section", () => {
 
         expect(lastColumns(adding)).toHaveLength(2)
         expect(lastColumns(removing)).toStrictEqual([])
+    })
+
+    it("reorders columns", () => {
+        expect.hasAssertions()
+        const first = newColumn("Name")
+        const second = newColumn("Hired")
+        const wrapper = mountColumns([first, second])
+
+        wrapper.findComponent({ name: "SortableList" }).vm.$emit("update:modelValue", [second, first])
+
+        expect(lastColumns(wrapper)).toStrictEqual([second, first])
     })
 
     it("offers the source's other columns when there are some", async () => {
@@ -198,11 +251,24 @@ describe("report display section", () => {
 
         wrapper.findComponent({ name: "QSelect" }).vm.$emit("update:modelValue", null)
         const sort = lastForm(wrapper).orderBy
+        wrapper.findAllComponents({ name: "QCheckbox" })[0]?.vm.$emit("update:modelValue", false)
+        const excel = lastForm(wrapper).allowExcel
         wrapper.findAllComponents({ name: "QCheckbox" })[1]?.vm.$emit("update:modelValue", true)
         const pdf = lastForm(wrapper).allowPdf
+        wrapper.findAllComponents({ name: "QCheckbox" })[2]?.vm.$emit("update:modelValue", true)
+        const landscape = lastForm(wrapper).pdfLandscape
         wrapper.findAllComponents({ name: "QInput" }).at(-1)?.vm.$emit("update:modelValue", " ")
+        const blanked = lastForm(wrapper).sensitiveNotice
+        wrapper.findAllComponents({ name: "QInput" }).at(-1)?.vm.$emit("update:modelValue", "Confidential data")
 
-        expect([sort, pdf, lastForm(wrapper).sensitiveNotice]).toStrictEqual([null, true, null])
+        expect([sort, excel, pdf, landscape, blanked, lastForm(wrapper).sensitiveNotice]).toStrictEqual([
+            null,
+            false,
+            true,
+            true,
+            null,
+            "Confidential data",
+        ])
     })
 
     it("turns paging and descending sort on and off", () => {

@@ -223,6 +223,21 @@ describe("report builder state - running", () => {
         expect(report.pagination.value.rowsNumber).toBe(51)
     })
 
+    it("doesn't assume a further page when a source that can't count fills less than a page", async () => {
+        expect.hasAssertions()
+        reset(optionalOnly)
+        const partial = resultOf(
+            Array.from({ length: 10 }, (_, index) => ({ Name: `P${index}` })),
+            { totalRows: null, page: 2 },
+        )
+        vi.mocked(reportBuilderService.run).mockResolvedValue({ result: partial, errors: [] })
+
+        const report = useReportBuilder(roster.slug)
+        await flushPromises()
+
+        expect(report.pagination.value.rowsNumber).toBe(35)
+    })
+
     it("keeps only the latest run's rows", async () => {
         expect.hasAssertions()
         reset(optionalOnly)
@@ -316,6 +331,22 @@ describe("report builder state - running when the form changes", () => {
 
         expect([report.ready.value, report.result.value, report.running.value]).toStrictEqual([false, null, false])
         expect(reportBuilderService.run).toHaveBeenCalledTimes(2)
+    })
+
+    it("clears the rows without touching the URL when the page doesn't sync the query", async () => {
+        expect.hasAssertions()
+        fakeDebounce()
+        reset(roster)
+        const report = useReportBuilder(roster.slug, { syncQuery: false })
+        await flushPromises()
+        mockReplace.mockClear()
+
+        report.values.value = { ...report.values.value, Hired: null }
+        await waitForAutoRun()
+        vi.useRealTimers()
+
+        expect(report.result.value).toBeNull()
+        expect(mockReplace).not.toHaveBeenCalled()
     })
 })
 

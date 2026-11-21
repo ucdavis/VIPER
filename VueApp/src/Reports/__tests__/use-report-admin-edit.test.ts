@@ -66,6 +66,7 @@ describe("report edit state - loading", () => {
         const state = await edit(null)
 
         expect([state.form.value.title, state.definition.value, state.source.value]).toStrictEqual(["", null, null])
+        expect(state.sourceColumns.value).toStrictEqual([])
         expect(service.get).not.toHaveBeenCalled()
     })
 
@@ -227,6 +228,17 @@ describe("report edit state - saving", () => {
 
         expect([state.form.value.title, service.get.mock.calls.length]).toStrictEqual(["Faculty roster", 2])
     })
+
+    it("reloads a never-saved report as empty again", async () => {
+        expect.hasAssertions()
+        const state = await edit(null)
+        state.form.value = { ...state.form.value, title: "Mine" }
+
+        await state.reload()
+
+        expect(state.form.value.title).toBe("")
+        expect(service.get).not.toHaveBeenCalled()
+    })
 })
 
 describe("report edit state - deleting", () => {
@@ -270,5 +282,15 @@ describe("report edit state - deleting", () => {
         await fresh.setDeleted(true)
 
         expect([state.definition.value?.deletedOn, service.remove.mock.calls.length]).toStrictEqual([null, 1])
+    })
+
+    it("does nothing when a restore fails", async () => {
+        expect.hasAssertions()
+        const state = await edit()
+        service.restore.mockResolvedValue(null)
+
+        await state.setDeleted(false)
+
+        expect(state.definition.value).toStrictEqual(saved)
     })
 })

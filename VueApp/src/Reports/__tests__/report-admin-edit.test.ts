@@ -147,4 +147,16 @@ describe("report admin edit page", () => {
         expect(setDeleted).toHaveBeenCalledWith(false)
         expect(changeSource).toHaveBeenCalledWith("usp_Leave")
     })
+
+    it("updates the form from the basics section", () => {
+        expect.hasAssertions()
+        const { form } = setState()
+        const wrapper = mountPage("4")
+
+        wrapper
+            .findComponent({ name: "ReportAdminBasics" })
+            .vm.$emit("update:modelValue", { ...form.value, title: "Renamed" })
+
+        expect(form.value.title).toBe("Renamed")
+    })
 })

@@ -58,4 +58,18 @@ describe("choice field", () => {
 
         expect(wrapper.emitted("update:modelValue")).toStrictEqual([["VME"]])
     })
+
+    // QSelect virtualizes its option list, which jsdom's layout never populates, so a mount of
+    // the real component never renders the #no-option slot. Stub QSelect to render it directly.
+    it("says when nothing matches", () => {
+        expect.hasAssertions()
+        const QSelectStub = { name: "QSelect", template: `<div><slot name="no-option" /></div>` }
+
+        const wrapper = mount(ReportChoiceField, {
+            props: { modelValue: null, label: "Department", choices },
+            global: { plugins: [[Quasar, {}]], stubs: { QSelect: QSelectStub } },
+        })
+
+        expect(wrapper.text()).toContain("No matching choices")
+    })
 })
