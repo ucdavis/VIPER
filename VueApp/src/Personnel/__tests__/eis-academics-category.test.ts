@@ -173,6 +173,43 @@ describe("eisAppointmentCategory.vue", () => {
         expect(wrapper.find('[role="checkbox"]').attributes("aria-disabled")).not.toBe("true")
     })
 
+    it("keeps a save's result when a reload of the same employee resolves after it", async () => {
+        expect.hasAssertions()
+        const reload: { finish?: (value: EisAppointmentCategories | null) => void } = {}
+        vi.mocked(eisService.getCategories)
+            .mockResolvedValueOnce(categories(true)) // The initial load for this employee
+            .mockResolvedValueOnce(categories(true)) // The load after navigating away
+            .mockReturnValueOnce(
+                // The load after navigating back, held open - this is the stale response.
+                new Promise((resolve) => {
+                    reload.finish = resolve
+                }),
+            )
+        const save: { finish?: (updated: EisAppointmentCategories | null) => void } = {}
+        vi.mocked(eisService.setFlag).mockReturnValue(
+            new Promise((resolve) => {
+                save.finish = resolve
+            }),
+        )
+        const wrapper = await mountTab(EisAppointmentCategory)
+        await wrapper.find('[role="checkbox"]').trigger("click")
+
+        mocked.route.params.employeeId = "10765432"
+        await flushPromises()
+        mocked.route.params.employeeId = EMPLOYEE_ID
+        await flushPromises()
+
+        // The save completes first, with the category now applied...
+        save.finish?.(categories(true, true))
+        await flushPromises()
+        // ...and the reload that started before it resolves afterward, with the category as it
+        // was before the save - a response to a request the server saw before the save committed.
+        reload.finish?.(categories(true, false))
+        await flushPromises()
+
+        expect(wrapper.find('[role="checkbox"]').attributes("aria-checked")).toBe("true")
+    })
+
     it("says when a change fails or the categories could not be loaded", async () => {
         expect.hasAssertions()
         vi.mocked(eisService.getCategories).mockResolvedValue(categories(true))

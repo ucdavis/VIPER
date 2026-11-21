@@ -43,7 +43,7 @@ import { eisService } from "../services/eis-service"
  */
 const route = useRoute()
 const employeeId = computed(() => String(route.params.employeeId ?? ""))
-const { data, loading } = useEisSection((id) => eisService.getCategories(id))
+const { data, loading, setData } = useEisSection((id) => eisService.getCategories(id))
 const saving = ref(false)
 const saveFailed = ref(false)
 
@@ -65,7 +65,7 @@ async function changeFlag(code: number, value: boolean) {
         if (updated === null) {
             saveFailed.value = true
         } else {
-            data.value = updated
+            setData(updated)
             showStatusNotification("Category updated.")
         }
     } finally {

@@ -36,9 +36,9 @@
             class="q-px-none"
         >
             <q-table
-                :rows="section.people"
+                :rows="rowsOf(section)"
                 :columns="columns"
-                :row-key="rowKey"
+                row-key="rowKey"
                 :filter="filters[section.key]"
                 :rows-per-page-options="ROWS_PER_PAGE"
                 :pagination="{ rowsPerPage: DEFAULT_PAGE_SIZE }"
@@ -82,10 +82,11 @@
 
 <script setup lang="ts">
 import { inflect } from "inflection"
-import { copyToClipboard, useQuasar } from "quasar"
+import { copyToClipboard } from "quasar"
 import type { QTableColumn } from "quasar"
 import { computed, reactive, ref, watch } from "vue"
 import StatusBadge from "@/components/StatusBadge.vue"
+import { showStatusNotification } from "@/composables/status-notification"
 import type {
     PersonCollectorPerson,
     PersonCollectorResult,
@@ -99,7 +100,6 @@ import type {
  */
 const props = defineProps<{ result: PersonCollectorResult }>()
 
-const $q = useQuasar()
 const DEFAULT_PAGE_SIZE = 25
 const LARGER_PAGE_SIZE = 50
 const LARGEST_PAGE_SIZE = 100
@@ -142,8 +142,14 @@ watch(
     { immediate: true },
 )
 
-function rowKey(person: PersonCollectorPerson): string {
-    return `${person.name ?? ""}|${person.email ?? ""}|${person.mothraId ?? ""}`
+/**
+ * Each section's people, tagged with a key stable across sorting and filtering. None of a
+ * person's ID fields are guaranteed to survive permission-based redaction (Limit nulls out
+ * mothraId, loginId and the rest for viewers without those permissions), so two different people
+ * with the same name and email - or no email at all - would otherwise share a row key.
+ */
+function rowsOf(section: PersonCollectorSection): (PersonCollectorPerson & { rowKey: string })[] {
+    return section.people.map((person, index) => ({ ...person, rowKey: `${section.key}-${index}` }))
 }
 
 function countLabel(count: number, noun = "person"): string {
@@ -159,9 +165,9 @@ async function copyEmails(section: PersonCollectorSection) {
     const emails = emailsOf(section)
     try {
         await copyToClipboard(emails.join("; "))
-        $q.notify({ type: "positive", message: `Copied ${countLabel(emails.length, "email address")}.` })
+        showStatusNotification(`Copied ${countLabel(emails.length, "email address")}.`)
     } catch {
-        $q.notify({ type: "negative", message: "The email addresses could not be copied." })
+        showStatusNotification("The email addresses could not be copied.")
     }
 }
 </script>

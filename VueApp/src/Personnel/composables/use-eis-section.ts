@@ -30,5 +30,15 @@ export function useEisSection<T>(load: (employeeId: string) => Promise<T | null>
         { immediate: true },
     )
 
-    return { data, loading }
+    /**
+     * Replaces the data with a value already fetched elsewhere (a save's response, say), and
+     * invalidates any load still in flight so a slower, stale response can't overwrite it - which
+     * it otherwise could if the user navigated away and back to this employee while the save ran.
+     */
+    function setData(value: T) {
+        loadId += 1
+        data.value = value
+    }
+
+    return { data, loading, setData }
 }
