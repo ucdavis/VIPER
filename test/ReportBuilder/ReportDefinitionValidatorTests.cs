@@ -266,6 +266,16 @@ public sealed class ReportDefinitionValidatorTests
             result.Errors);
     }
 
+    [Fact]
+    public async Task ChoiceLists_CannotExceedTheMax()
+    {
+        ReportChoice[] choices = [.. Enumerable.Range(0, ReportLimits.MaxChoices + 1).Select(i => new ReportChoice { Value = $"{i}", Label = $"{i}" })];
+
+        ReportValidation result = await Validate(Roster(Parameter("Dept", ReportParameterType.Choice) with { ChoicesList = choices }));
+
+        Assert.Equal([$"The parameter 'Dept' can have at most {ReportLimits.MaxChoices} choices."], result.Errors);
+    }
+
     [Theory]
     [InlineData(ReportParameterType.Number, "1,000.5", true)]
     [InlineData(ReportParameterType.Number, "ten", false)]

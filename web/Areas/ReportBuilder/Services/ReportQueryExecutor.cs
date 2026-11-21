@@ -104,6 +104,13 @@ public sealed class ReportQueryExecutor : IReportQueryExecutor
             {
                 parameter.Size = StringParameterSize;
             }
+            else if (value is DateTime)
+            {
+                // Every DateTime a report binds is a date-only value (ReportParameterBinder parses
+                // Date parameters from yyyy-MM-dd); SqlDbType.Date covers 0001-9999, unlike the
+                // datetime AddWithValue would otherwise infer.
+                parameter.SqlDbType = SqlDbType.Date;
+            }
         }
 
         return command;

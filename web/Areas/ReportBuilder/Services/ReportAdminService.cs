@@ -151,7 +151,18 @@ public sealed class ReportAdminService : IReportAdminService
         (DateTime now, string? who) = Stamp();
         report.ModifiedOn = now;
         report.ModifiedBy = who;
-        await _context.SaveChangesAsync(ct);
+        try
+        {
+            await _context.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // The in-memory check above already catches the common case; this closes the gap
+            // between that check and the write itself.
+            return ReportAdminOutcome.Fail<ReportAdminDefinition>(
+                ReportAdminStatus.Conflict,
+                "Someone else saved this report after you opened it. Reload it to see their changes, then make yours again.");
+        }
 
         await AddHistoryAsync(report, ReportHistoryAction.Updated, now, who, ct);
         return ReportAdminOutcome.Ok((await GetAsync(id, ct))!);
@@ -235,7 +246,17 @@ public sealed class ReportAdminService : IReportAdminService
             report.DeletedBy = deleted ? who : null;
             report.ModifiedOn = now;
             report.ModifiedBy = who;
-            await _context.SaveChangesAsync(ct);
+            try
+            {
+                await _context.SaveChangesAsync(ct);
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                return ReportAdminOutcome.Fail<ReportAdminDefinition>(
+                    ReportAdminStatus.Conflict,
+                    "Someone else changed this report just now. Reload it and try again.");
+            }
+
             await AddHistoryAsync(report, deleted ? ReportHistoryAction.Deleted : ReportHistoryAction.Restored, now, who, ct);
         }
 

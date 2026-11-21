@@ -52,10 +52,21 @@ public static class ReportParameterBinder
         ReportCurrentUser user,
         IReadOnlyDictionary<string, IReadOnlyList<ReportChoice>> choices)
     {
-        var values = new Dictionary<string, IReadOnlyList<string>>(input, StringComparer.OrdinalIgnoreCase);
+        var values = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase);
         var bound = new List<BoundReportParameter>();
         var errors = new List<string>();
         var known = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        // input's own keys can differ only by case (it's deserialized case-sensitively); folding
+        // them here, instead of in the dictionary's constructor, turns a would-be crash into a
+        // validation error.
+        foreach ((string name, IReadOnlyList<string> given) in input)
+        {
+            if (!values.TryAdd(name, given))
+            {
+                errors.Add($"The parameter '{Shorten(name)}' was sent more than once.");
+            }
+        }
 
         foreach (ReportParameter definition in definitions.Where(d => !string.IsNullOrWhiteSpace(d.Name)).OrderBy(d => d.DisplayOrder))
         {

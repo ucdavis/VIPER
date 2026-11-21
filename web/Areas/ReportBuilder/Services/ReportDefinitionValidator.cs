@@ -233,6 +233,11 @@ public sealed class ReportDefinitionValidator : IReportDefinitionValidator
                 errors.Add($"{label} has the same choice more than once.");
             }
 
+            if (list.Count > ReportLimits.MaxChoices)
+            {
+                errors.Add($"{label} can have at most {ReportLimits.MaxChoices} choices.");
+            }
+
             return list;
         }
 
