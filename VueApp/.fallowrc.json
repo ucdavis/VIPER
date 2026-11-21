@@ -7,6 +7,7 @@
         "src/ClinicalScheduler/clinicalscheduler.ts",
         "src/Computing/computing.ts",
         "src/Effort/effort.ts",
+        "src/Reports/reports.ts",
         "src/Students/students.ts",
         "src/CAHFS/index.html",
         "src/CMS/index.html",
@@ -15,6 +16,7 @@
         "src/Computing/index.html",
         "src/Effort/index.html",
         "src/Personnel/index.html",
+        "src/Reports/index.html",
         "src/Students/index.html"
     ],
     "ignorePatterns": [

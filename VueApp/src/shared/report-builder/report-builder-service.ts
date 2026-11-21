@@ -77,4 +77,4 @@ class ReportBuilderService {
 
 const reportBuilderService = new ReportBuilderService()
 export { reportBuilderService }
-export type { ReportExportOutcome, ReportRunOutcome }
+export type { ReportRunOutcome }

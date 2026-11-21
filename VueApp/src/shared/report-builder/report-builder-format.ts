@@ -42,14 +42,23 @@ function formatTime(hour: number, minute: string): string {
 }
 
 /**
- * An ISO date or date-time as MM/dd/yyyy, with the time when the column shows times or, for a
- * text column, when there is one. Null when the text isn't an ISO date the column should reformat:
- * a text column only reformats full date-times, which only real date values arrive as.
+ * The value's ISO date parts, when the column should reformat it: a text column only reformats
+ * full date-times, which only real date values arrive as, never a date-only text that merely
+ * looks like one.
  */
-function formatIsoDate(value: string, format: ReportColumnFormat): string | null {
+function isoDateParts(value: string, format: ReportColumnFormat) {
     const parts = ISO_DATE_TIME.exec(value)?.groups
     const isDateFormat = format === "Date" || format === "DateTime"
-    if (!parts || (!isDateFormat && parts.hour === undefined)) {
+    return parts && (isDateFormat || parts.hour !== undefined) ? parts : undefined
+}
+
+/**
+ * An ISO date or date-time as MM/dd/yyyy, with the time when the column shows times or, for a
+ * text column, when there is one. Null when the text isn't an ISO date the column should reformat.
+ */
+function formatIsoDate(value: string, format: ReportColumnFormat): string | null {
+    const parts = isoDateParts(value, format)
+    if (!parts) {
         return null
     }
     const date = `${parts.month}/${parts.day}/${parts.year}`

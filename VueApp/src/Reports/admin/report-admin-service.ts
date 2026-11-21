@@ -123,4 +123,3 @@ class ReportAdminService {
 
 const reportAdminService = new ReportAdminService()
 export { reportAdminService }
-export type { ReportSaveOutcome }

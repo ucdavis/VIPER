@@ -32,6 +32,12 @@ describe("cell text", () => {
         expect(formatCell("2026-03-01", "Text")).toBe("2026-03-01")
     })
 
+    it("leaves text that isn't a date alone in a text column", () => {
+        expect.hasAssertions()
+
+        expect(formatCell("N/A", "Text")).toBe("N/A")
+    })
+
     it.each([
         [true, "Yes"],
         [false, "No"],

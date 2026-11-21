@@ -21,98 +21,30 @@
     >
         There's no report with that number.
     </StatusBanner>
-    <q-form
+    <ReportAdminEditForm
         v-else
-        class="compact-form"
-        @submit="save"
-    >
-        <ReportAdminStatus
-            :definition="definition"
-            @delete="setDeleted(true)"
-            @restore="setDeleted(false)"
-        />
-        <ReportAdminBasics
-            v-model="form"
-            :sources="sources"
-            :sources-failed="sourcesFailed"
-            :columns-error="source?.columnsError ?? null"
-            @source="changeSource"
-        />
-        <ReportAdminColumns
-            v-model="form.columns"
-            :source-columns="sourceColumns"
-            :can-add-missing="canAddMissing"
-            @add-missing="addMissingColumns"
-        />
-        <ReportAdminParameters
-            v-model="form.parameters"
-            :targets="targets"
-            :is-view="isView"
-            :views="views"
-        />
-        <ReportAdminDisplay
-            v-model="form"
-            :source-columns="sourceColumns"
-        />
-        <ReportAdminPermissions
-            v-model="form.permissions"
-            :missing="definition?.missingPermissions ?? []"
-        />
-        <StatusBanner
-            v-if="errors.length > 0"
-            type="error"
-        >
-            <ul class="q-my-none q-pl-md">
-                <li
-                    v-for="error in errors"
-                    :key="error"
-                >
-                    {{ error }}
-                </li>
-            </ul>
-            <template
-                v-if="conflict"
-                #action
-            >
-                <q-btn
-                    flat
-                    no-caps
-                    label="Reload the saved report"
-                    @click="reload"
-                />
-            </template>
-        </StatusBanner>
-        <div class="q-mb-lg">
-            <q-btn
-                type="submit"
-                color="primary"
-                no-caps
-                :label="definition === null ? 'Create report' : 'Save'"
-                :loading="saving"
-                :disable="Boolean(definition?.deletedOn)"
-            >
-                <template #loading>
-                    <q-spinner
-                        size="1em"
-                        class="q-mr-sm"
-                    />
-                    Saving
-                </template>
-            </q-btn>
-            <span
-                v-if="isDirty"
-                class="q-ml-md text-grey"
-            >
-                Unsaved changes
-            </span>
-        </div>
-        <ReportAdminPreview :report="request" />
-        <ReportAdminHistory
-            v-if="definition !== null"
-            :report-id="definition.id"
-            @load="applyVersion"
-        />
-    </q-form>
+        v-model="form"
+        :definition="definition"
+        :sources="sources"
+        :sources-failed="sourcesFailed"
+        :columns-error="source?.columnsError ?? null"
+        :source-columns="sourceColumns"
+        :can-add-missing="canAddMissing"
+        :targets="targets"
+        :is-view="isView"
+        :views="views"
+        :errors="errors"
+        :conflict="conflict"
+        :saving="saving"
+        :is-dirty="isDirty"
+        :request="request"
+        :change-source="changeSource"
+        :add-missing-columns="addMissingColumns"
+        :save="save"
+        :set-deleted="setDeleted"
+        :reload="reload"
+        :apply-version="applyVersion"
+    />
 </template>
 
 <script setup lang="ts">
@@ -121,14 +53,7 @@ import { useRoute } from "vue-router"
 import BreadcrumbHeading from "@/components/BreadcrumbHeading.vue"
 import StatusBanner from "@/components/StatusBanner.vue"
 import { useConfirmLeave } from "@/composables/use-confirm-leave"
-import ReportAdminBasics from "../components/ReportAdminBasics.vue"
-import ReportAdminColumns from "../components/ReportAdminColumns.vue"
-import ReportAdminDisplay from "../components/ReportAdminDisplay.vue"
-import ReportAdminHistory from "../components/ReportAdminHistory.vue"
-import ReportAdminParameters from "../components/ReportAdminParameters.vue"
-import ReportAdminPermissions from "../components/ReportAdminPermissions.vue"
-import ReportAdminPreview from "../components/ReportAdminPreview.vue"
-import ReportAdminStatus from "../components/ReportAdminStatus.vue"
+import ReportAdminEditForm from "../components/ReportAdminEditForm.vue"
 import { toRequest } from "../admin/report-admin-form"
 import { useReportAdminEdit } from "../admin/use-report-admin-edit"
 
