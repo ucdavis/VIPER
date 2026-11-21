@@ -4,7 +4,7 @@
     "private": true,
     "type": "module",
     "engines": {
-        "node": "24.19.0"
+        "node": "24.22.2"
     },
     "scripts": {
         "dev": "vite",
@@ -16,57 +16,53 @@
         "type-check:watch": "vue-tsc --noEmit --watch",
         "lint": "eslint . --cache --cache-strategy content --cache-location .eslintcache",
         "lint:fix": "eslint . --fix --cache --cache-strategy content --cache-location .eslintcache",
-        "watch": "node vite-watch.js",
         "build-dev": "run-p type-check \"build-only-dev {@}\" --",
         "build-only-dev": "cross-env VITE_API_URL=/api/ VITE_VIPER_HOME=/ VITE_VIPER_1_HOME=http://localhost/ vite build",
         "build-test": "run-p type-check \"build-only-test {@}\" --",
         "build-only-test": "vite build --mode test",
         "test": "vitest",
-        "test:run": "vitest run"
+        "test:run": "vitest run",
+        "postinstall": "node ../scripts/copy-razor-libs.js"
     },
     "dependencies": {
         "@vue/devtools-api": "^8.2.1",
-        "@vueuse/core": "^14.4.0",
-        "chart.js": "^4.5.1",
+        "@vueuse/core": "^15.0.0",
+        "chart.js": "^4.6.1",
         "inflection": "^3.0.2",
-        "pinia": "^4.0.3",
-        "quasar": "^2.27.0",
-        "vue": "^3.5.41",
+        "pinia": "^4.1.0",
+        "quasar": "^2.35.2",
+        "vue": "^3.5.44",
         "vue-chartjs": "^5.3.4",
         "vue-draggable-plus": "^0.6.1",
-        "vue-router": "^5.2.0"
+        "vue-router": "^5.4.0"
     },
     "devDependencies": {
         "@codecov/vite-plugin": "^2.0.1",
         "@eslint/js": "^10.0.1",
         "@quasar/vite-plugin": "^2.0.2",
         "@tsconfig/node24": "^24.0.5",
-        "@types/node": "^24.13.3",
-        "@typescript-eslint/eslint-plugin": "^8.68.0",
-        "@typescript-eslint/parser": "^8.65.0",
-        "@vitejs/plugin-vue": "^6.0.8",
-        "@vitest/coverage-v8": "^5.0.0",
-        "@vue/test-utils": "^2.4.11",
+        "@types/node": "^24.19.2",
+        "@typescript-eslint/eslint-plugin": "^8.72.0",
+        "@typescript-eslint/parser": "^8.72.0",
+        "@vitejs/plugin-vue": "^6.0.10",
+        "@vitest/coverage-v8": "^5.0.5",
+        "@vue/test-utils": "^2.5.1",
         "@vue/tsconfig": "^0.9.1",
-        "chokidar": "^5.0.0",
-        "concurrently": "^10.0.5",
+        "concurrently": "^10.0.6",
         "cross-env": "^10.1.0",
-        "eslint": "^10.9.1",
+        "eslint": "^10.13.0",
         "eslint-config-prettier": "^10.1.8",
-        "eslint-plugin-harlanzw": "^0.20.0",
-        "eslint-plugin-vue": "^10.10.0",
-        "eslint-plugin-vuejs-accessibility": "^2.6.0",
-        "glob": "^13.0.6",
-        "globals": "^17.11.0",
-        "happy-dom": "^20.11.6",
-        "lodash-es": "^4.18.1",
-        "npm-run-all2": "^9.0.3",
-        "tree-kill": "^1.2.2",
+        "eslint-plugin-harlanzw": "^0.23.0",
+        "eslint-plugin-vue": "^10.11.1",
+        "eslint-plugin-vuejs-accessibility": "^2.6.3",
+        "globals": "^17.13.0",
+        "happy-dom": "^21.0.4",
+        "npm-run-all2": "^9.0.4",
         "typescript": "^6.0.3",
-        "vite": "^8.2.2",
+        "vite": "^8.3.5",
         "vite-plugin-vue-inspector": "^7.0.0",
         "vitest": "^5.0.0",
-        "vue-tsc": "^3.3.11"
+        "vue-tsc": "3.3.11"
     },
     "overrides": {
         "@codecov/vite-plugin": {
@@ -74,7 +70,7 @@
         }
     },
     "volta": {
-        "node": "24.19.0",
-        "npm": "11.17.0"
+        "node": "24.22.2",
+        "npm": "11.19.1"
     }
 }

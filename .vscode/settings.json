@@ -10,5 +10,9 @@
         "./VueApp"
     ],
     "oxc.typeAware": true,
-    "oxc.unusedDisableDirectives": "warn"
+    "oxc.unusedDisableDirectives": "warn",
+    "files.associations": {
+        "**/LegacyMigration/Areas/**/analysis.json": "jsonc",
+        "**/LegacyMigration/Output/**/analysis.suggestions.json": "jsonc"
+    }
 }

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { VIPER2_INFO_URL } from "@/config/external-links"
+
 withDefaults(
     defineProps<{
         className?: string
@@ -35,5 +37,19 @@ const viperHome = import.meta.env.VITE_VIPER_HOME
             class="mainLayoutViperMode"
             >Test</q-badge
         >
+    </q-btn>
+    <q-btn
+        flat
+        dense
+        round
+        size="sm"
+        icon="info_outline"
+        class="gt-sm self-end"
+        :href="VIPER2_INFO_URL"
+        target="_blank"
+        rel="noopener"
+        aria-label="About VIPER 2.0 (opens in new window)"
+    >
+        <q-tooltip>About VIPER 2.0</q-tooltip>
     </q-btn>
 </template>

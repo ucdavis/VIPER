@@ -1,4 +1,24 @@
+<script setup lang="ts">
+import { VIPER2_INFO_URL } from "@/config/external-links"
+</script>
+
 <template>
+    <a
+        :href="VIPER2_INFO_URL"
+        target="_blank"
+        rel="noopener"
+        class="text-primary"
+    >
+        <q-icon
+            color="primary"
+            name="info"
+            size="xs"
+            aria-hidden="true"
+        ></q-icon>
+        About VIPER 2.0
+        <span class="sr-only">(opens in new window)</span>
+    </a>
+    <span class="text-primary q-px-sm">|</span>
     <a
         href="https://svmithelp.vetmed.ucdavis.edu/"
         target="_blank"

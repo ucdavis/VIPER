@@ -284,11 +284,11 @@ public class MeritSummaryService : BaseReportService, IMeritSummaryService
                             });
                             col.Item().PaddingVertical(6).Row(row =>
                             {
-                                row.RelativeItem().SemanticHeader1().Text(reportTitle).SemiBold().FontSize(12);
-                                row.RelativeItem().AlignCenter().SemanticHeader2().Text(dept.Department).SemiBold().FontSize(12);
+                                row.RelativeItem().SemanticHeading1().Text(reportTitle).SemiBold().FontSize(12);
+                                row.RelativeItem().AlignCenter().SemanticHeading2().Text(dept.Department).SemiBold().FontSize(12);
                                 row.RelativeItem().AlignRight().Text(report.TermName).SemiBold().FontSize(12);
                             });
-                            col.Item().SemanticHeader3().Text(jobGroup.JobGroupDescription).SemiBold().FontSize(11);
+                            col.Item().SemanticHeading3().Text(jobGroup.JobGroupDescription).SemiBold().FontSize(11);
                         });
 
                         page.Content().SemanticTable().Table(table =>

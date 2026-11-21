@@ -1,0 +1,939 @@
+// Declarations for ClinicalScheduler, analyzed on Production. Begun from the suggestions generated
+// 2026-10-21 from the schema export, then extended by hand for data integrity findings I2, I3, I7, and I8,
+// and for the email columns' format.
+{
+  // Tables whose names look like backups or dated copies.
+  "exclude": [
+    "[dbo].[genericFormValueBk]", // name word "bk"
+    "[dbo].[manualPrescheduleItemBK_2022_12_30]", // name word "bk" and a date
+    "[dbo].[studentSchedule_2020_03_31]", // a date in the name
+    "[dbo].[studentSchedule_2022_03_29]", // a date in the name
+    "[dbo].[scheduleWithSeq001]" // a dead copy of studentSchedule (finding I10)
+  ],
+
+  // For each table, the column that dates its rows, guessed from the column names. Confirm each one.
+  "dateColumns": {
+    "[dbo].[AdminAudit]": "timestamp", // the only date column
+    "[dbo].[BrainStatus]": "LastSnapshot", // the only date column
+    "[dbo].[EvolutionIntervalStat]": "Created", // named for creation
+    "[dbo].[InstructorSchedule]": "Modified_date", // named for modification
+    "[dbo].[ManualPreScheduleItem]": "Create_Date", // named for creation; others: Modified_Date
+    "[dbo].[PotentialSchedule]": "DateGenerated", // the only date column
+    "[dbo].[RequestAudit]": "ModTime", // named for modification
+    "[dbo].[RotationWeeklyPref]": "Modified_Date", // named for modification
+    "[dbo].[SNAP_ManualPreScheduleItem]": "Create_Date", // named for creation; others: Modified_Date
+    "[dbo].[SNAP_RotationWeeklyPref]": "Modified_Date", // named for modification
+    "[dbo].[SNAP_ServiceRequestDetail]": "Create_Date", // named for creation; others: Modified_Date
+    "[dbo].[SNAP_ServiceRequest]": "Create_Date", // named for creation; others: Modified_Date
+    "[dbo].[ScheduleAudit]": "timestamp", // the only date column
+    "[dbo].[ServiceRequestDetail]": "Create_Date", // named for creation; others: Modified_Date
+    "[dbo].[ServiceRequest]": "Create_Date", // named for creation; others: Modified_Date
+    "[dbo].[Service]": "LastMod", // named for modification
+    "[dbo].[StudentTrack]": "Create_Date", // named for creation; others: Modified_Date
+    "[dbo].[externalEmailSent]": "timestamp", // the only date column
+    "[dbo].[externalEmailTemplate]": "modified", // named for modification
+    "[dbo].[externalRequestAudit]": "timestamp", // the only date column
+    "[dbo].[externalRequest]": "createdOn", // named for creation; others: approverNotifiedOn, approvalSubmittedOn, lastEditedOn
+    "[dbo].[studentExternalNote]": "enteredOn", // named for creation
+    "[dbo].[visitor]": "addDate" // named for creation; others: modifyDate
+    // Several date columns, none named for creation or modification; pick one if any dates the rows:
+    //   [dbo].[EvolutionRunStat]: Started, LastSnapshot, StartedIntervalsAt
+    //   [dbo].[Status]: OpenDate, CloseDate, ExtRequestOpen, ExtRequestDeadline, ExtRequestReopen
+    //   [dbo].[Week]: DateStart, DateEnd
+  },
+
+  // Columns whose values the report may show: the emphasis abbreviations, so the checks below can list
+  // the ones that disagree, and the grad years and term codes that key many rows.
+  "safeColumns": [
+    { "table": "[dbo].[link_PrimEmphasis_ClinEmphasis]", "column": "PrimaryEmphasis", "reason": "Emphasis abbreviations, codes rather than anything personal." },
+    { "table": "[dbo].[StudentPrimaryEmphasis]", "column": "PRIMARYEmpasisAbbrev", "reason": "Emphasis abbreviations, codes rather than anything personal." },
+    { "table": "[dbo].[PrimaryEmphasis]", "column": "Emphasis_Abbrev", "reason": "Emphasis abbreviations, codes rather than anything personal." },
+    { "table": "[dbo].[Status]", "column": "GradYear", "reason": "Graduation years, shared by a whole class." },
+    { "table": "[dbo].[StudentDidactic]", "column": "GradYear", "reason": "Graduation years, shared by a whole class." },
+    { "table": "[dbo].[StudentTrack]", "column": "GradYear", "reason": "Graduation years, shared by a whole class." },
+    { "table": "[dbo].[Track]", "column": "GradYear", "reason": "Graduation years, shared by a whole class." },
+    { "table": "[dbo].[Week]", "column": "TermCode", "reason": "Term codes, shared by everyone in a term." },
+    { "table": "[dbo].[studentSchedule]", "column": "TermCode", "reason": "Term codes, shared by everyone in a term." }
+  ],
+
+  "checks": [
+    {
+      "check": "valuesMustExistIn",
+      "description": "Each grad year should be one defined in Status; no foreign key enforces this. Audit rows can outlive what they record, so a missing value may be a later deletion rather than an error.",
+      "table": "[dbo].[AdminAudit]",
+      "columns": ["gradYear"],
+      "otherTable": "[dbo].[Status]",
+      "otherColumns": ["GradYear"]
+    },
+    {
+      "check": "valuesMustExistIn",
+      "description": "Each rotation should be one that exists in Rotation; no foreign key enforces this. Audit rows can outlive what they record, so a missing value may be a later deletion rather than an error.",
+      "table": "[dbo].[AdminAudit]",
+      "columns": ["rot_ID"],
+      "otherTable": "[dbo].[Rotation]",
+      "otherColumns": ["Rot_ID"]
+    },
+    {
+      "check": "valuesMustExistIn",
+      "description": "Each week should be one that exists in Week; no foreign key enforces this. Audit rows can outlive what they record, so a missing value may be a later deletion rather than an error.",
+      "table": "[dbo].[AdminAudit]",
+      "columns": ["week_ID"],
+      "otherTable": "[dbo].[Week]",
+      "otherColumns": ["Week_ID"]
+    },
+    {
+      "check": "valuesMustExistIn",
+      "description": "Each service should be one that exists in Service; no foreign key enforces this. Audit rows can outlive what they record, so a missing value may be a later deletion rather than an error.",
+      "table": "[dbo].[AdminAudit]",
+      "columns": ["service_ID"],
+      "otherTable": "[dbo].[Service]",
+      "otherColumns": ["Service_ID"]
+    },
+    {
+      "check": "valuesMustExistIn",
+      "description": "Each grad year should be one defined in Status; no foreign key enforces this.",
+      "table": "[dbo].[Didactic]",
+      "columns": ["GradYear"],
+      "otherTable": "[dbo].[Status]",
+      "otherColumns": ["GradYear"]
+    },
+    {
+      "check": "valuesMustExistIn",
+      "description": "Each interval should belong to a run that exists in EvolutionRunStat; no foreign key enforces this.",
+      "table": "[dbo].[EvolutionIntervalStat]",
+      "columns": ["Run_ID"],
+      "otherTable": "[dbo].[EvolutionRunStat]",
+      "otherColumns": ["Run_ID"]
+    },
+    {
+      "check": "valuesMustExistIn",
+      "description": "Each grad year should be one defined in Status; no foreign key enforces this.",
+      "table": "[dbo].[EvolutionRunStat]",
+      "columns": ["GradYear"],
+      "otherTable": "[dbo].[Status]",
+      "otherColumns": ["GradYear"]
+    },
+    {
+      "check": "valuesMustExistIn",
+      "description": "Each grad year should be one defined in Status; no foreign key enforces this.",
+      "table": "[dbo].[ExternalStudent]",
+      "columns": ["gradYear"],
+      "otherTable": "[dbo].[Status]",
+      "otherColumns": ["GradYear"]
+    },
+    {
+      "check": "valuesMustExistIn",
+      "description": "Each grad year should be one defined in Status; no foreign key enforces this.",
+      "table": "[dbo].[HolidayCrew]",
+      "columns": ["Gradyear"],
+      "otherTable": "[dbo].[Status]",
+      "otherColumns": ["GradYear"]
+    },
+    {
+      "check": "valuesMustExistIn",
+      "description": "Each grad year should be one defined in Status; no foreign key enforces this.",
+      "table": "[dbo].[ManualPreScheduleItem]",
+      "columns": ["GradYear"],
+      "otherTable": "[dbo].[Status]",
+      "otherColumns": ["GradYear"]
+    },
+    {
+      "check": "valuesMustExistIn",
+      "description": "Each detail row should belong to a potential schedule that exists; no foreign key enforces this.",
+      "table": "[dbo].[PotentialScheduleDetail]",
+      "columns": ["Schedule_ID"],
+      "otherTable": "[dbo].[PotentialSchedule]",
+      "otherColumns": ["Schedule_ID"]
+    },
+    {
+      "check": "valuesMustExistIn",
+      "description": "Each rotation should be one that exists in Rotation; no foreign key enforces this.",
+      "table": "[dbo].[PotentialScheduleDetail]",
+      "columns": ["Rot_ID"],
+      "otherTable": "[dbo].[Rotation]",
+      "otherColumns": ["Rot_ID"]
+    },
+    {
+      "check": "valuesMustExistIn",
+      "description": "Each week should be one that exists in Week; no foreign key enforces this.",
+      "table": "[dbo].[PotentialScheduleDetail]",
+      "columns": ["Week_ID"],
+      "otherTable": "[dbo].[Week]",
+      "otherColumns": ["Week_ID"]
+    },
+    {
+      "check": "valuesMustExistIn",
+      "description": "Each grad year should be one defined in Status; no foreign key enforces this.",
+      "table": "[dbo].[PotentialSchedule]",
+      "columns": ["GradYear"],
+      "otherTable": "[dbo].[Status]",
+      "otherColumns": ["GradYear"]
+    },
+    {
+      "check": "valuesMustExistIn",
+      "description": "Each grad year should be one defined in Status; no foreign key enforces this.",
+      "table": "[dbo].[SNAP_ManualPreScheduleItem]",
+      "columns": ["GradYear"],
+      "otherTable": "[dbo].[Status]",
+      "otherColumns": ["GradYear"]
+    },
+    {
+      "check": "valuesMustExistIn",
+      "description": "Each grad year should be one defined in Status; no foreign key enforces this.",
+      "table": "[dbo].[SNAP_ServiceRequest]",
+      "columns": ["GradYear"],
+      "otherTable": "[dbo].[Status]",
+      "otherColumns": ["GradYear"]
+    },
+    {
+      "check": "valuesMustExistIn",
+      "description": "Each grad year should be one defined in Status; no foreign key enforces this. Audit rows can outlive what they record, so a missing value may be a later deletion rather than an error.",
+      "table": "[dbo].[ScheduleAudit]",
+      "columns": ["gradYear"],
+      "otherTable": "[dbo].[Status]",
+      "otherColumns": ["GradYear"]
+    },
+    {
+      "check": "valuesMustExistIn",
+      "description": "Each external student should be one that exists in ExternalStudent; no foreign key enforces this. Audit rows can outlive what they record, so a missing value may be a later deletion rather than an error.",
+      "table": "[dbo].[ScheduleAudit]",
+      "columns": ["externalStudentId"],
+      "otherTable": "[dbo].[ExternalStudent]",
+      "otherColumns": ["externalStudentId"]
+    },
+    {
+      "check": "valuesMustExistIn",
+      "description": "Each grad year should be one defined in Status; no foreign key enforces this.",
+      "table": "[dbo].[ServiceRequest]",
+      "columns": ["GradYear"],
+      "otherTable": "[dbo].[Status]",
+      "otherColumns": ["GradYear"]
+    },
+    {
+      "check": "valuesMustExistIn",
+      "description": "Each grad year should be one defined in Status; no foreign key enforces this.",
+      "table": "[dbo].[StreamEmphasis]",
+      "columns": ["GradYear"],
+      "otherTable": "[dbo].[Status]",
+      "otherColumns": ["GradYear"]
+    },
+    {
+      "check": "valuesMustExistIn",
+      "description": "Each grad year should be one defined in Status; no foreign key enforces this.",
+      "table": "[dbo].[StudentCoreServices]",
+      "columns": ["Gradyear"],
+      "otherTable": "[dbo].[Status]",
+      "otherColumns": ["GradYear"]
+    },
+    {
+      "check": "valuesMustExistIn",
+      "description": "Each grad year should be one defined in Status; no foreign key enforces this.",
+      "table": "[dbo].[StudentDidactic]",
+      "columns": ["GradYear"],
+      "otherTable": "[dbo].[Status]",
+      "otherColumns": ["GradYear"]
+    },
+    {
+      "check": "valuesMustExistIn",
+      "description": "Each didactic a student is enrolled in should be one that exists in Didactic; no foreign key enforces this.",
+      "table": "[dbo].[StudentDidactic]",
+      "columns": ["Didactic_ID"],
+      "otherTable": "[dbo].[Didactic]",
+      "otherColumns": ["Didactic_ID"]
+    },
+    {
+      "check": "valuesMustExistIn",
+      "description": "Each grad year should be one defined in Status; no foreign key enforces this.",
+      "table": "[dbo].[StudentHolidayCrew]",
+      "columns": ["GradYear"],
+      "otherTable": "[dbo].[Status]",
+      "otherColumns": ["GradYear"]
+    },
+    {
+      "check": "valuesMustExistIn",
+      "description": "Each grad year should be one defined in Status; no foreign key enforces this.",
+      "table": "[dbo].[StudentPrimaryEmphasis]",
+      "columns": ["GradYear"],
+      "otherTable": "[dbo].[Status]",
+      "otherColumns": ["GradYear"]
+    },
+    {
+      "check": "valuesMustExistIn",
+      "description": "Each grad year should be one defined in Status; no foreign key enforces this.",
+      "table": "[dbo].[StudentTrack]",
+      "columns": ["GradYear"],
+      "otherTable": "[dbo].[Status]",
+      "otherColumns": ["GradYear"]
+    },
+    {
+      "check": "valuesMustExistIn",
+      "description": "Each rotation should be one that exists in Rotation; no foreign key enforces this.",
+      "table": "[dbo].[TermEnrollment]",
+      "columns": ["Rot_ID"],
+      "otherTable": "[dbo].[Rotation]",
+      "otherColumns": ["Rot_ID"]
+    },
+    {
+      "check": "valuesMustExistIn",
+      "description": "Each rotation should be one that exists in Rotation; no foreign key enforces this.",
+      "table": "[dbo].[TermValidation]",
+      "columns": ["Rot_ID"],
+      "otherTable": "[dbo].[Rotation]",
+      "otherColumns": ["Rot_ID"]
+    },
+    {
+      "check": "valuesMustExistIn",
+      "description": "Each grad year should be one defined in Status; no foreign key enforces this.",
+      "table": "[dbo].[Track]",
+      "columns": ["GradYear"],
+      "otherTable": "[dbo].[Status]",
+      "otherColumns": ["GradYear"]
+    },
+    {
+      "check": "valuesMustExistIn",
+      "description": "Each audit row should belong to an external request that exists; no foreign key enforces this. Audit rows can outlive what they record, so a missing value may be a later deletion rather than an error.",
+      "table": "[dbo].[externalRequestAudit]",
+      "columns": ["externalRequestId"],
+      "otherTable": "[dbo].[externalRequest]",
+      "otherColumns": ["externalRequestId"]
+    },
+    {
+      "check": "valuesMustExistIn",
+      "description": "Each grad year should be one defined in Status; no foreign key enforces this. Audit rows can outlive what they record, so a missing value may be a later deletion rather than an error.",
+      "table": "[dbo].[externalRequestAudit]",
+      "columns": ["gradYear"],
+      "otherTable": "[dbo].[Status]",
+      "otherColumns": ["GradYear"]
+    },
+    {
+      "check": "valuesMustExistIn",
+      "description": "Each grad year should be one defined in Status; no foreign key enforces this.",
+      "table": "[dbo].[externalRequest]",
+      "columns": ["gradYear"],
+      "otherTable": "[dbo].[Status]",
+      "otherColumns": ["GradYear"]
+    },
+    {
+      "check": "valuesMustExistIn",
+      "description": "Each grad year should be one defined in Status; no foreign key enforces this.",
+      "table": "[dbo].[rescheduleRank]",
+      "columns": ["gradYear"],
+      "otherTable": "[dbo].[Status]",
+      "otherColumns": ["GradYear"]
+    },
+    {
+      "check": "valuesMustExistIn",
+      "description": "Each service should be one that exists in Service; no foreign key enforces this.",
+      "table": "[dbo].[rescheduleRank]",
+      "columns": ["service_id"],
+      "otherTable": "[dbo].[Service]",
+      "otherColumns": ["Service_ID"]
+    },
+    {
+      "check": "valuesMustExistIn",
+      "description": "Each grad year should be one defined in Status; no foreign key enforces this.",
+      "table": "[dbo].[visitor]",
+      "columns": ["gradYear"],
+      "otherTable": "[dbo].[Status]",
+      "otherColumns": ["GradYear"]
+    },
+    {
+      "check": "valuesMustExistIn",
+      "description": "Each grad year should be one defined in Status; no foreign key enforces this.",
+      "table": "[dbo].[weekGradYear]",
+      "columns": ["gradYear"],
+      "otherTable": "[dbo].[Status]",
+      "otherColumns": ["GradYear"]
+    },
+    {
+      "check": "identifiesOnePerson",
+      "description": "Every mothraID should be a person the migration can link to.",
+      "table": "[dbo].[AdminAudit]",
+      "column": "mothraID",
+      "idType": "MothraId",
+      "lookIn": "VIPER.users.Person"
+    },
+    {
+      "check": "identifiesOnePerson",
+      "description": "Every mothraId should be a person the migration can link to.",
+      "table": "[dbo].[ExternalStudent]",
+      "column": "mothraId",
+      "idType": "MothraId",
+      "lookIn": "VIPER.users.Person"
+    },
+    {
+      "check": "identifiesOnePerson",
+      "description": "Every Mothra_ID should be a person the migration can link to.",
+      "table": "[dbo].[InstructorSchedule]",
+      "column": "Mothra_ID",
+      "idType": "MothraId",
+      "lookIn": "VIPER.users.Person"
+    },
+    {
+      "check": "identifiesOnePerson",
+      "description": "Every Mothra_ID should be a person the migration can link to.",
+      "table": "[dbo].[ManualPreScheduleItem]",
+      "column": "Mothra_ID",
+      "idType": "MothraId",
+      "lookIn": "VIPER.users.Person"
+    },
+    {
+      "check": "identifiesOnePerson",
+      "description": "Every Mothra_ID should be a person the migration can link to.",
+      "table": "[dbo].[PotentialScheduleDetail]",
+      "column": "Mothra_ID",
+      "idType": "MothraId",
+      "lookIn": "VIPER.users.Person"
+    },
+    {
+      "check": "identifiesOnePerson",
+      "description": "Every StudentMothra_ID should be a person the migration can link to.",
+      "table": "[dbo].[RequestAudit]",
+      "column": "StudentMothra_ID",
+      "idType": "MothraId",
+      "lookIn": "VIPER.users.Person"
+    },
+    {
+      "check": "identifiesOnePerson",
+      "description": "Every Mothra_ID should be a person the migration can link to.",
+      "table": "[dbo].[RequestSequence]",
+      "column": "Mothra_ID",
+      "idType": "MothraId",
+      "lookIn": "VIPER.users.Person"
+    },
+    {
+      "check": "identifiesOnePerson",
+      "description": "Every Mothra_ID should be a person the migration can link to.",
+      "table": "[dbo].[SNAP_ManualPreScheduleItem]",
+      "column": "Mothra_ID",
+      "idType": "MothraId",
+      "lookIn": "VIPER.users.Person"
+    },
+    {
+      "check": "identifiesOnePerson",
+      "description": "Every Mothra_ID should be a person the migration can link to.",
+      "table": "[dbo].[SNAP_ServiceRequest]",
+      "column": "Mothra_ID",
+      "idType": "MothraId",
+      "lookIn": "VIPER.users.Person"
+    },
+    {
+      "check": "identifiesOnePerson",
+      "description": "Every mothraID should be a person the migration can link to.",
+      "table": "[dbo].[ScheduleAudit]",
+      "column": "mothraID",
+      "idType": "MothraId",
+      "lookIn": "VIPER.users.Person"
+    },
+    {
+      "check": "identifiesOnePerson",
+      "description": "Every MothraID should be a person the migration can link to.",
+      "table": "[dbo].[ServiceChief]",
+      "column": "MothraID",
+      "idType": "MothraId",
+      "lookIn": "VIPER.users.Person"
+    },
+    {
+      "check": "identifiesOnePerson",
+      "description": "Every Mothra_ID should be a person the migration can link to.",
+      "table": "[dbo].[ServiceRequest]",
+      "column": "Mothra_ID",
+      "idType": "MothraId",
+      "lookIn": "VIPER.users.Person"
+    },
+    {
+      "check": "identifiesOnePerson",
+      "description": "Every Mothra_ID should be a person the migration can link to.",
+      "table": "[dbo].[StudentCoreServices]",
+      "column": "Mothra_ID",
+      "idType": "MothraId",
+      "lookIn": "VIPER.users.Person"
+    },
+    {
+      "check": "identifiesOnePerson",
+      "description": "Every Mothra_ID should be a person the migration can link to.",
+      "table": "[dbo].[StudentDidactic]",
+      "column": "Mothra_ID",
+      "idType": "MothraId",
+      "lookIn": "VIPER.users.Person"
+    },
+    {
+      "check": "identifiesOnePerson",
+      "description": "Every Mothra_ID should be a person the migration can link to.",
+      "table": "[dbo].[StudentHolidayCrew]",
+      "column": "Mothra_ID",
+      "idType": "MothraId",
+      "lookIn": "VIPER.users.Person"
+    },
+    {
+      "check": "identifiesOnePerson",
+      "description": "Every Mothra_ID should be a person the migration can link to.",
+      "table": "[dbo].[StudentPrimaryEmphasis]",
+      "column": "Mothra_ID",
+      "idType": "MothraId",
+      "lookIn": "VIPER.users.Person"
+    },
+    {
+      "check": "identifiesOnePerson",
+      "description": "Every Mothra_ID should be a person the migration can link to.",
+      "table": "[dbo].[StudentTrack]",
+      "column": "Mothra_ID",
+      "idType": "MothraId",
+      "lookIn": "VIPER.users.Person"
+    },
+    {
+      "check": "identifiesOnePerson",
+      "description": "Every MothraID should be a person the migration can link to.",
+      "table": "[dbo].[TermEnrollment]",
+      "column": "MothraID",
+      "idType": "MothraId",
+      "lookIn": "VIPER.users.Person"
+    },
+    {
+      "check": "identifiesOnePerson",
+      "description": "Every MothraID should be a person the migration can link to.",
+      "table": "[dbo].[TermValidation]",
+      "column": "MothraID",
+      "idType": "MothraId",
+      "lookIn": "VIPER.users.Person"
+    },
+    {
+      "check": "identifiesOnePerson",
+      "description": "Every senderMothraID should be a person the migration can link to.",
+      "table": "[dbo].[externalEmailSent]",
+      "column": "senderMothraID",
+      "idType": "MothraId",
+      "lookIn": "VIPER.users.Person"
+    },
+    {
+      "check": "identifiesOnePerson",
+      "description": "Every studentMothraID should be a person the migration can link to.",
+      "table": "[dbo].[externalEmailSent]",
+      "column": "studentMothraID",
+      "idType": "MothraId",
+      "lookIn": "VIPER.users.Person"
+    },
+    {
+      "check": "identifiesOnePerson",
+      "description": "Every studentMothraId should be a person the migration can link to.",
+      "table": "[dbo].[externalRequestAudit]",
+      "column": "studentMothraId",
+      "idType": "MothraId",
+      "lookIn": "VIPER.users.Person"
+    },
+    {
+      "check": "identifiesOnePerson",
+      "description": "Every mothraId should be a person the migration can link to.",
+      "table": "[dbo].[externalRequest]",
+      "column": "mothraId",
+      "idType": "MothraId",
+      "lookIn": "VIPER.users.Person"
+    },
+    {
+      "check": "identifiesOnePerson",
+      "description": "Every mothraID should be a person the migration can link to.",
+      "table": "[dbo].[rescheduleRank]",
+      "column": "mothraID",
+      "idType": "MothraId",
+      "lookIn": "VIPER.users.Person"
+    },
+    {
+      "check": "identifiesOnePerson",
+      "description": "Every mothraId should be a person the migration can link to.",
+      "table": "[dbo].[studentExternalNote]",
+      "column": "mothraId",
+      "idType": "MothraId",
+      "lookIn": "VIPER.users.Person"
+    },
+    {
+      "check": "identifiesOnePerson",
+      "description": "Every Mothra_ID should be a person the migration can link to.",
+      "table": "[dbo].[studentSchedule]",
+      "column": "Mothra_ID",
+      "idType": "MothraId",
+      "lookIn": "VIPER.users.Person"
+    },
+    {
+      "check": "identifiesOnePerson",
+      "description": "Every mothraid should be a person the migration can link to.",
+      "table": "[dbo].[visitor]",
+      "column": "mothraid",
+      "idType": "MothraId",
+      "lookIn": "VIPER.users.Person"
+    },
+
+    // Columns that record who changed a row. Their names give no ID type, but each is varchar(8) like the
+    // MothraId columns; values that are another ID type, such as a LoginId, are counted as such.
+    {
+      "check": "identifiesOnePerson",
+      "description": "modBy records who changed the row and should be a person the migration can link to.",
+      "table": "[dbo].[AdminAudit]",
+      "column": "modBy",
+      "idType": "MothraId",
+      "lookIn": "VIPER.users.Person"
+    },
+    {
+      "check": "identifiesOnePerson",
+      "description": "Modified_by records who changed the row and should be a person the migration can link to.",
+      "table": "[dbo].[InstructorSchedule]",
+      "column": "Modified_by",
+      "idType": "MothraId",
+      "lookIn": "VIPER.users.Person"
+    },
+    {
+      "check": "identifiesOnePerson",
+      "description": "Modified_By records who changed the row and should be a person the migration can link to.",
+      "table": "[dbo].[ManualPreScheduleItem]",
+      "column": "Modified_By",
+      "idType": "MothraId",
+      "lookIn": "VIPER.users.Person"
+    },
+    {
+      "check": "identifiesOnePerson",
+      "description": "ModBy records who changed the row and should be a person the migration can link to.",
+      "table": "[dbo].[RequestAudit]",
+      "column": "ModBy",
+      "idType": "MothraId",
+      "lookIn": "VIPER.users.Person"
+    },
+    {
+      "check": "identifiesOnePerson",
+      "description": "Modified_by records who changed the row and should be a person the migration can link to.",
+      "table": "[dbo].[RotationWeeklyPref]",
+      "column": "Modified_by",
+      "idType": "MothraId",
+      "lookIn": "VIPER.users.Person"
+    },
+    {
+      "check": "identifiesOnePerson",
+      "description": "Modified_By records who changed the row and should be a person the migration can link to.",
+      "table": "[dbo].[SNAP_ManualPreScheduleItem]",
+      "column": "Modified_By",
+      "idType": "MothraId",
+      "lookIn": "VIPER.users.Person"
+    },
+    {
+      "check": "identifiesOnePerson",
+      "description": "Modified_by records who changed the row and should be a person the migration can link to.",
+      "table": "[dbo].[SNAP_RotationWeeklyPref]",
+      "column": "Modified_by",
+      "idType": "MothraId",
+      "lookIn": "VIPER.users.Person"
+    },
+    {
+      "check": "identifiesOnePerson",
+      "description": "modBy records who changed the row and should be a person the migration can link to.",
+      "table": "[dbo].[ScheduleAudit]",
+      "column": "modBy",
+      "idType": "MothraId",
+      "lookIn": "VIPER.users.Person"
+    },
+    {
+      "check": "identifiesOnePerson",
+      "description": "ModBy records who changed the row and should be a person the migration can link to.",
+      "table": "[dbo].[Service]",
+      "column": "ModBy",
+      "idType": "MothraId",
+      "lookIn": "VIPER.users.Person"
+    },
+    {
+      "check": "identifiesOnePerson",
+      "description": "modifiedby records who changed the row and should be a person the migration can link to.",
+      "table": "[dbo].[externalEmailTemplate]",
+      "column": "modifiedby",
+      "idType": "MothraId",
+      "lookIn": "VIPER.users.Person"
+    },
+    {
+      "check": "identifiesOnePerson",
+      "description": "modBy records who changed the row and should be a person the migration can link to.",
+      "table": "[dbo].[externalRequestAudit]",
+      "column": "modBy",
+      "idType": "MothraId",
+      "lookIn": "VIPER.users.Person"
+    },
+    {
+      "check": "identifiesOnePerson",
+      "description": "approvalSubmittedBy records who submitted the request for approval and should be a person the migration can link to.",
+      "table": "[dbo].[externalRequest]",
+      "column": "approvalSubmittedBy",
+      "idType": "MothraId",
+      "lookIn": "VIPER.users.Person"
+    },
+    {
+      "check": "identifiesOnePerson",
+      "description": "createdBy records who created the request and should be a person the migration can link to.",
+      "table": "[dbo].[externalRequest]",
+      "column": "createdBy",
+      "idType": "MothraId",
+      "lookIn": "VIPER.users.Person"
+    },
+    {
+      "check": "identifiesOnePerson",
+      "description": "lastEditedBy records who last edited the request and should be a person the migration can link to.",
+      "table": "[dbo].[externalRequest]",
+      "column": "lastEditedBy",
+      "idType": "MothraId",
+      "lookIn": "VIPER.users.Person"
+    },
+    {
+      "check": "identifiesOnePerson",
+      "description": "enteredBy records who entered the note and should be a person the migration can link to.",
+      "table": "[dbo].[studentExternalNote]",
+      "column": "enteredBy",
+      "idType": "MothraId",
+      "lookIn": "VIPER.users.Person"
+    },
+    {
+      "check": "identifiesOnePerson",
+      "description": "addUser records who added the visitor and should be a person the migration can link to.",
+      "table": "[dbo].[visitor]",
+      "column": "addUser",
+      "idType": "MothraId",
+      "lookIn": "VIPER.users.Person"
+    },
+    {
+      "check": "identifiesOnePerson",
+      "description": "modifyUser records who last changed the visitor and should be a person the migration can link to.",
+      "table": "[dbo].[visitor]",
+      "column": "modifyUser",
+      "idType": "MothraId",
+      "lookIn": "VIPER.users.Person"
+    },
+
+    // Finding I2: natural keys with no unique index. MothraIds ignore surrounding spaces, since some are padded (I5).
+    {
+      "check": "noDuplicates",
+      "description": "A student is placed in a rotation at most once per week; duplicates double-count capacity.",
+      "table": "[dbo].[studentSchedule]",
+      "columns": ["Mothra_ID", "Week_ID", "Rot_ID"],
+      "ignoreSurroundingSpaces": true
+    },
+    {
+      "check": "noDuplicates",
+      "description": "An instructor is assigned to a rotation at most once per week.",
+      "table": "[dbo].[InstructorSchedule]",
+      "columns": ["Mothra_ID", "Rot_ID", "Week_ID"],
+      "ignoreSurroundingSpaces": true
+    },
+    {
+      "check": "noDuplicates",
+      "description": "A rotation has one set of weekly preferences per week.",
+      "table": "[dbo].[RotationWeeklyPref]",
+      "columns": ["Rot_ID", "Week_ID"]
+    },
+    {
+      "check": "noDuplicates",
+      "description": "A student makes one request per service per grad year.",
+      "table": "[dbo].[ServiceRequest]",
+      "columns": ["Mothra_ID", "Service_ID", "GradYear"],
+      "ignoreSurroundingSpaces": true
+    },
+    {
+      "check": "noDuplicates",
+      "description": "A student picks one service per core requirement per grad year.",
+      "table": "[dbo].[StudentCoreServices]",
+      "columns": ["Mothra_ID", "Gradyear", "Core_ID"],
+      "ignoreSurroundingSpaces": true
+    },
+    {
+      "check": "noDuplicates",
+      "description": "A student is enrolled in a didactic at most once per grad year.",
+      "table": "[dbo].[StudentDidactic]",
+      "columns": ["Mothra_ID", "GradYear", "Didactic_ID"],
+      "ignoreSurroundingSpaces": true
+    },
+    {
+      "check": "noDuplicates",
+      "description": "A person is chief of a service at most once.",
+      "table": "[dbo].[ServiceChief]",
+      "columns": ["MothraID", "serviceID"],
+      "ignoreSurroundingSpaces": true
+    },
+
+    // Finding I3: relationships with no foreign key, named too differently for the suggestions to find.
+    {
+      "check": "valuesMustExistIn",
+      "description": "A schedule row that came from a potential schedule must point at one that exists.",
+      "table": "[dbo].[studentSchedule]",
+      "columns": ["potentialScheduleID"],
+      "otherTable": "[dbo].[PotentialSchedule]",
+      "otherColumns": ["Schedule_ID"]
+    },
+    {
+      "check": "valuesMustExistIn",
+      "description": "Each holiday crew choice must be a holiday crew that exists.",
+      "table": "[dbo].[StudentHolidayCrew]",
+      "columns": ["Choice1"],
+      "otherTable": "[dbo].[HolidayCrew]",
+      "otherColumns": ["HC_ID"]
+    },
+    {
+      "check": "valuesMustExistIn",
+      "description": "Each holiday crew choice must be a holiday crew that exists.",
+      "table": "[dbo].[StudentHolidayCrew]",
+      "columns": ["Choice2"],
+      "otherTable": "[dbo].[HolidayCrew]",
+      "otherColumns": ["HC_ID"]
+    },
+    {
+      "check": "valuesMustExistIn",
+      "description": "Each holiday crew choice must be a holiday crew that exists.",
+      "table": "[dbo].[StudentHolidayCrew]",
+      "columns": ["Choice3"],
+      "otherTable": "[dbo].[HolidayCrew]",
+      "otherColumns": ["HC_ID"]
+    },
+    {
+      "check": "valuesMustExistIn",
+      "description": "Each holiday crew choice must be a holiday crew that exists.",
+      "table": "[dbo].[StudentHolidayCrew]",
+      "columns": ["Choice4"],
+      "otherTable": "[dbo].[HolidayCrew]",
+      "otherColumns": ["HC_ID"]
+    },
+
+    {
+      "check": "valuesMustExistIn",
+      "description": "Each elite schedule should be a potential schedule that exists; no foreign key enforces this.",
+      "table": "[dbo].[EvolutionEliteStat]",
+      "columns": ["PotentialSchedule_ID"],
+      "otherTable": "[dbo].[PotentialSchedule]",
+      "otherColumns": ["Schedule_ID"]
+    },
+    {
+      "check": "valuesMustExistIn",
+      "description": "Each elite schedule's run number should be a run that exists in EvolutionRunStat, assuming RunNumber holds a Run_ID; no foreign key enforces this.",
+      "table": "[dbo].[EvolutionEliteStat]",
+      "columns": ["RunNumber"],
+      "otherTable": "[dbo].[EvolutionRunStat]",
+      "otherColumns": ["Run_ID"]
+    },
+
+    // Finding I7: enumerations stored as free text. Add "allowedValues" where the valid set is known.
+    {
+      "check": "listValues",
+      "description": "External request states are free text; typos create new states.",
+      "table": "[dbo].[externalRequest]",
+      "column": "state"
+    },
+    {
+      "check": "listValues",
+      "description": "External request types are free text.",
+      "table": "[dbo].[externalRequest]",
+      "column": "type"
+    },
+    {
+      "check": "listValues",
+      "description": "External request priorities are free text.",
+      "table": "[dbo].[externalRequest]",
+      "column": "priority"
+    },
+    {
+      "check": "listValues",
+      "description": "Grade modes are free text.",
+      "table": "[dbo].[RotationWeeklyPref]",
+      "column": "GradeMode",
+      "looksPersonal": "A rotation's grading mode, not student data."
+    },
+    {
+      "check": "listValues",
+      "description": "Grade mode levels are free text.",
+      "table": "[dbo].[RotationWeeklyPref]",
+      "column": "GradeModeLevel",
+      "looksPersonal": "A rotation's grading mode level, not student data."
+    },
+    {
+      "check": "listValues",
+      "description": "Instructor roles are free text.",
+      "table": "[dbo].[InstructorSchedule]",
+      "column": "role"
+    },
+    {
+      "check": "listValues",
+      "description": "Vacation types are free text.",
+      "table": "[dbo].[ServiceRequestDetail]",
+      "column": "VacType"
+    },
+    {
+      "check": "listValues",
+      "description": "The Didactic report depends on the exact spelling of these values.",
+      "table": "[dbo].[Didactic]",
+      "column": "Requires"
+    },
+
+    // Finding I8: copies of data held elsewhere, which can drift.
+    {
+      "check": "matchesOtherTable",
+      "description": "TermCode is copied from the schedule row's week; the Reporting CFC's updateScheduleTermCodes exists to repair drift.",
+      "table": "[dbo].[studentSchedule]",
+      "column": "TermCode",
+      "otherTable": "[dbo].[Week]",
+      "joinOn": [{ "column": "Week_ID", "otherColumn": "Week_ID" }],
+      "otherColumn": "TermCode"
+    },
+    {
+      "check": "matchesOtherTable",
+      "description": "The primary emphasis abbreviation is stored as text beside its ID; it should match the abbreviation of the emphasis the ID names.",
+      "table": "[dbo].[link_PrimEmphasis_ClinEmphasis]",
+      "column": "PrimaryEmphasis",
+      "otherTable": "[dbo].[PrimaryEmphasis]",
+      "joinOn": [{ "column": "PrimaryEmphasis_ID", "otherColumn": "Primary_ID" }],
+      "otherColumn": "Emphasis_Abbrev"
+    },
+    {
+      "check": "matchesOtherTable",
+      "description": "The emphasis abbreviation is copied beside the emphasis ID and should match it.",
+      "table": "[dbo].[StudentPrimaryEmphasis]",
+      "column": "PRIMARYEmpasisAbbrev",
+      "otherTable": "[dbo].[PrimaryEmphasis]",
+      "joinOn": [{ "column": "primaryEmphasisID", "otherColumn": "Primary_ID" }],
+      "otherColumn": "Emphasis_Abbrev"
+    },
+    {
+      "check": "listValues",
+      "description": "Externship is an int used as a flag; anything other than 0 and 1 needs a decision.",
+      "table": "[dbo].[Service]",
+      "column": "Externship"
+    },
+
+    // Email columns: each value should look like an address (text, @, text, a dot, text). A loose test that
+    // finds names, placeholders, and partial addresses; a list of addresses passes it, and Lists stored in
+    // one column reports those. Values are never shown.
+    {
+      "check": "matchesPattern",
+      "description": "An evaluator's email should look like an address.",
+      "table": "[dbo].[ServiceRequestDetail]",
+      "column": "evaluatorEmail",
+      "patterns": ["%_@_%._%"]
+    },
+    {
+      "check": "matchesPattern",
+      "description": "A sent email's recipient should look like an address.",
+      "table": "[dbo].[externalEmailSent]",
+      "column": "emailTo",
+      "patterns": ["%_@_%._%"]
+    },
+    {
+      "check": "matchesPattern",
+      "description": "A template's sender should look like an address.",
+      "table": "[dbo].[externalEmailTemplate]",
+      "column": "fromEmail",
+      "patterns": ["%_@_%._%"]
+    },
+    {
+      "check": "matchesPattern",
+      "description": "An external request's contact email should look like an address.",
+      "table": "[dbo].[externalRequest]",
+      "column": "contactEmail",
+      "patterns": ["%_@_%._%"]
+    },
+    {
+      "check": "matchesPattern",
+      "description": "An external student's email should look like an address.",
+      "table": "[dbo].[ExternalStudent]",
+      "column": "email",
+      "patterns": ["%_@_%._%"]
+    }
+  ]
+}

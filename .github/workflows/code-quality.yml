@@ -2,19 +2,38 @@ name: Code Quality
 
 on:
   pull_request:
-    branches: [main]
 
 # Detects whether a PR *adds* new dead code or duplication compared to main.
 # - fallow covers VueApp (dead code, unused exports, complexity, duplication)
-# - jscpd covers C# (web/Areas/**/*.cs) since fallow is JS/TS-only
+# - jscpd covers C# and Razor (web/Areas/**/*.{cs,cshtml}) since fallow is JS/TS-only
 # - resharper-pr-gate covers C# inspections (dead-conditional, NRT-contract, and
 #   redundancy findings the Roslyn build doesn't catch); PR-scoped so pre-existing
 #   issues are not blocking — only NEW findings at lines this PR added/modified fail.
 # Passes if counts are equal to or lower than main.
 
 jobs:
+  changes:
+    name: Detect changed stacks
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      csharp: ${{ steps.stacks.outputs.csharp }}
+      vue: ${{ steps.stacks.outputs.vue }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: stacks
+        uses: ./.github/actions/changed-stacks
+        with:
+          own-paths: .github/workflows/code-quality.yml
+
   fallow-regression:
     name: Fallow regression (VueApp)
+    needs: changes
+    if: needs.changes.outputs.vue == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout PR head
@@ -22,7 +41,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
           cache: npm
@@ -63,7 +82,9 @@ jobs:
         run: npx fallow audit --root VueApp --base origin/${{ github.base_ref }} --health-baseline "$RUNNER_TEMP/fallow-health-baseline.json"
 
   jscpd-regression-csharp:
-    name: JSCPD regression (C#)
+    name: JSCPD regression (C#/Razor)
+    needs: changes
+    if: needs.changes.outputs.csharp == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout PR head
@@ -71,7 +92,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
           cache: npm
@@ -92,14 +113,16 @@ jobs:
         run: |
           BASE_TREE="$(mktemp -d)"
           git worktree add --detach "$BASE_TREE" "origin/$BASE_REF"
-          node scripts/audit-jscpd-regression.js --save .jscpd-baseline-cs.json "$BASE_TREE/web/Areas" --format csharp --pattern '**/*.cs' --min-lines 15
+          node scripts/audit-jscpd-regression.js --save .jscpd-baseline-cs.json "$BASE_TREE/web/Areas" --format csharp,razor --pattern '**/*.{cs,cshtml}' --min-lines 15
           git worktree remove --force "$BASE_TREE"
 
       - name: Check jscpd regression on PR
-        run: node scripts/audit-jscpd-regression.js --check .jscpd-baseline-cs.json web/Areas --format csharp --pattern '**/*.cs' --min-lines 15
+        run: node scripts/audit-jscpd-regression.js --check .jscpd-baseline-cs.json web/Areas --format csharp,razor --pattern '**/*.{cs,cshtml}' --min-lines 15
 
   jscpd-regression-vue:
     name: JSCPD regression (Vue/TS)
+    needs: changes
+    if: needs.changes.outputs.vue == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout PR head
@@ -107,7 +130,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
           cache: npm
@@ -133,6 +156,8 @@ jobs:
 
   resharper-pr-gate:
     name: ReSharper PR-scoped gate (C#)
+    needs: changes
+    if: needs.changes.outputs.csharp == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout PR head
@@ -140,7 +165,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
           cache: npm
@@ -153,7 +178,7 @@ jobs:
       - name: Install dependencies (root)
         run: npm ci
 
-      - name: Restore dotnet local tools (jb / dotnet-ef / libman)
+      - name: Restore dotnet local tools (jb / dotnet-ef)
         run: dotnet tool restore
 
       - name: Restore NuGet
@@ -166,7 +191,7 @@ jobs:
 
       - name: Upload SARIF report
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: resharper-sarif
           path: inspect-report/inspect.sarif

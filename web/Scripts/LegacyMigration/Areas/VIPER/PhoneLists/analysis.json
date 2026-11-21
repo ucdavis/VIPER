@@ -1,0 +1,107 @@
+// Declarations for the PhoneLists project in VIPER, analyzed on Production: the phones schema that the
+// PhoneLists migration (web/Areas/Personnel/Scripts/MigratePhoneListsData.cs) created. VIPER holds many
+// projects' schemas, so the automatic checks are limited to this one.
+//
+// Begun from the suggestions generated 2026-10-23, then extended by hand. Analyzing a migrated schema
+// shows what the migration left behind: people it could not resolve, and columns that would be better
+// as lookups or enums (the automatic design observations).
+{
+  "include": [
+    "[phones]"
+  ],
+
+  // Only ModifiedDate exists, so rows are dated by their last change.
+  "dateColumns": {
+    "[phones].[Person]": "ModifiedDate",
+    "[phones].[PhoneListUnitPerson]": "ModifiedDate",
+    "[phones].[SVMFrequentNumber]": "ModifiedDate",
+    "[phones].[SVMUnitPerson]": "ModifiedDate",
+    "[phones].[SVMUnit]": "ModifiedDate"
+  },
+
+  "checks": [
+    // People are keyed by IAM ID, from the migration's MothraId lookups.
+    {
+      "check": "identifiesOnePerson",
+      "description": "Every listed person should be a person in VIPER.",
+      "table": "[phones].[Person]",
+      "column": "PersonIam",
+      "idType": "IamId",
+      "lookIn": "VIPER.users.Person"
+    },
+    {
+      "check": "identifiesOnePerson",
+      "description": "Every phone list member should be a person in VIPER.",
+      "table": "[phones].[PhoneListUnitPerson]",
+      "column": "PersonIam",
+      "idType": "IamId",
+      "lookIn": "VIPER.users.Person"
+    },
+    {
+      "check": "identifiesOnePerson",
+      "description": "Every unit member should be a person in VIPER.",
+      "table": "[phones].[SVMUnitPerson]",
+      "column": "PersonIam",
+      "idType": "IamId",
+      "lookIn": "VIPER.users.Person"
+    },
+
+    // ModifiedBy is varchar(10), sized for an IAM ID; the migration resolved legacy Who_Mod and similar
+    // columns into it, storing NULL when it could not.
+    {
+      "check": "identifiesOnePerson",
+      "description": "Every change should be by a person in VIPER.",
+      "table": "[phones].[Person]",
+      "column": "ModifiedBy",
+      "idType": "IamId",
+      "lookIn": "VIPER.users.Person"
+    },
+    {
+      "check": "identifiesOnePerson",
+      "description": "Every change should be by a person in VIPER.",
+      "table": "[phones].[PhoneListUnitPerson]",
+      "column": "ModifiedBy",
+      "idType": "IamId",
+      "lookIn": "VIPER.users.Person"
+    },
+    {
+      "check": "identifiesOnePerson",
+      "description": "Every change should be by a person in VIPER.",
+      "table": "[phones].[SVMFrequentNumber]",
+      "column": "ModifiedBy",
+      "idType": "IamId",
+      "lookIn": "VIPER.users.Person"
+    },
+    {
+      "check": "identifiesOnePerson",
+      "description": "Every change should be by a person in VIPER.",
+      "table": "[phones].[SVMUnit]",
+      "column": "ModifiedBy",
+      "idType": "IamId",
+      "lookIn": "VIPER.users.Person"
+    },
+    {
+      "check": "identifiesOnePerson",
+      "description": "Every change should be by a person in VIPER.",
+      "table": "[phones].[SVMUnitPerson]",
+      "column": "ModifiedBy",
+      "idType": "IamId",
+      "lookIn": "VIPER.users.Person"
+    },
+
+    // Free text holding what look like codes: lookup or enum candidates. Position types and interim
+    // markers are not personal.
+    {
+      "check": "listValues",
+      "description": "Position types, stored as free text: a lookup or enum candidate.",
+      "table": "[phones].[SVMUnitPerson]",
+      "column": "PosType"
+    },
+    {
+      "check": "listValues",
+      "description": "Interim markers, stored as free text: a lookup, enum, or flag candidate.",
+      "table": "[phones].[SVMUnitPerson]",
+      "column": "Interim"
+    }
+  ]
+}

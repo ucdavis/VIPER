@@ -52,7 +52,6 @@ import StatusBadge from "@/components/StatusBadge.vue"
 
 const props = defineProps<{
     student: StudentPhoto
-    currentIndex?: number
 }>()
 
 const emit = defineEmits<{

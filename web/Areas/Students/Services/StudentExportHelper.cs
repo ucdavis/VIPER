@@ -61,7 +61,7 @@ public static class StudentExportHelper
 
                 page.Header().Column(col =>
                 {
-                    col.Item().SemanticHeader1().Text(title)
+                    col.Item().SemanticHeading1().Text(title)
                         .SemiBold().FontSize(14).AlignCenter();
                     col.Item().Text(generatedLabel)
                         .FontSize(8).Italic().AlignCenter();

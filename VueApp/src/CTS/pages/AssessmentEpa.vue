@@ -102,10 +102,7 @@ watch(selectedStudentId, () => {
             <div class="row items-start q-mb-lg">
                 <!--Service-->
                 <div class="col-12 col-md-6 col-lg-4 q-mr-md">
-                    <ServiceSelectBox
-                        @service-change="(s: number) => (serviceId = s)"
-                        :for-scheduled-instructor="true"
-                    />
+                    <ServiceSelectBox @service-change="(s: number) => (serviceId = s)" />
                 </div>
 
                 <!--Epa-->

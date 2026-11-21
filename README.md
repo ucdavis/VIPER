@@ -56,22 +56,14 @@ npm run dev
 For testing production-like behavior or when Vite dev server isn't needed:
 
 ```sh
-# Start backend only
-npm run dev:backend
-
-# In separate terminal, build and watch frontend files
-npm run dev:frontend-build
+npm run dev:build
 ```
 
 - **Frontend**: Pre-built Vue.js files served as static assets
-- **Backend**: ASP.NET Core with dotnet watch + hot reload
-- **Files**: Serves built static files from `wwwroot/vue/` (like production)
+- **Backend**: Published to `dist/dev` and run without hot reload
 - **Best for**: Testing production builds, debugging static file serving, or CI/CD validation
 
-#### Individual Services
-- `npm run dev:frontend` - Start only Vite dev server
-- `npm run dev:frontend-build` - Build and watch Vue files (outputs to wwwroot)
-- `npm run dev:backend` - Start only .NET backend (https://localhost:7157)
+Use `npm run dev:backend` to start only the .NET backend (https://localhost:7157), after `npm install --prefix VueApp` on a fresh clone so Razor pages have their Vue and Quasar files. Use `npm run dev:stop` to stop services.
 
 ### Running Multiple Instances
 
@@ -123,9 +115,8 @@ VIPER2 features a sophisticated development setup with hot reload for both front
 - Vite server URL configurable via `VITE_SERVER_URL` environment variable (default: https://localhost:5173)
 
 ### File Watching & Building
-- **Frontend**: `vite-watch.js` debounces build operations to prevent excessive rebuilds
+- **Frontend**: the Vite dev server hot-reloads changes
 - **Backend**: `dotnet-watch.json` configures optimal file watching patterns
-- **Concurrent**: Both systems can run simultaneously without conflicts
 
 ### Path Configuration
 - All Vue applications use `/2/vue/` as the base path
@@ -142,7 +133,6 @@ VIPER2 features a sophisticated development setup with hot reload for both front
 - `VueApp/` - Vue 3 + TypeScript frontend
   - `src/` - Multi-SPA architecture (one SPA per functional area)
   - `vite.config.ts` - Vite configuration with backend proxy
-  - `vite-watch.js` - Debounced build script for development
 - `test/` - Unit tests
 
 ## AI Agent Tooling (Claude Code)
@@ -250,7 +240,7 @@ npm run clear-cache && npm run verify:build  # Clear cache and verify build
 
 **Assets not loading (404 errors)**:
 - **Option 1 (Vite dev server)**: Check that Vite dev server is running on https://localhost:5173
-- **Option 2 (Static files)**: Ensure `npm run dev:frontend-build` has been run to build files
+- **Option 2 (Static files)**: Ensure `npm run dev:build` has been run to build files
 - **Path issues**: All Vue apps use `/2/vue/` base path - verify this matches your configuration
 - **Mixed mode issues**: Stop all services and restart with your chosen development mode
 

@@ -345,7 +345,7 @@ public class HarvestService : IHarvestService
 
     /// <summary>
     /// Generate R-courses for all eligible instructors in the term.
-    /// An instructor is eligible if they have at least one non-R-course effort record.
+    /// An instructor is eligible if they are unverified and have at least one non-R-course effort record.
     /// This must run AFTER all Banner course imports are complete.
     /// Delegates actual R-course creation to IRCourseService for shared logic.
     /// </summary>
@@ -359,26 +359,7 @@ public class HarvestService : IHarvestService
             return;
         }
 
-        // Find all instructors in the term who have at least one non-R-course effort record
-        var eligibleInstructors = await _context.Records
-            .AsNoTracking()
-            .Where(r => r.TermCode == termCode)
-            .Join(_context.Courses.Where(c => c.TermCode == termCode),
-                  r => r.CourseId,
-                  c => c.Id,
-                  (r, c) => new { r.PersonId, c.CrseNumb })
-            .Where(x => x.CrseNumb == null || !x.CrseNumb.EndsWith('R'))
-            .Select(x => x.PersonId)
-            .Distinct()
-            .ToListAsync(ct);
-
-        _logger.LogInformation("Found {Count} eligible instructors for R-course generation in term {TermCode}",
-            eligibleInstructors.Count, termCode);
-
-        foreach (var personId in eligibleInstructors)
-        {
-            await _rCourseService.CreateRCourseEffortRecordAsync(personId, termCode, modifiedBy, RCourseCreationContext.Harvest, ct);
-        }
+        await _rCourseService.CreateForEligibleInstructorsAsync(termCode, modifiedBy, RCourseCreationContext.Harvest, ct);
     }
 
     #endregion

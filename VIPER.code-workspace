@@ -6,7 +6,9 @@
 	],
 	"settings": {
 		"files.associations": {
-			".oxlintrc.json": "jsonc"
+			".oxlintrc.json": "jsonc",
+			"**/LegacyMigration/Areas/**/analysis.json": "jsonc",
+			"**/LegacyMigration/Output/**/analysis.suggestions.json": "jsonc"
 		},
 		"terminal.integrated.gpuAcceleration": "off"
 	}

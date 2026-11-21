@@ -336,11 +336,11 @@ public class ClinicalEffortService : BaseReportService, IClinicalEffortService
                         });
                         col.Item().PaddingVertical(6).Row(row =>
                         {
-                            row.RelativeItem().SemanticHeader1().Text(reportTitle).SemiBold().FontSize(12);
+                            row.RelativeItem().SemanticHeading1().Text(reportTitle).SemiBold().FontSize(12);
                             row.RelativeItem().AlignRight().Text($"Academic Year {report.TermName}").SemiBold().FontSize(12);
                         });
                         col.Item().BorderBottom(1.5f).BorderColor(Colors.Black)
-                            .PaddingBottom(3).SemanticHeader2().Text(jobGroup.JobGroupDescription).SemiBold().FontSize(11);
+                            .PaddingBottom(3).SemanticHeading2().Text(jobGroup.JobGroupDescription).SemiBold().FontSize(11);
                     });
 
                     page.Content().SemanticTable().Table(table =>

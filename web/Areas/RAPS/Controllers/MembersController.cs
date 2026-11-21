@@ -16,22 +16,26 @@ namespace Viper.Areas.RAPS.Controllers
     public class MembersController : ApiController
     {
         private readonly RAPSContext _context;
-        private readonly RAPSSecurityService _securityService;
+        internal RAPSSecurityService SecurityService { get; set; }
         private readonly RAPSAuditService _auditService;
 
         public MembersController(RAPSContext context)
         {
             _context = context;
-            _securityService = new RAPSSecurityService(_context);
+            SecurityService = new RAPSSecurityService(_context);
             _auditService = new RAPSAuditService(_context);
         }
         // GET: <Members>
-        // The union of what the three pages using this typeahead require. Without it, any RAPS Users
-        // member could enumerate identities here.
-        [Permission(Allow = "RAPS.Admin,RAPS.UserLookup,RAPS.EditRoleMembership,RAPS.EditMemberPermissions")]
+        // The union of what the pages using this typeahead require, delegates included. Without it,
+        // any RAPS Users member could enumerate identities here.
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<MemberSearchResult>>> Search(string search, string active = "active")
+        public async Task<ActionResult<IEnumerable<MemberSearchResult>>> Search(string instance, string search, string active = "active")
         {
+            if (!SecurityService.CanSearchMembers(instance))
+            {
+                return Forbid();
+            }
+
             var memberQ = _context.VwAaudUser
                     .Include(u => u.TblRoleMembers)
                     .Include(u => u.TblMemberPermissions)
@@ -102,7 +106,7 @@ namespace Viper.Areas.RAPS.Controllers
         [HttpGet("{memberId}/RSOP")]
         public async Task<ActionResult<List<PermissionResult>>> RSOP(string instance, string memberId)
         {
-            if (!_securityService.IsAllowedTo("RSOP", instance))
+            if (!SecurityService.IsAllowedTo("RSOP", instance))
             {
                 return Forbid();
             }
@@ -200,7 +204,7 @@ namespace Viper.Areas.RAPS.Controllers
         [HttpGet("{sourceMemberId}/CloneTo/{targetMemberId}")]
         public async Task<ActionResult<MemberCloneObjects>> GetDifference(string instance, string sourceMemberId, string targetMemberId)
         {
-            if (!_securityService.IsAllowedTo("Clone", instance))
+            if (!SecurityService.IsAllowedTo("Clone", instance))
             {
                 return Forbid();
             }
@@ -211,7 +215,7 @@ namespace Viper.Areas.RAPS.Controllers
         [HttpPost("{sourceMemberId}/CloneTo/{targetMemberId}")]
         public async Task<ActionResult> Clone(string instance, string sourceMemberId, string targetMemberId, CloneConfirm objectsToClone)
         {
-            if (!_securityService.IsAllowedTo("Clone", instance))
+            if (!SecurityService.IsAllowedTo("Clone", instance))
             {
                 return Forbid();
             }
@@ -228,7 +232,7 @@ namespace Viper.Areas.RAPS.Controllers
         [HttpGet("{memberId}/History")]
         public async Task<ActionResult<List<AuditLog>>> GetHistory(string instance, string memberId, DateOnly startDate)
         {
-            if (!_securityService.IsAllowedTo("ViewHistory", instance))
+            if (!SecurityService.IsAllowedTo("ViewHistory", instance))
             {
                 return Forbid();
             }
@@ -240,7 +244,7 @@ namespace Viper.Areas.RAPS.Controllers
         [HttpGet("{memberId}/History/Dates")]
         public async Task<ActionResult<List<DateOnly>>> GetHistoryDates(string instance, string memberId)
         {
-            if (!_securityService.IsAllowedTo("ViewHistory", instance))
+            if (!SecurityService.IsAllowedTo("ViewHistory", instance))
             {
                 return Forbid();
             }
@@ -255,8 +259,8 @@ namespace Viper.Areas.RAPS.Controllers
         [HttpPost("{memberId}/History")]
         public async Task<ActionResult<List<AuditLog>>> RevertFrom(string instance, string memberId, DateOnly? startDate = null, DateOnly? endDate = null)
         {
-            if (!_securityService.IsAllowedTo("ViewHistory", instance)
-                && !_securityService.IsAllowedTo("EditRoleMembership", instance))
+            if (!SecurityService.IsAllowedTo("ViewHistory", instance)
+                && !SecurityService.IsAllowedTo("EditRoleMembership", instance))
             {
                 return Forbid();
             }

@@ -221,6 +221,9 @@ defineProps<{
     nav?: string
     navarea?: boolean
     highlightedTopNav?: string
+    // App.vue binds breadcrumbs to whichever layout the route picks; only
+    // ViperLayoutSimple renders them, declaring it here stops attr fallthrough.
+    // fallow-ignore-next-line unused-component-prop
     breadcrumbs?: BreadCrumb[]
     showViewWhenNotLoggedIn?: boolean
 }>()

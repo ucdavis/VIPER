@@ -186,7 +186,6 @@ const props = defineProps<{
     courseId: number
     instructorName: string
     courseName: string
-    crn: string
     mothraId: string
     existingData: CourseEvalEntryDto | null
     maxRatingCount: number

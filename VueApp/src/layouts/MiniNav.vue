@@ -37,12 +37,6 @@
 import { ref, defineComponent } from "vue"
 export default defineComponent({
     name: "MiniNav",
-    props: {
-        highlightedTopNav: {
-            type: String,
-            default: "",
-        },
-    },
     data() {
         return {
             topNav: ref([]),

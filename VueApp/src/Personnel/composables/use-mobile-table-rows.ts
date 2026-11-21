@@ -2,12 +2,23 @@ import { computed, toValue } from "vue"
 import type { MaybeRefOrGetter, Ref } from "vue"
 import type { QTableColumn, QTableProps } from "quasar"
 
+/** The value QTable reads for a cell. A column with no field renders only through its slot. */
+function fieldValue(column: QTableColumn, row: unknown) {
+    if (typeof column.field === "function") {
+        return column.field(row)
+    }
+    if (column.field === undefined) {
+        return
+    }
+    return (row as Record<string, unknown>)[column.field]
+}
+
 /**
  * Reads a cell the way QTable does, so a list rendering of the same rows shows, matches and
  * orders on exactly the text the table would put in that column.
  */
 function columnText(column: QTableColumn, row: unknown): string {
-    const raw = typeof column.field === "function" ? column.field(row) : (row as Record<string, unknown>)[column.field]
+    const raw = fieldValue(column, row)
     const formatted = column.format === undefined ? raw : column.format(raw, row)
     return formatted === null || formatted === undefined ? "" : String(formatted)
 }

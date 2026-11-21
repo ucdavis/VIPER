@@ -704,7 +704,7 @@ public class EffortRecordService : IEffortRecordService
                   r => r.CourseId,
                   c => c.Id,
                   (r, c) => c.CrseNumb)
-            .CountAsync(crseNumb => crseNumb == null || !crseNumb.EndsWith('R'), ct);
+            .CountAsync(crseNumb => !crseNumb.Trim().EndsWith('R'), ct);
 
         // Only proceed if this is the instructor's first non-R-course record (count = 1, the one we just created)
         if (nonRCourseCount != 1)

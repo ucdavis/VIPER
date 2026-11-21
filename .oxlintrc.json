@@ -190,13 +190,12 @@
             }
         },
         {
-            "files": ["VueApp/**/*.config.*", "VueApp/vite-watch.js"],
+            "files": ["VueApp/**/*.config.*"],
             "rules": {
                 "import/no-default-export": "off", // Config files often require default exports
                 "no-console": "off",
                 "import/max-dependencies": "off", // Build scripts may need multiple dependencies
                 "max-lines-per-function": "off", // Build scripts may have longer functions
-                "promise/prefer-await-to-callbacks": "off", // Callback pattern needed for tree-kill integration
                 "import/unambiguous": "off", // Node.js scripts don't need module indicators
                 "import/no-nodejs-modules": "off" // Config files run in Node, not the browser
             }

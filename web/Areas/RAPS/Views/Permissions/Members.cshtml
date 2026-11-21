@@ -20,7 +20,7 @@
                 <q-card>
                     <q-form @@submit="membersTable.submit(this)" v-bind="membersTable.object">
                         <q-card-section class="row items-center q-pb-none">
-                            <div class="text-h6">{{membersTable.editing >= 0 ? "Edit" : "Create"}} Permission Member</div>
+                            <div class="text-h6">{{membersTable.editing ? "Edit" : "Create"}} Permission Member</div>
                             <q-space></q-space>
                             <q-btn icon="close" flat round dense aria-label="Close dialog" v-close-popup></q-btn>
                         </q-card-section>

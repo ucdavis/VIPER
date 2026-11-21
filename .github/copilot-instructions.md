@@ -25,8 +25,10 @@ of the following.
 
 ## EF Core / Database
 
-- **SQL Server 2016** target — reject `STRING_AGG`, `TRIM`, `CONCAT_WS`,
-  `GREATEST`, `LEAST`.
+- **SQL Server 2025** target. Don't flag new code for using features newer than
+  2016. EF's compat level per connection is in `DatabaseCompatibilityLevels`
+  (`appsettings.json`), and features gated by compat level need the database's
+  level to support them.
 - **Read-only queries** must use `.AsNoTracking()`.
 - `.Include()` before `.Select()` is unnecessary — EF resolves navigations in
   projections.

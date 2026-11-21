@@ -59,20 +59,7 @@ const useUserStore = defineStore("userStore", () => {
         userInfo.permissions = [...userInfo.permissions, ...perms.filter((p) => !held.has(p))]
     }
 
-    function clearUser() {
-        Object.assign(userInfo, {
-            firstName: "",
-            lastName: "",
-            mailId: "",
-            loginId: "",
-            mothraId: "",
-            userId: null,
-            token: "",
-            emulating: false,
-        })
-    }
-
-    return { userInfo, isLoggedIn, isEmulating, loadUser, setPermissions, addPermissions, clearUser }
+    return { userInfo, isLoggedIn, isEmulating, loadUser, setPermissions, addPermissions }
 })
 
 export { useUserStore }

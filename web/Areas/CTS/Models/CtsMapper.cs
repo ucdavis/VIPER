@@ -151,7 +151,7 @@ public static partial class CtsMapper
     public static LegacyCompetencyDto ToLegacyCompetencyDto(LegacyCompetency source)
     {
         var dto = MapLegacyCompetencyBase(source);
-        dto.Competencies = source.DvmCompetencyMapping?.Select(d => ToCompetencyDto(d.Competency)).ToList()
+        dto.Competencies = source.DvmCompetencyMapping?.Select(d => new CompetencyDto(d.Competency)).ToList()
             ?? new List<CompetencyDto>();
         return dto;
     }
@@ -161,10 +161,6 @@ public static partial class CtsMapper
 
     [MapperIgnoreTarget(nameof(LegacyCompetencyDto.Competencies))]
     private static partial LegacyCompetencyDto MapLegacyCompetencyBase(LegacyCompetency source);
-
-    // ── Competency → CompetencyDto ──────────────────────────────────────────
-    // Used by LegacyCompetencyDto mapping; DomainName/DomainOrder auto-flatten
-    public static partial CompetencyDto ToCompetencyDto(Competency source);
 
     // ── LegacySessionCompetency → LegacySessionCompetencyDto ────────────────
     public static partial LegacySessionCompetencyDto ToLegacySessionCompetencyDto(LegacySessionCompetency source);
