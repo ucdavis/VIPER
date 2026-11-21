@@ -333,6 +333,7 @@ try
     // UserInfo feature: its EF contexts (equipment loans, ID cards, keys, PPS),
     // HttpClient factory, and service. See UserInfoServiceCollectionExtensions.
     builder.AddUserInfoServices(enableDetailedErrors);
+
     // Report Builder: reads the [report] schema's shape. Not a *Service, so Scrutor skips it.
     builder.Services.AddScoped<IReportSourceMetadataReader, ReportSourceMetadataReader>();
     // Report Builder: runs report queries on VIPERReports (or VIPER). Not a *Service either.

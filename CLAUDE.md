@@ -53,9 +53,3 @@ When I ask a question ("why does X...", "is Y right?") or make an observation ("
 - **Plan/smoketest notes**: `PLAN-*.md` and `SMOKETEST-*.md` at the repo root are gitignored local notes.
 - **Code-review self-check**: If the gitignored `PLAN-code-review-lessons.md` exists at the repo root, run its pre-flight checklist before saying a change is ready to build, test, or commit.
 - **Commit messages**: Conventional Commits `type(scope): subject` (`feat`|`fix`|`refactor`|`docs`|`test`|`chore`; prefer `feat` for new behavior), branch ticket ID as prefix (e.g. `VPR-104 fix(a11y): ...`). Subject: imperative, max 72 chars, no trailing period, intent not implementation. Body only when needed: `-` bullets that each earn their place (skip plumbing/helpers/test scaffolding), wrapped at 72.
-- **Line Endings (CRLF)**: Windows checkout and Husky validation strictly require CRLF (`\r\n`) line endings. Always ensure newly created or modified files are saved with CRLF line endings. Running tools/scripts that default to LF (`\n`) will cause pre-commit linter failures.
-- **ReSharper Inspection & EF Core Scaffoldings**:
-  - Keep scaffolded `partial void OnModelCreatingPartial(...)` method signatures in DB context files. Deleting them violates compiler rule `CS0759` (no defining declaration).
-  - To silence ReSharper warnings on single-part partial types/methods, add global rules `/Default/CodeInspection/Highlighting/InspectionSeverities/=<RuleId>/@EntryIndexedValue=DO_NOT_SHOW` inside `Viper.sln.DotSettings` instead of deleting scaffolded code.
-  - Avoid redundant null-coalescing operations (`?? ""`) on non-nullable scaffolded entity properties.
-- **Staged Conflict Markers (Error CS8300)**: During branch merges, do not stage conflict markers in the git index. Husky builds staged files on commit, and any residual `<<<<<<<` markers will trigger compilation error `CS8300`. Clean up all conflict zones before running `git add`.
