@@ -210,7 +210,7 @@ public sealed class ReportAdminServiceTests : IDisposable
 
         List<ReportParameter> parameters = [.. Stored(created.Id).Parameters.OrderBy(p => p.DisplayOrder)];
         Assert.Equal<(string?, ReportParameterType?, bool?, string?, ReportFilterOperator?)>(("LoginId", ReportParameterType.Text, false, null, null), (parameters[0].Name, parameters[0].Type, parameters[0].Required, parameters[0].DefaultValue, parameters[0].Operator));
-        Assert.Equal(("FacultyRoster", (ReportFilterOperator?)null), (parameters[1].ChoicesSource, parameters[1].Operator));
+        Assert.Equal(("FacultyRoster", null), (parameters[1].ChoicesSource, parameters[1].Operator));
     }
 
     // Reading
@@ -371,7 +371,7 @@ public sealed class ReportAdminServiceTests : IDisposable
         ReportAdminDefinition restored = (await _service.RestoreAsync(created.Id, Ct)).Value!;
 
         Assert.Equal((Now.DateTime, "jdoe"), (deleted.DeletedOn, deleted.DeletedBy));
-        Assert.Equal(((DateTime?)null, (string?)null), (restored.DeletedOn, restored.DeletedBy));
+        Assert.Equal((null, null), (restored.DeletedOn, restored.DeletedBy));
         IReadOnlyList<ReportHistoryItem>? history = await _service.GetHistoryAsync(created.Id, Ct);
         Assert.Equal(
             [ReportHistoryAction.Restored, ReportHistoryAction.Deleted, ReportHistoryAction.Created],
