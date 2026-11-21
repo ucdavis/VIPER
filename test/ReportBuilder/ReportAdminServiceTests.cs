@@ -23,9 +23,7 @@ public sealed class ReportAdminServiceTests : IDisposable
 
     public ReportAdminServiceTests()
     {
-        DbContextOptions<ReportBuilderDbContext> options = new DbContextOptionsBuilder<ReportBuilderDbContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString())
-            .Options;
+        DbContextOptions<ReportBuilderDbContext> options = ReportBuilderTestDb.CreateOptions();
         _context = new ReportBuilderDbContext(options);
         _service = new ReportAdminService(
             _context, new ReportDefinitionValidator(_catalog, _permissions), _permissions, _users, _runs, new FixedClock());

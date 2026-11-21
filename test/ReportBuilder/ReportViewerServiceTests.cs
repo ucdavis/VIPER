@@ -22,9 +22,7 @@ public sealed class ReportViewerServiceTests : IDisposable
 
     public ReportViewerServiceTests()
     {
-        DbContextOptions<ReportBuilderDbContext> options = new DbContextOptionsBuilder<ReportBuilderDbContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString())
-            .Options;
+        DbContextOptions<ReportBuilderDbContext> options = ReportBuilderTestDb.CreateOptions();
         _context = new ReportBuilderDbContext(options);
         _service = new ReportViewerService(
             _context, _users, new ReportChoiceService(_catalog, _executor), NullLogger<ReportViewerService>.Instance);

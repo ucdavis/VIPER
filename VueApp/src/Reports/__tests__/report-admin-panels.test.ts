@@ -7,6 +7,8 @@ import ReportAdminStatus from "../components/ReportAdminStatus.vue"
 import ReportBuilderTable from "@/shared/report-builder/ReportBuilderTable.vue"
 import { reportAdminService } from "../admin/report-admin-service"
 import { rosterReport, saved } from "./report-admin-fixtures"
+import { deferred } from "./deferred"
+import type { ReportHistoryVersion } from "../admin/report-admin-types"
 
 vi.mock("../admin/report-admin-service", () => ({
     reportAdminService: {
@@ -199,6 +201,35 @@ describe("report history section", () => {
         expect(failed.text()).toContain("The history couldn't be loaded.")
         expect(unreadable.text()).toContain("That version can't be read.")
         expect(unreadable.emitted("load")).toBeUndefined()
+    })
+
+    it("ignores an older selection's response arriving after a newer one", async () => {
+        expect.hasAssertions()
+        service.getHistory.mockResolvedValue([
+            { id: 9, action: "Updated", changedOn: null, changedBy: null },
+            { id: 8, action: "Created", changedOn: null, changedBy: null },
+        ])
+        const slow = deferred<ReportHistoryVersion | null>()
+        service.getVersion.mockReturnValueOnce(slow.promise)
+        const wrapper = mount(ReportAdminHistory, { props: { reportId: 4 }, global })
+        await button(wrapper, "Show earlier versions")?.trigger("click")
+        await flushPromises()
+        const loadButtons = wrapper.findAll("button").filter((candidate) => candidate.text().includes("Load into form"))
+
+        await loadButtons[0]?.trigger("click")
+        service.getVersion.mockResolvedValue({
+            version: { id: 8, action: "Created", changedOn: null, changedBy: null },
+            report: { ...rosterReport, title: "Eight" },
+        })
+        await loadButtons[1]?.trigger("click")
+        await flushPromises()
+        slow.resolve({
+            version: { id: 9, action: "Updated", changedOn: null, changedBy: null },
+            report: { ...rosterReport, title: "Nine" },
+        })
+        await flushPromises()
+
+        expect(wrapper.emitted("load")).toStrictEqual([[{ ...rosterReport, title: "Eight" }]])
     })
 })
 

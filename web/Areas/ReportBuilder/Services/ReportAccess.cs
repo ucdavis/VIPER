@@ -24,6 +24,7 @@ public static class ReportAccess
             .Include(r => r.Permissions)
             .Include(r => r.Columns)
             .Include(r => r.Parameters)
+            .AsSplitQuery()
             .FirstOrDefaultAsync(r => r.Slug == id && r.DeletedOn == null, ct);
     }
 

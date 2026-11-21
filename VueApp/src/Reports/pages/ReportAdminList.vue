@@ -122,9 +122,17 @@ const includeDeleted = ref(false)
 const loading = ref(true)
 const failed = ref(false)
 
+let loadId = 0
+
+/** Only the latest toggle's request may update the table. */
 async function load(withDeleted: boolean): Promise<void> {
+    loadId += 1
+    const current = loadId
     loading.value = true
     const found = await reportAdminService.list(withDeleted)
+    if (current !== loadId) {
+        return
+    }
     failed.value = found === null
     reports.value = found ?? []
     loading.value = false

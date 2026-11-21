@@ -64,6 +64,7 @@ public sealed class ReportProblemService : IReportProblemService
             .Include(r => r.Permissions)
             .Include(r => r.Columns)
             .Include(r => r.Parameters)
+            .AsSplitQuery()
             .Where(r => r.DeletedOn == null)
             .OrderBy(r => r.Area)
             .ThenBy(r => r.Title)

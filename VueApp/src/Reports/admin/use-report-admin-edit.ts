@@ -122,8 +122,10 @@ export function useReportAdminEdit(reportId: MaybeRefOrGetter<number | null>) {
     }
 
     /**
-     * Deletes or restores the report. Either one is a save on the server, so the form takes the
-     * new version's time; unsaved edits stay as they are.
+     * Deletes or restores the report. Either one is a save on the server, which moves its
+     * version on without checking the form's fields, so the form only takes that new version
+     * when it has no unsaved edits to lose; with edits pending, it keeps its own version, so a
+     * save of those edits is caught as a conflict instead of silently overwriting what changed.
      */
     async function setDeleted(deleted: boolean): Promise<void> {
         const current = definition.value
@@ -136,10 +138,9 @@ export function useReportAdminEdit(reportId: MaybeRefOrGetter<number | null>) {
         if (updated === null) {
             return
         }
-        const clean = !isDirty.value
         definition.value = updated
-        form.value = { ...form.value, lastModifiedOn: updated.report.lastModifiedOn }
-        if (clean) {
+        if (!isDirty.value) {
+            form.value = toForm(updated.report)
             setInitialState()
         }
     }

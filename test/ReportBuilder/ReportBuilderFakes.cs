@@ -1,7 +1,26 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
+using Viper.Areas.ReportBuilder;
 using Viper.Areas.ReportBuilder.Models;
 using Viper.Areas.ReportBuilder.Services;
 
 namespace Viper.test.ReportBuilder;
+
+/// <summary>A fresh in-memory <see cref="ReportBuilderDbContext"/> for a test, isolated from the others.</summary>
+internal static class ReportBuilderTestDb
+{
+    public static DbContextOptions<ReportBuilderDbContext> CreateOptions()
+    {
+        return new DbContextOptionsBuilder<ReportBuilderDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+
+            // The in-memory provider doesn't support transactions; the admin service wraps a
+            // mutation and its history write in one so they commit or roll back together on SQL
+            // Server, where it matters.
+            .ConfigureWarnings(warnings => warnings.Ignore(InMemoryEventId.TransactionIgnoredWarning))
+            .Options;
+    }
+}
 
 /// <summary>A query executor that records each command and answers with prepared rows.</summary>
 internal sealed class FakeReportQueryExecutor : IReportQueryExecutor

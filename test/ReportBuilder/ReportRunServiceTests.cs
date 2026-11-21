@@ -31,9 +31,7 @@ public sealed class ReportRunServiceTests : IDisposable
 
     public ReportRunServiceTests()
     {
-        DbContextOptions<ReportBuilderDbContext> options = new DbContextOptionsBuilder<ReportBuilderDbContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString())
-            .Options;
+        DbContextOptions<ReportBuilderDbContext> options = ReportBuilderTestDb.CreateOptions();
         _context = new ReportBuilderDbContext(options);
         _service = CreateService(_context);
         _users.Permissions.Add(ViewerPermission);
