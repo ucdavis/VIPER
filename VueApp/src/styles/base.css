@@ -30,8 +30,15 @@
    macOS/iOS, Segoe on Windows, Noto on Android/Linux). */
 body {
     font-family:
-        Roboto, -apple-system, "Helvetica Neue", Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji",
-        "Noto Color Emoji", sans-serif;
+        Roboto,
+        -apple-system,
+        "Helvetica Neue",
+        Helvetica,
+        Arial,
+        "Apple Color Emoji",
+        "Segoe UI Emoji",
+        "Noto Color Emoji",
+        sans-serif;
     margin-bottom: 60px;
 }
 
@@ -678,6 +685,39 @@ header .q-avatar {
 
 .q-menu h5 {
     font-size: 1rem;
+}
+
+/* Status notification toast — accessible via role="status". Kept in sync with
+   web/wwwroot/css/site.css so Razor and SPA render the same toast. */
+.viper-status-notification {
+    position: fixed;
+    bottom: 1rem;
+    left: 50%;
+    transform: translateX(-50%) translateY(1rem);
+    padding: 0.75rem 1.5rem;
+    background: var(--q-positive, #266041);
+    color: #fff;
+    border-radius: 0.25rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    z-index: 9999;
+    opacity: 0;
+    transition:
+        opacity 0.3s,
+        transform 0.3s;
+    pointer-events: none;
+    box-shadow: 0 0.125rem 0.5rem rgb(0 0 0 / 30%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .viper-status-notification {
+        transition: none;
+    }
+}
+
+.viper-status-notification--visible {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
 }
 
 /* Screen reader only — visually hidden but accessible to assistive technology */

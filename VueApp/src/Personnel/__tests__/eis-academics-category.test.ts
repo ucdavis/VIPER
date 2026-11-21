@@ -147,6 +147,7 @@ describe("eisAppointmentCategory.vue", () => {
         expect(eisService.setFlag).toHaveBeenCalledWith(EMPLOYEE_ID, 4, true)
         expect(wrapper.find('[role="checkbox"]').attributes("aria-checked")).toBe("true")
         expect(wrapper.text()).not.toContain("Only EIS administrators")
+        expect(document.body.textContent).toContain("Category updated.")
     })
 
     it("ignores a save that finishes after the user has moved to another employee", async () => {
