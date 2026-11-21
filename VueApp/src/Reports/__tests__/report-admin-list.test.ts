@@ -3,6 +3,7 @@ import { Quasar } from "quasar"
 import ReportAdminList from "../pages/ReportAdminList.vue"
 import { reportAdminService } from "../admin/report-admin-service"
 import type { ReportAdminListItem } from "../admin/report-admin-types"
+import { deferred } from "./deferred"
 
 vi.mock("../admin/report-admin-service", () => ({
     reportAdminService: { list: vi.fn<(...args: unknown[]) => unknown>() },
@@ -70,5 +71,24 @@ describe("report admin list", () => {
         const wrapper = await mountList(null)
 
         expect(wrapper.text()).toContain("The reports couldn't be loaded.")
+    })
+
+    it("ignores a list response that finishes after a newer toggle started", async () => {
+        expect.hasAssertions()
+        const slow = deferred<ReportAdminListItem[] | null>()
+        vi.mocked(reportAdminService.list).mockReturnValueOnce(slow.promise)
+        const wrapper = mount(ReportAdminList, {
+            global: { plugins: [[Quasar, {}]], stubs: { RouterLink: RouterLinkStub } },
+        })
+        await flushPromises()
+        vi.mocked(reportAdminService.list).mockResolvedValue([roster])
+
+        await wrapper.findComponent({ name: "QToggle" }).vm.$emit("update:modelValue", true)
+        await flushPromises()
+        slow.resolve([{ ...roster, title: "Stale" }])
+        await flushPromises()
+
+        expect(wrapper.text()).toContain("Faculty roster")
+        expect(wrapper.text()).not.toContain("Stale")
     })
 })

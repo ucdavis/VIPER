@@ -21,9 +21,7 @@ public sealed class ReportProblemServiceTests : IDisposable
 
     public ReportProblemServiceTests()
     {
-        DbContextOptions<ReportBuilderDbContext> options = new DbContextOptionsBuilder<ReportBuilderDbContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString())
-            .Options;
+        DbContextOptions<ReportBuilderDbContext> options = ReportBuilderTestDb.CreateOptions();
         _context = new ReportBuilderDbContext(options);
         _service = new ReportProblemService(_context, new ReportDefinitionValidator(_catalog, _permissions), new FixedClock());
         _catalog.Sources.Add(new ReportSourceDetail

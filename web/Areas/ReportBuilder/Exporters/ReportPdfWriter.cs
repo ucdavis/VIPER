@@ -48,7 +48,7 @@ public static class ReportPdfWriter
     {
         container.Column(column =>
         {
-            column.Item().SemanticHeader1().Text(document.Title).SemiBold().FontSize(TitleFontSize);
+            column.Item().SemanticHeading1().Text(document.Title).SemiBold().FontSize(TitleFontSize);
             column.Item().Text(ReportExportText.Generated(document.GeneratedAt));
             if (ReportExportText.Filters(document.Filters) is { } filters)
             {

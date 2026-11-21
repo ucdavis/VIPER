@@ -77,6 +77,8 @@ const loading = ref(false)
 const failed = ref(false)
 const unreadable = ref(false)
 
+let selectionId = 0
+
 function describe(version: ReportHistoryItem): string {
     const when = formatCell(version.changedOn, "DateTime")
     return version.changedBy ? `${when} by ${version.changedBy}` : when
@@ -90,8 +92,14 @@ async function load(): Promise<void> {
     versions.value = found ?? []
 }
 
+/** Only the latest selection may update the form or the "can't be read" note. */
 async function loadVersion(historyId: number): Promise<void> {
+    selectionId += 1
+    const current = selectionId
     const version = await reportAdminService.getVersion(reportId, historyId)
+    if (current !== selectionId) {
+        return
+    }
     unreadable.value = !version?.report
     if (version?.report) {
         emit("load", version.report)

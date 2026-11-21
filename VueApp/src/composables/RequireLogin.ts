@@ -136,6 +136,19 @@ function useRequireLogin(to: RouteLocationNormalized) {
     return { requireLogin }
 }
 
+/**
+ * A router guard's `authenticate` step: signs the visitor in and loads the permissions under
+ * `permissionPrefix` in the same request, so there's no second permission set to fetch or keep in
+ * sync. A null result means requireLogin reached no verdict, which is not a refusal.
+ */
+function createAuthenticator(permissionPrefix: string) {
+    return async function authenticate(to: RouteLocationNormalized): Promise<boolean> {
+        const { requireLogin } = useRequireLogin(to)
+        const loginResult = await requireLogin(true, permissionPrefix)
+        return loginResult === null || loginResult
+    }
+}
+
 // Everything before the separator, and everything after it.
 function splitFirst(value: string, separator: string): [string, string] {
     const at = value.indexOf(separator)
@@ -171,4 +184,4 @@ function resolveSendBackTo(route: ReturnType<typeof useRoute>): SendBackToLocati
     return { path: stripApplicationBase(rawPath), query, hash: fragment ? `#${fragment}` : "" }
 }
 
-export { buildLoginUrl, getLoginUrl, isValidInternalPath, resolveSendBackTo, useRequireLogin }
+export { buildLoginUrl, createAuthenticator, getLoginUrl, isValidInternalPath, resolveSendBackTo, useRequireLogin }

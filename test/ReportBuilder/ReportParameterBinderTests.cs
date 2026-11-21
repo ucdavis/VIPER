@@ -238,6 +238,15 @@ public sealed class ReportParameterBinderTests
     }
 
     [Fact]
+    public void NamesDifferingOnlyByCase_AreFlaggedAsDuplicatesInsteadOfCrashing()
+    {
+        ReportBindResult result = Bind(Parameter("Dept"), Input(("Dept", ["PMI"]), ("dept", ["VME"])));
+
+        Assert.Equal(["The parameter 'dept' was sent more than once."], result.Errors);
+        Assert.Equal("PMI", Assert.Single(result.Parameters).Value);
+    }
+
+    [Fact]
     public void Parameters_AreBoundInDisplayOrderAndUnnamedOnesSkipped()
     {
         ReportBindResult result = ReportParameterBinder.Bind(

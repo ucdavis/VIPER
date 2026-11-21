@@ -29,80 +29,29 @@
         >
             <h2>{{ definition.title }}</h2>
         </slot>
-        <p v-if="definition.description">{{ definition.description }}</p>
-        <StatusBanner
-            v-if="definition.sensitiveNotice"
-            type="info"
-            icon="lock"
-            live="off"
-        >
-            {{ definition.sensitiveNotice }}
-        </StatusBanner>
-
-        <ReportBuilderForm
-            v-if="definition.parameters.length > 0"
+        <ReportViewerLoaded
             v-model="values"
-            :parameters="definition.parameters"
-            @submit="run"
-        />
-
-        <p
-            v-if="!ready"
-            class="text-grey-8"
-        >
-            Fill in the required fields to see the report.
-        </p>
-        <div
-            v-else-if="running && result === null"
-            role="status"
-            class="q-my-md"
-        >
-            <q-spinner-dots
-                size="2rem"
-                color="primary"
-                aria-hidden="true"
-            />
-            <span class="sr-only">Running report</span>
-        </div>
-
-        <StatusBanner
-            v-if="errors.length > 0"
-            type="error"
-        >
-            <ul class="q-my-none q-pl-md">
-                <li
-                    v-for="error in errors"
-                    :key="error"
-                >
-                    {{ error }}
-                </li>
-            </ul>
-        </StatusBanner>
-
-        <ReportBuilderResults
-            v-if="result !== null"
+            :definition="definition"
             :result="result"
-            :pagination="pagination"
-            :paginate="definition.paginate"
-            :title="definition.title"
-            :search="search"
-            :allow-excel="definition.allowExcel"
-            :allow-pdf="definition.allowPdf"
-            :can-export="canExport"
+            :errors="errors"
             :running="running"
+            :ready="ready"
+            :pagination="pagination"
+            :search="search"
+            :can-export="canExport"
             :exporting="exporting"
             :nothing-to-export="nothingToExport"
             :export-as="exportAs"
-            @request="changePage"
-            @search="changeSearch"
+            :run="run"
+            :change-page="changePage"
+            :change-search="changeSearch"
         />
     </template>
 </template>
 
 <script setup lang="ts">
 import StatusBanner from "@/components/StatusBanner.vue"
-import ReportBuilderForm from "./ReportBuilderForm.vue"
-import ReportBuilderResults from "./ReportBuilderResults.vue"
+import ReportViewerLoaded from "./ReportViewerLoaded.vue"
 import { useReportBuilder } from "./use-report-builder"
 
 /**

@@ -136,6 +136,18 @@ describe("admin saves", () => {
         ])
     })
 
+    it("explains a successful request that came back with no report", async () => {
+        expect.hasAssertions()
+        mockPost.mockResolvedValue({ success: true, result: null, errors: null, status: null })
+
+        const outcome = await reportAdminService.save(null, rosterReport)
+
+        expect([outcome.definition, outcome.errors]).toStrictEqual([
+            null,
+            ["The report couldn't be saved. Please try again later."],
+        ])
+    })
+
     it("deletes and restores", async () => {
         expect.hasAssertions()
         mockDel.mockResolvedValue({ success: true, result: saved })
@@ -144,6 +156,15 @@ describe("admin saves", () => {
         await expect(reportAdminService.remove(4)).resolves.toStrictEqual(saved)
         await expect(reportAdminService.restore(4)).resolves.toBeNull()
         expect(mockPost).toHaveBeenCalledWith(expect.stringMatching(/definitions\/4\/restore$/u))
+    })
+
+    it("returns null when a delete or a restore fails", async () => {
+        expect.hasAssertions()
+        mockDel.mockResolvedValue({ success: false, result: null })
+        mockPost.mockResolvedValue({ success: true, result: saved })
+
+        await expect(reportAdminService.remove(4)).resolves.toBeNull()
+        await expect(reportAdminService.restore(4)).resolves.toStrictEqual(saved)
     })
 })
 

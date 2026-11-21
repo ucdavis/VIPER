@@ -111,9 +111,12 @@ public sealed class ReportAdminService : IReportAdminService
         Apply(report, request, validation);
         report.Permissions = [.. validation.Permissions.Select(name => new ReportPermission { Permission = name })];
         _context.Reports.Add(report);
-        await _context.SaveChangesAsync(ct);
 
+        await using var transaction = await _context.Database.BeginTransactionAsync(ct);
+        await _context.SaveChangesAsync(ct);
         await AddHistoryAsync(report, ReportHistoryAction.Created, now, who, ct);
+        await transaction.CommitAsync(ct);
+
         return ReportAdminOutcome.Ok((await GetAsync(report.Id, ct))!);
     }
 
@@ -151,9 +154,23 @@ public sealed class ReportAdminService : IReportAdminService
         (DateTime now, string? who) = Stamp();
         report.ModifiedOn = now;
         report.ModifiedBy = who;
-        await _context.SaveChangesAsync(ct);
+
+        await using var transaction = await _context.Database.BeginTransactionAsync(ct);
+        try
+        {
+            await _context.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // The in-memory check above already catches the common case; this closes the gap
+            // between that check and the write itself.
+            return ReportAdminOutcome.Fail<ReportAdminDefinition>(
+                ReportAdminStatus.Conflict,
+                "Someone else saved this report after you opened it. Reload it to see their changes, then make yours again.");
+        }
 
         await AddHistoryAsync(report, ReportHistoryAction.Updated, now, who, ct);
+        await transaction.CommitAsync(ct);
         return ReportAdminOutcome.Ok((await GetAsync(id, ct))!);
     }
 
@@ -235,8 +252,21 @@ public sealed class ReportAdminService : IReportAdminService
             report.DeletedBy = deleted ? who : null;
             report.ModifiedOn = now;
             report.ModifiedBy = who;
-            await _context.SaveChangesAsync(ct);
+
+            await using var transaction = await _context.Database.BeginTransactionAsync(ct);
+            try
+            {
+                await _context.SaveChangesAsync(ct);
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                return ReportAdminOutcome.Fail<ReportAdminDefinition>(
+                    ReportAdminStatus.Conflict,
+                    "Someone else changed this report just now. Reload it and try again.");
+            }
+
             await AddHistoryAsync(report, deleted ? ReportHistoryAction.Deleted : ReportHistoryAction.Restored, now, who, ct);
+            await transaction.CommitAsync(ct);
         }
 
         return ReportAdminOutcome.Ok((await GetAsync(id, ct))!);

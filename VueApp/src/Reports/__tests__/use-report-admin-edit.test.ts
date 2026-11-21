@@ -66,6 +66,7 @@ describe("report edit state - loading", () => {
         const state = await edit(null)
 
         expect([state.form.value.title, state.definition.value, state.source.value]).toStrictEqual(["", null, null])
+        expect(state.sourceColumns.value).toStrictEqual([])
         expect(service.get).not.toHaveBeenCalled()
     })
 
@@ -227,6 +228,17 @@ describe("report edit state - saving", () => {
 
         expect([state.form.value.title, service.get.mock.calls.length]).toStrictEqual(["Faculty roster", 2])
     })
+
+    it("reloads a never-saved report as empty again", async () => {
+        expect.hasAssertions()
+        const state = await edit(null)
+        state.form.value = { ...state.form.value, title: "Mine" }
+
+        await state.reload()
+
+        expect(state.form.value.title).toBe("")
+        expect(service.get).not.toHaveBeenCalled()
+    })
 })
 
 describe("report edit state - deleting", () => {
@@ -250,15 +262,26 @@ describe("report edit state - deleting", () => {
         expect(state.isDirty.value).toBeFalsy()
     })
 
-    it("keeps unsaved edits when restoring", async () => {
+    it("keeps unsaved edits when restoring, and the form's own version with them", async () => {
         expect.hasAssertions()
         const state = await edit()
-        service.restore.mockResolvedValue(saved)
+        const originalVersion = state.form.value.lastModifiedOn
+        service.restore.mockResolvedValue({
+            ...saved,
+            modifiedOn: "2026-11-16T11:00:00",
+            report: { ...rosterReport, lastModifiedOn: "2026-11-16T11:00:00" },
+        })
         state.form.value = { ...state.form.value, title: "Mine" }
 
         await state.setDeleted(false)
 
-        expect([state.form.value.title, state.isDirty.value]).toStrictEqual(["Mine", true])
+        // The version stays the one the form was last loaded with, not restore's newer one, so a
+        // save of "Mine" is caught as a conflict instead of silently overwriting what changed since.
+        expect([state.form.value.title, state.form.value.lastModifiedOn, state.isDirty.value]).toStrictEqual([
+            "Mine",
+            originalVersion,
+            true,
+        ])
     })
 
     it("does nothing when the request fails or the report isn't saved yet", async () => {
@@ -270,5 +293,15 @@ describe("report edit state - deleting", () => {
         await fresh.setDeleted(true)
 
         expect([state.definition.value?.deletedOn, service.remove.mock.calls.length]).toStrictEqual([null, 1])
+    })
+
+    it("does nothing when a restore fails", async () => {
+        expect.hasAssertions()
+        const state = await edit()
+        service.restore.mockResolvedValue(null)
+
+        await state.setDeleted(false)
+
+        expect(state.definition.value).toStrictEqual(saved)
     })
 })

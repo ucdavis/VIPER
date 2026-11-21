@@ -166,8 +166,9 @@ describe("report parameters section", () => {
     it("adds, changes and removes parameters", async () => {
         expect.hasAssertions()
         const first = parameter()
+        const second = parameter({ name: "Unit" })
         const adding = mountParameters([first])
-        const changing = mountParameters([first])
+        const changing = mountParameters([first, second])
         const removing = mountParameters([first])
 
         await adding
@@ -175,13 +176,24 @@ describe("report parameters section", () => {
             .find((button) => button.text().includes("Add parameter"))
             ?.trigger("click")
         changing
-            .findComponent(ReportAdminParameterFields)
-            .vm.$emit("update:modelValue", { ...first, label: "Department" })
+            .findAllComponents(ReportAdminParameterFields)[0]
+            ?.vm.$emit("update:modelValue", { ...first, label: "Department" })
         await removing.get(`[aria-label="Remove Dept"]`).trigger("click")
 
         expect(lastParameters(adding)).toHaveLength(2)
-        expect(lastParameters(changing)[0]?.label).toBe("Department")
+        expect(lastParameters(changing)).toStrictEqual([{ ...first, label: "Department" }, second])
         expect(lastParameters(removing)).toStrictEqual([])
+    })
+
+    it("reorders parameters", () => {
+        expect.hasAssertions()
+        const first = parameter()
+        const second = parameter({ name: "Unit" })
+        const wrapper = mountParameters([first, second])
+
+        wrapper.findComponent({ name: "SortableList" }).vm.$emit("update:modelValue", [second, first])
+
+        expect(lastParameters(wrapper)).toStrictEqual([second, first])
     })
 
     it("announces a moved parameter by name", () => {

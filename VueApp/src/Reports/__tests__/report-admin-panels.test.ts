@@ -7,6 +7,8 @@ import ReportAdminStatus from "../components/ReportAdminStatus.vue"
 import ReportBuilderTable from "@/shared/report-builder/ReportBuilderTable.vue"
 import { reportAdminService } from "../admin/report-admin-service"
 import { rosterReport, saved } from "./report-admin-fixtures"
+import { deferred } from "./deferred"
+import type { ReportHistoryVersion } from "../admin/report-admin-types"
 
 vi.mock("../admin/report-admin-service", () => ({
     reportAdminService: {
@@ -41,6 +43,10 @@ describe("report permissions section", () => {
 
         expect(service.searchPermissions).toHaveBeenCalledWith("eff")
         expect(select.props("options")).toStrictEqual([{ permission: "SVMSecure.Effort", description: "Effort" }])
+
+        select.vm.$emit("update:modelValue", ["SVMSecure.Effort"])
+
+        expect(wrapper.emitted("update:modelValue")).toStrictEqual([[["SVMSecure.Effort"]]])
     })
 
     it("warns about chosen permissions RAPS no longer has", () => {
@@ -59,6 +65,49 @@ describe("report permissions section", () => {
         expect(one.text()).toContain("RAPS no longer has SVMSecure.Gone, so nobody holds it. Remove it before")
         expect(two.text()).toContain("A, B, so nobody holds them. Remove them")
         expect(removed.text()).not.toContain("no longer has")
+    })
+
+    // QSelect virtualizes its option list, which jsdom's layout never populates, so a mount of the
+    // real component never renders the #option/#no-option slots. Stub QSelect to render them
+    // directly instead.
+    const QSelectStub = {
+        name: "QSelect",
+        props: ["options"],
+        template: `
+            <div>
+                <template v-if="options.length === 0"><slot name="no-option" /></template>
+                <template v-for="opt in options" :key="opt.permission">
+                    <slot name="option" :opt="opt" :item-props="{}" />
+                </template>
+            </div>
+        `,
+    }
+    const stubbedGlobal = { ...global, stubs: { ...global.stubs, QSelect: QSelectStub } }
+
+    it("shows each matching permission, with its description when it has one", async () => {
+        expect.hasAssertions()
+        service.searchPermissions.mockResolvedValue([
+            { permission: "SVMSecure.Effort", description: "Effort access" },
+            { permission: "SVMSecure.CTS", description: null },
+        ])
+        const wrapper = mount(ReportAdminPermissions, { props: { modelValue: [] }, global: stubbedGlobal })
+
+        wrapper
+            .findComponent({ name: "QSelect" })
+            .vm.$emit("filter", "s", (update: () => void) => update(), vi.fn<() => void>())
+        await flushPromises()
+
+        expect(wrapper.text()).toContain("SVMSecure.Effort")
+        expect(wrapper.text()).toContain("Effort access")
+        expect(wrapper.text()).toContain("SVMSecure.CTS")
+    })
+
+    it("says when nothing matches", () => {
+        expect.hasAssertions()
+
+        const wrapper = mount(ReportAdminPermissions, { props: { modelValue: [] }, global: stubbedGlobal })
+
+        expect(wrapper.text()).toContain("No matching RAPS permissions")
     })
 })
 
@@ -152,6 +201,35 @@ describe("report history section", () => {
         expect(failed.text()).toContain("The history couldn't be loaded.")
         expect(unreadable.text()).toContain("That version can't be read.")
         expect(unreadable.emitted("load")).toBeUndefined()
+    })
+
+    it("ignores an older selection's response arriving after a newer one", async () => {
+        expect.hasAssertions()
+        service.getHistory.mockResolvedValue([
+            { id: 9, action: "Updated", changedOn: null, changedBy: null },
+            { id: 8, action: "Created", changedOn: null, changedBy: null },
+        ])
+        const slow = deferred<ReportHistoryVersion | null>()
+        service.getVersion.mockReturnValueOnce(slow.promise)
+        const wrapper = mount(ReportAdminHistory, { props: { reportId: 4 }, global })
+        await button(wrapper, "Show earlier versions")?.trigger("click")
+        await flushPromises()
+        const loadButtons = wrapper.findAll("button").filter((candidate) => candidate.text().includes("Load into form"))
+
+        await loadButtons[0]?.trigger("click")
+        service.getVersion.mockResolvedValue({
+            version: { id: 8, action: "Created", changedOn: null, changedBy: null },
+            report: { ...rosterReport, title: "Eight" },
+        })
+        await loadButtons[1]?.trigger("click")
+        await flushPromises()
+        slow.resolve({
+            version: { id: 9, action: "Updated", changedOn: null, changedBy: null },
+            report: { ...rosterReport, title: "Nine" },
+        })
+        await flushPromises()
+
+        expect(wrapper.emitted("load")).toStrictEqual([[{ ...rosterReport, title: "Eight" }]])
     })
 })
 

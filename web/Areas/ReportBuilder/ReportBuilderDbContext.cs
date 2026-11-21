@@ -63,7 +63,9 @@ public class ReportBuilderDbContext : DbContext
             entity.Property(e => e.OrderByDescending).HasColumnName("orderByDesc");
             Timestamp(entity.Property(e => e.CreatedOn), "created").HasDefaultValueSql("getdate()");
             entity.Property(e => e.CreatedBy).HasColumnName("createdBy").HasMaxLength(UserLength);
-            Timestamp(entity.Property(e => e.ModifiedOn), "modified").HasDefaultValueSql("getdate()");
+            Timestamp(entity.Property(e => e.ModifiedOn), "modified")
+                .HasDefaultValueSql("getdate()")
+                .IsConcurrencyToken();
             entity.Property(e => e.ModifiedBy).HasColumnName("modifiedBy").HasMaxLength(UserLength);
             Timestamp(entity.Property(e => e.DeletedOn), "deleted");
             entity.Property(e => e.DeletedBy).HasColumnName("deletedBy").HasMaxLength(UserLength);

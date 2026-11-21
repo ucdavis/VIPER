@@ -31,9 +31,7 @@ public sealed class ReportRunServiceTests : IDisposable
 
     public ReportRunServiceTests()
     {
-        DbContextOptions<ReportBuilderDbContext> options = new DbContextOptionsBuilder<ReportBuilderDbContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString())
-            .Options;
+        DbContextOptions<ReportBuilderDbContext> options = ReportBuilderTestDb.CreateOptions();
         _context = new ReportBuilderDbContext(options);
         _service = CreateService(_context);
         _users.Permissions.Add(ViewerPermission);
@@ -678,6 +676,57 @@ public sealed class ReportRunServiceTests : IDisposable
 
         Assert.Empty(result.Rows);
         Assert.Null(result.TotalRows);
+    }
+
+    [Fact]
+    public async Task Procedure_ThatPagesItself_CannotBeSearched()
+    {
+        await AddLeaveAsync();
+        _catalog.Sources[1] = _catalog.Sources[1] with { PagesInSql = true };
+
+        AssertFails(await RunAsync(LeaveSlug, new ReportRunRequest { Search = "x" }), ReportRunStatus.Invalid,
+            "This report can't be searched.");
+    }
+
+    [Fact]
+    public async Task Procedure_ThatPagesItself_CannotBeSortedByRequest()
+    {
+        await AddLeaveAsync();
+        _catalog.Sources[1] = _catalog.Sources[1] with { PagesInSql = true };
+
+        AssertFails(await RunAsync(LeaveSlug, new ReportRunRequest { SortBy = "Name" }), ReportRunStatus.Invalid,
+            "This report's order is set by its data source and can't be changed.");
+    }
+
+    [Fact]
+    public async Task Procedure_ThatPagesItself_StillGetsBoundedSkipAndTakeWhenDownloaded()
+    {
+        await AddLeaveAsync();
+        _catalog.Sources[1] = _catalog.Sources[1] with { PagesInSql = true };
+        AnswerRows(FakeReportQueryExecutor.Row(("Name", "Ada"), ("Hours", 1m)));
+
+        Ok(await RunAsync(LeaveSlug, mode: ReportRunMode.ExportExcel));
+
+        Assert.Equal("EXEC [report].[usp_Leave] @LoginId = @p0, @Skip = @__skip, @Take = @__take", _executor.LastCommand.Text);
+        Assert.Equal(0, _executor.LastCommand.Parameters["@__skip"]);
+        Assert.Equal(ReportLimits.MaxRows, _executor.LastCommand.Parameters["@__take"]);
+    }
+
+    [Fact]
+    public async Task Procedure_Buffered_SortsByAHiddenDefaultColumnBeforeDroppingIt()
+    {
+        await AddLeaveAsync(r =>
+        {
+            r.Columns = [Column("Name", 1)];
+            r.OrderBy = "Hours";
+        });
+        AnswerRows(
+            FakeReportQueryExecutor.Row(("Name", "Bea"), ("Hours", 2m)),
+            FakeReportQueryExecutor.Row(("Name", "Ada"), ("Hours", 1m)));
+
+        ReportRunResult result = Ok(await RunAsync(LeaveSlug));
+
+        Assert.Equal(["Ada", "Bea"], result.Rows.Select(r => r["Name"]));
     }
 
     [Fact]

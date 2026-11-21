@@ -17,6 +17,10 @@ const { mockRequireLogin } = vi.hoisted(() => ({
 vi.mock("@/composables/RequireLogin", () => ({
     useRequireLogin: () => ({ requireLogin: (...args: unknown[]) => mockRequireLogin(...args) }),
     getLoginUrl: () => ({ value: "" }),
+    createAuthenticator: (permission: string) => async () => {
+        const loginResult = await mockRequireLogin(true, permission)
+        return loginResult === null || loginResult
+    },
 }))
 
 /**

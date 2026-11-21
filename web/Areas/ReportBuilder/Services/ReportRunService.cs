@@ -256,16 +256,25 @@ public sealed class ReportRunService : IReportRunService
             return ReportRunOutcome.Fail(ReportRunStatus.Unavailable, $"The parameter '{stale}' is no longer in this report's data source.");
         }
 
+        bool screen = mode == ReportRunMode.Screen;
+        bool paginate = screen && ReportAccess.Paginates(report);
+
+        // A procedure that pages itself in SQL hands back one page in its own order; the
+        // viewer's search box and an explicit sort request can't reach rows it never returned.
+        bool sqlPagedProcedure = paginate && source.Kind == ReportSourceKind.Procedure && source.PagesInSql;
+
         var errors = new List<string>();
-        (string? sortColumn, bool descending, bool sortMissing) = Sort(report, request, columns, known, checkColumns, errors);
+        (string? sortColumn, bool descending, bool sortMissing) = Sort(report, request, columns, known, checkColumns, sqlPagedProcedure, errors);
         string? search = string.IsNullOrWhiteSpace(request.Search) ? null : request.Search.Trim();
         if (search is { Length: > ReportLimits.MaxTextLength })
         {
             errors.Add($"Search text must be {ReportLimits.MaxTextLength} characters or fewer.");
         }
+        else if (search is not null && sqlPagedProcedure)
+        {
+            errors.Add("This report can't be searched.");
+        }
 
-        bool screen = mode == ReportRunMode.Screen;
-        bool paginate = screen && ReportAccess.Paginates(report);
         int perPage = ReportAccess.PageSize(report);
         if (paginate && request.PerPage is { } asked)
         {
@@ -311,7 +320,8 @@ public sealed class ReportRunService : IReportRunService
 
     /// <summary>
     /// The requested sort, which must be a visible sortable column, or else the report's default
-    /// order. <c>Missing</c> is true when the default sort column is no longer in the source.
+    /// order. <c>Missing</c> is true when the default sort column is no longer in the source. An
+    /// explicit request is refused for a procedure that pages itself in SQL.
     /// </summary>
     private static (string? Column, bool Descending, bool Missing) Sort(
         ReportDefinition report,
@@ -319,10 +329,17 @@ public sealed class ReportRunService : IReportRunService
         IReadOnlyList<ReportResultColumn> columns,
         Dictionary<string, ReportSourceColumn> known,
         bool checkColumns,
+        bool sqlPagedProcedure,
         List<string> errors)
     {
         if (!string.IsNullOrWhiteSpace(request.SortBy))
         {
+            if (sqlPagedProcedure)
+            {
+                errors.Add("This report's order is set by its data source and can't be changed.");
+                return (null, false, false);
+            }
+
             ReportResultColumn? column = columns.FirstOrDefault(c =>
                 c.Sortable && string.Equals(c.Name, request.SortBy, StringComparison.OrdinalIgnoreCase));
             if (column is null)
@@ -418,13 +435,25 @@ public sealed class ReportRunService : IReportRunService
 
     private async Task<ReportRunResult> RunProcedureAsync(RunPlan plan, CancellationToken ct)
     {
-        bool pagesInSql = plan.Paginate && plan.Source.PagesInSql;
-        ReportSqlCommand command = ReportSqlBuilder.BuildProcedure(
-            plan.Source.Name, plan.Parameters, pagesInSql ? plan.Skip : null, pagesInSql ? plan.PerPage : null);
-        ReportQueryResult result = await _executor.QueryAsync(
-            command, pagesInSql ? plan.PerPage : ReportLimits.MaxRows, plan.Timeout, ct);
+        // A procedure that takes @Skip/@Take needs them on every call, not only a paginated
+        // screen run: a bounded window starting at zero, so a download or an unpaginated run
+        // doesn't fall back to whatever the procedure defaults to (or fail outright if it must
+        // have them).
+        bool needsPagingArgs = plan.Source.PagesInSql;
+        bool sqlPaged = plan.Paginate && needsPagingArgs;
+        int? skip = null;
+        int? take = null;
+        if (needsPagingArgs)
+        {
+            skip = sqlPaged ? plan.Skip : 0;
+            take = sqlPaged ? plan.PerPage : ReportLimits.MaxRows;
+        }
 
-        if (pagesInSql)
+        ReportSqlCommand command = ReportSqlBuilder.BuildProcedure(plan.Source.Name, plan.Parameters, skip, take);
+        ReportQueryResult result = await _executor.QueryAsync(
+            command, sqlPaged ? plan.PerPage : ReportLimits.MaxRows, plan.Timeout, ct);
+
+        if (sqlPaged)
         {
             // The procedure picks the page, so its own order stands; it reports the total in a TotalRows column.
             IReadOnlyList<IReadOnlyDictionary<string, object?>> page = Project(result.Rows, plan.Columns);
@@ -439,19 +468,20 @@ public sealed class ReportRunService : IReportRunService
             };
         }
 
-        IEnumerable<IReadOnlyDictionary<string, object?>> rows = Project(result.Rows, plan.Columns);
-        if (plan.Search is not null)
-        {
-            rows = rows.Where(row => Matches(row, plan.Search));
-        }
-
+        // Sorted before it's projected: the report's default sort column may not be one it shows.
+        IEnumerable<IReadOnlyDictionary<string, object?>> sorted = result.Rows;
         if (plan.SortColumn is not null)
         {
             var comparer = new ReportValueComparer();
-            rows = plan.SortDescending
-                ? rows.OrderByDescending(row => Value(row, plan.SortColumn), comparer)
-                : rows.OrderBy(row => Value(row, plan.SortColumn), comparer);
+            sorted = plan.SortDescending
+                ? sorted.OrderByDescending(row => Value(row, plan.SortColumn), comparer)
+                : sorted.OrderBy(row => Value(row, plan.SortColumn), comparer);
         }
+
+        List<IReadOnlyDictionary<string, object?>> projected = [.. Project([.. sorted], plan.Columns)];
+        IEnumerable<IReadOnlyDictionary<string, object?>> rows = plan.Search is null
+            ? projected
+            : projected.Where(row => Matches(row, plan.Search));
 
         List<IReadOnlyDictionary<string, object?>> all = [.. rows];
         List<IReadOnlyDictionary<string, object?>> shown = plan.Paginate
