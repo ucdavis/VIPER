@@ -242,7 +242,7 @@ public sealed class EisServiceTests
         Assert.Equal("1", first.Number);
         Assert.Equal("PROF-AY", first.Title);
         Assert.Null(first.Grade);
-        Assert.Equal<decimal?>([75_000m, -2_000m], first.Distributions.Select(distribution => distribution.Amount));
+        Assert.Equal([75_000m, -2_000m], first.Distributions.Select(distribution => distribution.Amount));
         Assert.Equal("12345", first.Distributions[0].Account);
         Assert.Equal("5", first.Distributions[0].Step);
         Assert.Equal(100_000m, first.Total);
@@ -252,7 +252,7 @@ public sealed class EisServiceTests
         Assert.Null(result.Appointments[1].Total);
         await _data.Received(1).GetDistributionsAsync(EmployeeId, Arg.Any<string>(), Arg.Any<CancellationToken>());
 
-        Assert.Equal<decimal?>([6_000m, 1_000m], result.Stipends.Select(stipend => stipend.AnnualAmount));
+        Assert.Equal([6_000m, 1_000m], result.Stipends.Select(stipend => stipend.AnnualAmount));
         Assert.Equal(new DateOnly(2026, 6, 30), result.Stipends[1].EndDate);
         Assert.Equal(107_000m, result.TotalAnnual);
     }
