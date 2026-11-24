@@ -131,10 +131,10 @@ const tableColumns = computed<QTableColumn[]>(() => {
 
 <style scoped>
 .crosslist-card {
-    border-left: 3px solid #21ba45;
+    border-left: 3px solid var(--q-positive);
 }
 
 .section-card {
-    border-left: 3px solid #2196f3;
+    border-left: 3px solid var(--q-info);
 }
 </style>
