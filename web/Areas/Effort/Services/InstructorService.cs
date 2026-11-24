@@ -485,7 +485,7 @@ public class InstructorService : IInstructorService
             JobGroupId = jobGroupId,
             PercentAdmin = 0,
             PercentClinical = null,
-            VolunteerWos = null,
+            VolunteerWos = 0, // reports filter VolunteerWos = 0, so NULL hides the instructor
             ReportUnit = !string.IsNullOrEmpty(person.MothraId)
                 && await HasCahfsAppointmentAsync(person.MothraId, request.TermCode, ct)
                 ? EffortConstants.CahfsReportUnit

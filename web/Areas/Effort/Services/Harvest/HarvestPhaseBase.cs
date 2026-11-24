@@ -66,6 +66,7 @@ public abstract class HarvestPhaseBase : IHarvestPhase
             EffortTitleCode = person.TitleCode,
             EffortDept = person.Department,
             PercentAdmin = 0,
+            VolunteerWos = 0, // reports filter VolunteerWos = 0, so NULL hides the instructor
             JobGroupId = !string.IsNullOrEmpty(person.TitleCode) ? ctx.JobGroupLookup?.GetValueOrDefault(person.TitleCode.Trim()) : null,
             Title = null,
             AdminUnit = null,
