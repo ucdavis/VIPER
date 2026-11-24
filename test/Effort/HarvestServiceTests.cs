@@ -368,6 +368,7 @@ public sealed class HarvestServiceTests : IDisposable
         // Assert
         var person = Assert.Single(_context.Persons.Local);
         Assert.Equal(expectedReportUnit, person.ReportUnit);
+        Assert.Equal((byte)0, person.VolunteerWos);
         _auditServiceMock.Received(1).AddHarvestPersonAudit(25756, TestTermCode, "Linda", "Barter", "VSR", expectedReportUnit);
     }
 
