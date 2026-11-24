@@ -382,6 +382,7 @@ public sealed class InstructorServiceTests : IDisposable
         // Assert
         var created = await _context.Persons.AsNoTracking().SingleAsync(p => p.PersonId == 300, TestContext.Current.CancellationToken);
         Assert.Equal(expectedReportUnit, created.ReportUnit);
+        Assert.Equal((byte)0, created.VolunteerWos);
     }
 
     #endregion

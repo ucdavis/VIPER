@@ -1178,6 +1178,7 @@ public class ClinicalImportService : IClinicalImportService
             EffortDept = dept,
             PercentAdmin = 0,
             JobGroupId = _jobGroupLookup?.GetValueOrDefault(titleCode),
+            VolunteerWos = 0, // reports filter VolunteerWos = 0, so NULL hides the instructor
             Title = null,
             AdminUnit = null,
             ReportUnit = _cahfsMothraIds.Contains(mothraId) ? EffortConstants.CahfsReportUnit : null

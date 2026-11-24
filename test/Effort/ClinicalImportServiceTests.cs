@@ -416,6 +416,7 @@ public sealed class ClinicalImportServiceTests : IDisposable
         Assert.Equal("VME", effortPerson.EffortDept);
         Assert.Equal("1234", effortPerson.EffortTitleCode);
         Assert.Equal(expectedReportUnit, effortPerson.ReportUnit);
+        Assert.Equal((byte)0, effortPerson.VolunteerWos);
         await _instructorServiceMock.Received(1).GetCahfsMothraIdsAsync(
             Arg.Any<IReadOnlyCollection<string>>(), TermCode, Arg.Any<CancellationToken>());
         await _instructorServiceMock.DidNotReceiveWithAnyArgs().HasCahfsAppointmentAsync(default!, default, TestContext.Current.CancellationToken);
