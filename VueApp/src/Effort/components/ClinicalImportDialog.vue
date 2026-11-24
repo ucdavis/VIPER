@@ -222,6 +222,8 @@ const selectedMode = ref<ClinicalImportMode>("AddNewOnly")
 const isLoading = ref(false)
 const loadError = ref<string | null>(null)
 const isCommitting = ref(false)
+// Bumped on every load and on close, so a response for an earlier request is dropped
+let previewRequestId = 0
 
 // Progress tracking
 const importProgress = ref(0)
@@ -250,6 +252,8 @@ watch(
             selectedMode.value = "AddNewOnly"
             await loadPreview()
         } else if (!open) {
+            previewRequestId++
+            isLoading.value = false
             preview.value = null
             loadError.value = null
         }
@@ -263,20 +267,25 @@ async function onModeChange() {
 async function loadPreview() {
     if (!props.termCode) return
 
+    const requestId = ++previewRequestId
     isLoading.value = true
     loadError.value = null
 
     try {
         const result = await clinicalService.getPreview(props.termCode, selectedMode.value)
+        if (requestId !== previewRequestId) return
         if (result) {
             preview.value = result
         } else {
             loadError.value = "Failed to load clinical import preview"
         }
     } catch (err) {
+        if (requestId !== previewRequestId) return
         loadError.value = err instanceof Error ? err.message : "Failed to load clinical import preview"
     } finally {
-        isLoading.value = false
+        if (requestId === previewRequestId) {
+            isLoading.value = false
+        }
     }
 }
 
