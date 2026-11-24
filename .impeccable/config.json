@@ -1,0 +1,94 @@
+{
+  "hook": {
+    "limits": {
+      "maxFindings": 5,
+      "maxChars": 8000
+    }
+  },
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [
+      "web/wwwroot/vue/**"
+    ],
+    "ignoreValues": [
+      {
+        "rule": "overused-font",
+        "value": "roboto",
+        "createdAt": "2026-11-24T20:37:13.352Z",
+        "reason": "DESIGN.md: Roboto is the workspace font"
+      },
+      {
+        "rule": "broken-image",
+        "value": "*",
+        "files": [
+          "VueApp/src/components/editor/editor-html.ts"
+        ],
+        "createdAt": "2026-11-24T20:37:13.597Z",
+        "reason": "Builds an img HTML string, not a rendered image"
+      },
+      {
+        "rule": "broken-image",
+        "value": "*",
+        "files": [
+          "VueApp/src/components/editor/EditorImageDialog.vue"
+        ],
+        "createdAt": "2026-11-24T20:37:13.964Z",
+        "reason": "Match is a doc comment"
+      },
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "VueApp/src/Effort/components/CrossListedCoursesSection.vue",
+          "VueApp/src/Effort/pages/StaffDashboard.vue",
+          "web/Areas/Effort/EmailTemplates/Views/VerificationReminder.cshtml",
+          "web/wwwroot/css/healthchecks-ui-branding.css"
+        ],
+        "createdAt": "2026-11-24T20:37:14.51Z",
+        "reason": "DESIGN.md sanctions left accent rules for status"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "material icons",
+        "createdAt": "2026-11-24T20:37:14.733Z",
+        "reason": "DESIGN.md documents Material Icons as the icon font"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "14px",
+        "createdAt": "2026-11-24T20:37:14.888Z",
+        "reason": "DESIGN.md root font-size"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "1.1rem",
+        "createdAt": "2026-11-24T20:37:15.025Z",
+        "reason": "DESIGN.md h4 size"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "24px",
+        "createdAt": "2026-11-24T20:37:35.484Z",
+        "reason": "Standard Material Icons glyph size"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "0.875rem",
+        "createdAt": "2026-11-24T20:37:35.591Z",
+        "reason": "Documented status toast size"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#e6ecf2",
+        "createdAt": "2026-11-24T20:37:35.708Z",
+        "reason": "UC Davis blue tint for secondary nav active state"
+      }
+    ],
+    "extensions": [
+      {
+        "ext": ".cshtml",
+        "engine": "html"
+      }
+    ]
+  }
+}
