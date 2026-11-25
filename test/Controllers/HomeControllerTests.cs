@@ -32,7 +32,7 @@ public sealed class HomeControllerTests
         typeof(Viper.Areas.ClinicalScheduler.Controllers.CliniciansController),
         typeof(Viper.Areas.Effort.Controllers.ReportsController),
         typeof(Viper.Areas.RAPS.Controllers.RAPSController),
-        typeof(Viper.Areas.CTS.Controllers.CTSController),
+        typeof(Viper.Areas.CTS.Controllers.AssessmentController),
     };
 
     // "/ClinicalScheduler" is a splash-eligible area landing page; "/ClinicalScheduler/rotation" is a deep link.

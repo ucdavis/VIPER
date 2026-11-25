@@ -99,30 +99,24 @@
             </Transition>
         </header>
 
-        <!-- Height tracks the measured content so the card animates between weeks, not snaps -->
         <div
             ref="viewport"
             class="week-history__viewport"
         >
-            <div
-                ref="measure"
-                class="week-history__measure"
-            >
-                <WeekHistoryBody
-                    :view-mode="viewMode"
-                    :entries="entries"
-                    :is-loading="isLoading"
-                    :error="error"
-                    @retry="$emit('retry')"
-                />
-            </div>
+            <WeekHistoryBody
+                :view-mode="viewMode"
+                :entries="entries"
+                :is-loading="isLoading"
+                :error="error"
+                @retry="$emit('retry')"
+            />
         </div>
     </section>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, useTemplateRef, watch } from "vue"
-import { useIntervalFn, useMediaQuery, useResizeObserver, useTimeoutFn } from "@vueuse/core"
+import { useIntervalFn, useMediaQuery, useTimeoutFn } from "@vueuse/core"
 import { useDateFunctions } from "@/composables/DateFunctions"
 import WeekHistoryBody from "./WeekHistoryBody.vue"
 import type { AuditLogEntry } from "../types/audit-types"
@@ -157,15 +151,7 @@ const supportsHover = useMediaQuery("(hover: hover)")
 const showPrevTooltip = computed(() => supportsHover.value && props.canPrev)
 const showNextTooltip = computed(() => supportsHover.value && props.canNext)
 
-// Feed the measured content height to the viewport, which CSS transitions.
 const viewport = useTemplateRef<HTMLElement>("viewport")
-const measure = useTemplateRef<HTMLElement>("measure")
-const bodyHeight = ref("auto")
-
-useResizeObserver(measure, () => {
-    const el = measure.value
-    if (el) bodyHeight.value = `${el.offsetHeight}px`
-})
 
 // Reset scroll to the top on each new week.
 watch(
@@ -302,18 +288,6 @@ watch(
 .week-history__viewport {
     overflow-y: auto;
     max-height: 55vh;
-
-    /* Height comes from the measured content (script); animate size changes between weeks */
-    /* stylelint-disable-next-line declaration-property-value-no-unknown -- Vue SFC v-bind() is resolved at compile time */
-    height: v-bind("bodyHeight");
-    transition: height 0.24s cubic-bezier(0.22, 1, 0.36, 1);
-    will-change: height;
-}
-
-@media screen and (prefers-reduced-motion: reduce) {
-    .week-history__viewport {
-        transition: none;
-    }
 }
 
 .week-history__heading {

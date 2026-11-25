@@ -10,19 +10,11 @@
     list-style: none;
 }
 
-.userinfo {
-    font-family: "Source Sans Pro", sans-serif;
-    font-size: 11pt;
-    color: #212529;
-}
-
 .userinfo h1,
 .userinfo h2,
 .userinfo h3,
 .userinfo h4,
 .userinfo h5 {
-    font-weight: bold;
-    color: #212529;
     margin-top: 1rem;
 }
 
@@ -30,15 +22,15 @@
 .userinfo h2 a,
 .userinfo h1 a:visited,
 .userinfo h2 a:visited {
-    color: #1864ab;
-    text-decoration: underline #adb5bd;
+    color: var(--q-primary);
+    text-decoration: underline var(--ucdavis-black-30, #b2b2b2);
 }
 
 .userinfo h1 a:hover,
 .userinfo h1 a:focus,
 .userinfo h2 a:hover,
 .userinfo h2 a:focus {
-    color: #1864ab;
+    color: var(--q-primary);
     text-decoration: underline;
 }
 
@@ -50,19 +42,9 @@
     margin-top: 0;
 }
 
-.userinfo h2 {
-    font-size: 16pt;
-    font-weight: bold;
-}
-
-.userinfo h3 {
-    font-size: 13pt;
-    font-weight: bold;
-}
-
 .userinfo p.note {
-    color: #495057;
-    font-size: 10pt;
+    color: var(--ucdavis-black-60, #666);
+    font-size: 0.875rem;
     font-style: italic;
     margin: 0.5rem 0 1rem;
 }
@@ -70,7 +52,7 @@
 .userinfo div + div {
     margin-top: 1em;
     padding-top: 1em;
-    border-top: 1px solid #888;
+    border-top: 1px solid var(--ucdavis-black-20, #ccc);
 }
 
 /* The unavailable-sections banner is itself a div, so the section right
@@ -113,8 +95,7 @@
 }
 
 .userinfo table thead {
-    background-color: #495057;
-    color: #f8f9fa;
+    background-color: var(--ucdavis-black-10, #e5e5e5);
     font-weight: bold;
 }
 
@@ -152,7 +133,7 @@
 }
 
 .userinfo table tbody tr:nth-child(odd) {
-    background-color: #f1f3f5;
+    background-color: #eee;
 }
 
 .userinfo ul + ul {
@@ -165,7 +146,7 @@
 }
 
 .userinfo ul li:nth-child(odd) {
-    background-color: #f1f3f5;
+    background-color: #eee;
 }
 
 .userinfo ul li ul li {
@@ -178,7 +159,7 @@
 }
 
 .userinfo ul li:nth-child(odd) ul li:nth-child(even) {
-    background-color: #f1f3f5;
+    background-color: #eee;
 }
 
 .userinfo ul li:nth-child(even) ul li:nth-child(even) {
@@ -186,7 +167,7 @@
 }
 
 .userinfo ul li:nth-child(even) ul li:nth-child(odd) {
-    background-color: #f1f3f5;
+    background-color: #eee;
 }
 
 .userinfo summary {
