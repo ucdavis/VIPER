@@ -13,10 +13,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Remove="Areas\CTS\Views\css\**" />
-    <Content Remove="Areas\CTS\Views\css\**" />
-    <EmbeddedResource Remove="Areas\CTS\Views\css\**" />
-    <None Remove="Areas\CTS\Views\css\**" />
     <Compile Remove="Areas\Effort\Scripts\**" />
     <Content Remove="Areas\Effort\Scripts\**" />
     <EmbeddedResource Remove="Areas\Effort\Scripts\**" />
@@ -108,10 +104,6 @@
     <Folder Include="Areas\Scheduler\Controllers\" />
     <Folder Include="Areas\Scheduler\Services\" />
     <Folder Include="wwwroot\js\vue\" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Include="wwwroot\css\cts.css" />
   </ItemGroup>
 
 </Project>

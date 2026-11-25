@@ -5,7 +5,8 @@
 
 # Agent testing artifacts (Playwright MCP snapshots/logs/screenshots, Impeccable working folders)
 .playwright-mcp/
-.impeccable/
+.impeccable/*
+!.impeccable/config.json
 
 # Agent AI development scratch docs (plans, smoke-test guides); not committed
 PLAN-*.md
