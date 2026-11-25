@@ -104,6 +104,17 @@ body {
     color: var(--welcome-text-strong);
 }
 
+/* Layout = null skips site.css, so restate the shared 14px to 16px root scale (DESIGN.md). */
+html {
+    font-size: 14px;
+}
+
+@media (width >= 768px) {
+    html {
+        font-size: 16px;
+    }
+}
+
 body {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;

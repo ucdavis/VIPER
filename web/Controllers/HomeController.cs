@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
@@ -298,6 +299,13 @@ namespace Viper.Controllers
             if (string.IsNullOrEmpty(url))
             {
                 return true;
+            }
+
+            // A sendBackTo target (VIPER 1 hand-off) is a deep link even when it lands on an area root.
+            int queryStart = url.IndexOf('?');
+            if (queryStart >= 0 && QueryHelpers.ParseQuery(url[queryStart..]).ContainsKey("sendBackTo"))
+            {
+                return false;
             }
 
             var path = PathWithoutQuery(url).Trim('/');

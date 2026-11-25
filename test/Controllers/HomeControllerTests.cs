@@ -205,6 +205,8 @@ public sealed class HomeControllerTests
     [InlineData("/clinicalscheduler", true)] // area match is case-insensitive
     [InlineData("/Effort/", true)] // trailing slash on an area root still counts
     [InlineData("/Effort?tab=1", true)] // query string is ignored
+    [InlineData("/CTS/?sendBackTo=%2Fcts%2Fepa", false)] // VIPER 1 hand-off is a deep link
+    [InlineData("/CTS?SENDBACKTO=%2Fcts%2Fepa#x", false)] // parameter name is case-insensitive
     [InlineData("/ClinicalScheduler/rotation", false)] // deep link
     [InlineData("/CTS/epa", false)] // CTS is an area, but this is a deep link
     [InlineData("/MyPermissions", false)] // single segment, not an area
