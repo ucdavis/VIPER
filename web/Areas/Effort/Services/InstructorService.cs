@@ -22,6 +22,7 @@ public class InstructorService : IInstructorService
     private readonly EffortDbContext _context;
     private readonly VIPERContext _viperContext;
     private readonly AAUDContext _aaudContext;
+    private readonly PPSContext _ppsContext;
     private readonly DictionaryContext _dictionaryContext;
     private readonly IEffortAuditService _auditService;
     private readonly ICourseClassificationService _classificationService;
@@ -77,6 +78,7 @@ public class InstructorService : IInstructorService
         EffortDbContext context,
         VIPERContext viperContext,
         AAUDContext aaudContext,
+        PPSContext ppsContext,
         DictionaryContext dictionaryContext,
         IEffortAuditService auditService,
         ICourseClassificationService classificationService,
@@ -89,6 +91,7 @@ public class InstructorService : IInstructorService
         _context = context;
         _viperContext = viperContext;
         _aaudContext = aaudContext;
+        _ppsContext = ppsContext;
         _dictionaryContext = dictionaryContext;
         _auditService = auditService;
         _classificationService = classificationService;
@@ -482,8 +485,11 @@ public class InstructorService : IInstructorService
             JobGroupId = jobGroupId,
             PercentAdmin = 0,
             PercentClinical = null,
-            VolunteerWos = null,
-            ReportUnit = null,
+            VolunteerWos = 0, // reports filter VolunteerWos = 0, so NULL hides the instructor
+            ReportUnit = !string.IsNullOrEmpty(person.MothraId)
+                && await HasCahfsAppointmentAsync(person.MothraId, request.TermCode, ct)
+                ? EffortConstants.CahfsReportUnit
+                : null,
             Title = null,
             AdminUnit = null,
             EffortVerified = null
@@ -502,7 +508,8 @@ public class InstructorService : IInstructorService
                 instructor.FirstName,
                 instructor.LastName,
                 instructor.EffortDept,
-                instructor.EffortTitleCode
+                instructor.EffortTitleCode,
+                instructor.ReportUnit
             });
         await _context.SaveChangesAsync(ct);
 
@@ -858,6 +865,68 @@ public class InstructorService : IInstructorService
             result[mothraId] = dept;
         }
 
+        return result;
+    }
+
+    public async Task<bool> HasCahfsAppointmentAsync(string mothraId, int termCode, CancellationToken ct = default)
+    {
+        return (await GetCahfsMothraIdsAsync([mothraId], termCode, ct)).Count > 0;
+    }
+
+    /// <inheritdoc />
+    public Task<IReadOnlySet<string>> GetCahfsMothraIdsAsync(IReadOnlyCollection<string> mothraIds, int termCode, CancellationToken ct = default)
+    {
+        return QueryCahfsMothraIdsAsync(mothraIds, termCode, ct);
+    }
+
+    /// <inheritdoc />
+    public Task<IReadOnlySet<string>> GetCahfsMothraIdsAsync(int termCode, CancellationToken ct = default)
+    {
+        return QueryCahfsMothraIdsAsync(null, termCode, ct);
+    }
+
+    // mothraIds limits the result to those people; null means everyone.
+    private async Task<IReadOnlySet<string>> QueryCahfsMothraIdsAsync(IReadOnlyCollection<string>? mothraIds, int termCode, CancellationToken ct)
+    {
+        // PPS first: AAUD has no term row for an inactive person (e.g. on unpaid leave).
+        // This is the job held now, not during the term, so someone who joined CAHFS after
+        // the term is tagged too and someone who has since separated is left to AAUD below.
+        var cahfsEmplIds = await _ppsContext.VwPersonJobPositions
+            .AsNoTracking()
+            .Where(p => p.Deptid == EffortConstants.CahfsDeptCode
+                     && p.JobStatus1 != EffortConstants.PpsSeparatedJobStatus
+                     && p.Emplid != null)
+            .Select(p => p.Emplid!)
+            .Distinct()
+            .ToListAsync(ct);
+
+        var ppsUsers = _aaudContext.AaudUsers
+            .AsNoTracking()
+            .Where(u => u.EmployeeId != null && EF.Parameter(cahfsEmplIds).Contains(u.EmployeeId));
+        if (mothraIds != null)
+        {
+            ppsUsers = ppsUsers.Where(u => EF.Parameter(mothraIds).Contains(u.MothraId));
+        }
+        var result = (await ppsUsers.Select(u => u.MothraId).ToListAsync(ct))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        // Backfill from the AAUD jobs loaded for the term
+        var termCodeStr = termCode.ToString();
+        var candidates = _aaudContext.Ids.Where(i => i.IdsTermCode == termCodeStr && i.IdsMothraid != null);
+        if (mothraIds != null)
+        {
+            candidates = candidates.Where(i => EF.Parameter(mothraIds).Contains(i.IdsMothraid!));
+        }
+        result.UnionWith(await _aaudContext.Jobs
+            .AsNoTracking()
+            .Where(job => job.JobTermCode == termCodeStr && job.JobDepartmentCode == EffortConstants.CahfsDeptCode)
+            .Join(
+                candidates,
+                job => job.JobPKey,
+                ids => ids.IdsPKey,
+                (job, ids) => ids.IdsMothraid!)
+            .Distinct()
+            .ToListAsync(ct));
         return result;
     }
 

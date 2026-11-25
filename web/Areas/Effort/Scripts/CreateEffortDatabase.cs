@@ -769,7 +769,7 @@ BEGIN
         AdminUnit varchar(25) NULL,
         EffortVerified datetime2(7) NULL,
         ReportUnit varchar(50) NULL,
-        VolunteerWos tinyint NULL,
+        VolunteerWos tinyint NULL CONSTRAINT DF_Persons_VolunteerWos DEFAULT 0,  -- Match legacy; reports filter VolunteerWos = 0
         PercentClinical float NULL,  -- Match legacy float(53)
         LastEmailed datetime2(7) NULL,
         LastEmailedBy int NULL,
