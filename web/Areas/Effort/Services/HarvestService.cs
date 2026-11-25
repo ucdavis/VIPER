@@ -365,13 +365,14 @@ public class HarvestService : IHarvestService
     #region Private Helpers
 
     /// <summary>
-    /// Get all instructors from all sources (CREST, Non-CREST, Clinical).
+    /// Get all instructors from all sources (CREST, Non-CREST, Clinical, PPS faculty).
     /// </summary>
     private static IEnumerable<HarvestPersonPreview> GetAllInstructors(HarvestPreviewDto preview)
     {
         return preview.CrestInstructors
             .Concat(preview.NonCrestInstructors)
-            .Concat(preview.ClinicalInstructors);
+            .Concat(preview.ClinicalInstructors)
+            .Concat(preview.FacultyInstructors);
     }
 
     private HarvestContext CreateHarvestContext(int termCode, int modifiedBy)

@@ -287,16 +287,7 @@ public sealed class NonCrestHarvestPhase : HarvestPhaseBase
             .ToDictionaryAsync(p => p.MothraId ?? "", p => p.PersonId, ct);
 
         // Get lookups
-        context.TitleLookup ??= (await context.InstructorService.GetTitleCodesAsync(ct))
-            .ToDictionary(t => t.Code, t => t.Name, StringComparer.OrdinalIgnoreCase);
-
-        context.JobGroupLookup ??= (await context.DictionaryContext.Titles
-            .AsNoTracking()
-            .Where(t => t.Code != null && t.JobGroupId != null)
-            .Select(t => new { Code = t.Code!.Trim(), t.JobGroupId })
-            .ToListAsync(ct))
-            .GroupBy(t => t.Code, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(g => g.Key, g => g.First().JobGroupId, StringComparer.OrdinalIgnoreCase);
+        await EnsureTitleLookupsAsync(context, ct);
 
         // Batch-resolve departments using full resolution chain (jobs → employee fields → fallback)
         var batchDepts = await context.InstructorService.BatchResolveDepartmentsAsync(nonCrestMothraIds, context.TermCode, ct);
@@ -337,7 +328,7 @@ public sealed class NonCrestHarvestPhase : HarvestPhaseBase
             // Department already fully resolved by BatchResolveDepartmentsAsync
             var dept = batchDepts.GetValueOrDefault(mothraId, "UNK");
 
-            var titleDesc = context.TitleLookup.TryGetValue(titleCode, out var desc) ? desc : titleCode;
+            var titleDesc = context.TitleLookup!.TryGetValue(titleCode, out var desc) ? desc : titleCode;
             var inCrest = crestEffortKeys.Contains((poa.PoaCrn, mothraId));
 
             // Exclude emeritus/recall appointments from harvest (skips both the instructor

@@ -106,12 +106,7 @@
                         </span>
                     </div>
                     <div class="text-caption text-grey-7">
-                        <template v-if="selectedMode === 'ClearReplace'">
-                            Clear & Replace mode will delete all existing clinical records before importing.
-                        </template>
-                        <template v-else>
-                            Sync mode will remove clinical records that no longer exist in the source.
-                        </template>
+                        {{ DELETE_EXPLANATIONS[selectedMode] }}
                     </div>
                 </StatusBanner>
 
@@ -227,11 +222,21 @@ const selectedMode = ref<ClinicalImportMode>("AddNewOnly")
 const isLoading = ref(false)
 const loadError = ref<string | null>(null)
 const isCommitting = ref(false)
+// Bumped on every load and on close, so a response for an earlier request is dropped
+let previewRequestId = 0
 
 // Progress tracking
 const importProgress = ref(0)
 const importPhase = ref("")
 const importDetail = ref("")
+
+// Why the preview lists deletions, per mode
+const DELETE_EXPLANATIONS: Record<ClinicalImportMode, string> = {
+    ClearReplace: "Clear & Replace mode will delete all existing clinical records before importing.",
+    Sync: "Sync mode will remove clinical records that no longer exist in the source.",
+    AddNewOnly:
+        "A course being added takes every scheduled week from these records, so they are removed to keep each week credited to one course.",
+}
 
 // Computed total changes (excluding skipped)
 const totalChanges = computed(() => {
@@ -247,6 +252,8 @@ watch(
             selectedMode.value = "AddNewOnly"
             await loadPreview()
         } else if (!open) {
+            previewRequestId++
+            isLoading.value = false
             preview.value = null
             loadError.value = null
         }
@@ -260,20 +267,25 @@ async function onModeChange() {
 async function loadPreview() {
     if (!props.termCode) return
 
+    const requestId = ++previewRequestId
     isLoading.value = true
     loadError.value = null
 
     try {
         const result = await clinicalService.getPreview(props.termCode, selectedMode.value)
+        if (requestId !== previewRequestId) return
         if (result) {
             preview.value = result
         } else {
             loadError.value = "Failed to load clinical import preview"
         }
     } catch (err) {
+        if (requestId !== previewRequestId) return
         loadError.value = err instanceof Error ? err.message : "Failed to load clinical import preview"
     } finally {
-        isLoading.value = false
+        if (requestId === previewRequestId) {
+            isLoading.value = false
+        }
     }
 }
 

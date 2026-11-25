@@ -101,6 +101,7 @@ type HarvestPreviewDto = {
     clinicalInstructors: HarvestPersonPreview[]
     clinicalCourses: HarvestCoursePreview[]
     clinicalEffort: HarvestRecordPreview[]
+    facultyInstructors: HarvestPersonPreview[]
     removedInstructors: HarvestPersonPreview[]
     removedCourses: HarvestCoursePreview[]
     summary: HarvestSummary

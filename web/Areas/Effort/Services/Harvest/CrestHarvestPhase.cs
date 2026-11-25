@@ -105,16 +105,7 @@ public sealed class CrestHarvestPhase : HarvestPhaseBase
         var crestInstructors = await GetCrestInstructorsAsync(context, ct);
 
         // Get title descriptions and department lookups
-        context.TitleLookup ??= (await context.InstructorService.GetTitleCodesAsync(ct))
-            .ToDictionary(t => t.Code, t => t.Name, StringComparer.OrdinalIgnoreCase);
-
-        context.JobGroupLookup ??= (await context.DictionaryContext.Titles
-            .AsNoTracking()
-            .Where(t => t.Code != null && t.JobGroupId != null)
-            .Select(t => new { Code = t.Code!.Trim(), t.JobGroupId })
-            .ToListAsync(ct))
-            .GroupBy(t => t.Code, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(g => g.Key, g => g.First().JobGroupId, StringComparer.OrdinalIgnoreCase);
+        await EnsureTitleLookupsAsync(context, ct);
 
         context.DeptSimpleNameLookup ??= await context.InstructorService.GetDepartmentSimpleNameLookupAsync(ct);
         var excludedTitleCodes = context.ExcludedTitleCodes ??= await context.InstructorService.GetExcludedTitleCodesAsync(ct);
@@ -139,7 +130,7 @@ public sealed class CrestHarvestPhase : HarvestPhaseBase
                 continue;
             }
 
-            var titleDesc = context.TitleLookup.TryGetValue(instructor.TitleCode, out var desc) ? desc : instructor.TitleCode;
+            var titleDesc = context.TitleLookup!.TryGetValue(instructor.TitleCode, out var desc) ? desc : instructor.TitleCode;
 
             // Exclude emeritus/recall appointments from harvest. Their effort records are
             // skipped automatically because BuildCrestEffortRecordsAsync only emits records

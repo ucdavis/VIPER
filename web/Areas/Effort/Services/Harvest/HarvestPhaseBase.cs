@@ -26,6 +26,27 @@ public abstract class HarvestPhaseBase : IHarvestPhase
     /// <inheritdoc />
     public abstract Task ExecuteAsync(HarvestContext context, CancellationToken ct = default);
 
+    #region Lookup Helpers
+
+    /// <summary>
+    /// Load the title description and job group lookups once per harvest.
+    /// </summary>
+    protected static async Task EnsureTitleLookupsAsync(HarvestContext context, CancellationToken ct)
+    {
+        context.TitleLookup ??= (await context.InstructorService.GetTitleCodesAsync(ct))
+            .ToDictionary(t => t.Code, t => t.Name, StringComparer.OrdinalIgnoreCase);
+
+        context.JobGroupLookup ??= (await context.DictionaryContext.Titles
+            .AsNoTracking()
+            .Where(t => t.Code != null && t.JobGroupId != null)
+            .Select(t => new { Code = t.Code!.Trim(), t.JobGroupId })
+            .ToListAsync(ct))
+            .GroupBy(t => t.Code, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First().JobGroupId, StringComparer.OrdinalIgnoreCase);
+    }
+
+    #endregion
+
     #region Import Helpers
 
     /// <summary>

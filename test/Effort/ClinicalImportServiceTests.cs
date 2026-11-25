@@ -96,6 +96,20 @@ public sealed class ClinicalImportServiceTests : IDisposable
         _coursesContext.Dispose();
     }
 
+    #region GetPriorityCourse Tests
+
+    [Theory]
+    [InlineData("DVM 463", "DVM 478", "DVM 463")] // neither in the priority table: lowest code
+    [InlineData("DVM 478", "DVM 463", "DVM 463")] // same answer whatever the list order
+    [InlineData("DVM 492", "DVM 491", "DVM 491")] // table priority still wins
+    [InlineData("DVM 400", "DVM 447", "DVM 447")] // a listed course beats an unlisted one
+    public void GetPriorityCourse_IsIndependentOfListOrder(string first, string second, string expected)
+    {
+        Assert.Equal(expected, ClinicalImportService.GetPriorityCourse([first, second]));
+    }
+
+    #endregion
+
     #region GetPreviewAsync Validation Tests
 
     [Fact]
@@ -282,6 +296,159 @@ public sealed class ClinicalImportServiceTests : IDisposable
         // Assert — existing record should be "Skip" with no ExistingWeeks
         var skipAssignment = Assert.Single(result.Assignments, a => a.Status == "Skip");
         Assert.Null(skipAssignment.ExistingWeeks);
+    }
+
+    #endregion
+
+    #region AddNewOnly Displaced Record Tests
+
+    // An earlier import credited DVM 478 for weeks that DVM 463 now wins (the tie-break changed).
+    // soloWeeks are DVM 478 weeks with no competing course, so they stay with DVM 478.
+    [Theory]
+    [InlineData(0, "Delete", null, false)] // every DVM 478 week went to DVM 463: the record is removed
+    [InlineData(1, "Update", 1, false)]    // one week is still DVM 478's alone: the record drops to it
+    [InlineData(0, "Delete", null, true)]
+    [InlineData(1, "Update", 1, true)]
+    public async Task AddNewOnly_ReconcilesRecord_WhenAddedCourseTookItsWeeks(
+        int soloWeeks, string expectedStatus, int? expectedWeeks, bool withProgress)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        const int sharedWeeks = 2;
+        var staleRecordId = await SeedDisplacedScenarioAsync(sharedWeeks, soloWeeks);
+
+        var preview = await _service.GetPreviewAsync(TermCode, ClinicalImportMode.AddNewOnly, ct);
+
+        var added = Assert.Single(preview.Assignments, a => a.Status == "New");
+        Assert.Equal("DVM 463", added.CourseNumber);
+        Assert.Equal(sharedWeeks, added.Weeks);
+        var stale = Assert.Single(preview.Assignments, a => a.ExistingRecordId == staleRecordId);
+        Assert.Equal(expectedStatus, stale.Status);
+
+        var result = await ExecuteAddNewOnlyAsync(withProgress, ct);
+
+        Assert.True(result.Success);
+        Assert.Equal(1, result.RecordsAdded);
+        Assert.Equal(expectedWeeks == null ? 1 : 0, result.RecordsDeleted);
+        Assert.Equal(expectedWeeks == null ? 0 : 1, result.RecordsUpdated);
+        Assert.Equal(0, result.RecordsSkipped);
+
+        var records = await _context.Records.AsNoTracking()
+            .Where(r => r.TermCode == TermCode)
+            .ToDictionaryAsync(r => r.CourseId, r => r.Weeks, ct);
+        Assert.Equal(sharedWeeks, records[Dvm463CourseId]);
+        Assert.Equal(expectedWeeks, records.GetValueOrDefault(Dvm478CourseId));
+    }
+
+    [Fact]
+    public async Task AddNewOnly_LeavesExistingRecordAlone_WhenNoCourseIsAdded()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var staleRecordId = await SeedDisplacedScenarioAsync(sharedWeeks: 2, soloWeeks: 1);
+        // DVM 463 already has its record, so nothing is added and nothing may be reconciled
+        await SeedExistingClinicalRecordAsync(DisplacedMothraId, DisplacedPersonId, Dvm463CourseId, weeks: 2);
+
+        var result = await _service.ExecuteImportAsync(TermCode, ClinicalImportMode.AddNewOnly, modifiedBy: 1, ct);
+
+        Assert.Equal(0, result.RecordsAdded);
+        Assert.Equal(0, result.RecordsUpdated);
+        Assert.Equal(0, result.RecordsDeleted);
+        var stale = await _context.Records.AsNoTracking().SingleAsync(r => r.Id == staleRecordId, ct);
+        Assert.Equal(3, stale.Weeks);
+    }
+
+    // Execution imports for anyone already in the term even with no valid AAUD data, so the
+    // preview must show the same additions and removals for them.
+    [Fact]
+    public async Task AddNewOnly_PreviewMatchesExecution_ForExistingPersonWithoutAaudData()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var staleRecordId = await SeedDisplacedScenarioAsync(sharedWeeks: 2, soloWeeks: 0, seedAaud: false);
+
+        var preview = await _service.GetPreviewAsync(TermCode, ClinicalImportMode.AddNewOnly, ct);
+        var result = await _service.ExecuteImportAsync(TermCode, ClinicalImportMode.AddNewOnly, modifiedBy: 1, ct);
+
+        Assert.Equal("DVM 463", Assert.Single(preview.Assignments, a => a.Status == "New").CourseNumber);
+        Assert.Equal(staleRecordId, Assert.Single(preview.Assignments, a => a.Status == "Delete").ExistingRecordId);
+        Assert.Equal(preview.AddCount, result.RecordsAdded);
+        Assert.Equal(preview.DeleteCount, result.RecordsDeleted);
+    }
+
+    // A fresh import credits each shared week to the priority course only, and the losing
+    // course having no record yet must not stop the reconcile step.
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task AddNewOnly_FreshImport_CreditsSharedWeeksToPriorityCourseOnly(bool withProgress)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await SeedDisplacedScenarioAsync(sharedWeeks: 2, soloWeeks: 1);
+        _context.Records.RemoveRange(_context.Records.Where(r => r.CourseId == Dvm478CourseId));
+        await _context.SaveChangesAsync(ct);
+
+        var result = await ExecuteAddNewOnlyAsync(withProgress, ct);
+
+        Assert.Equal((2, 0, 0), (result.RecordsAdded, result.RecordsUpdated, result.RecordsDeleted));
+        var records = await _context.Records.AsNoTracking()
+            .Where(r => r.TermCode == TermCode)
+            .ToDictionaryAsync(r => r.CourseId, r => r.Weeks, ct);
+        Assert.Equal(2, records[Dvm463CourseId]);
+        Assert.Equal(1, records[Dvm478CourseId]);
+    }
+
+    private Task<ClinicalImportResultDto> ExecuteAddNewOnlyAsync(bool withProgress, CancellationToken ct) =>
+        withProgress
+            ? _service.ExecuteImportWithProgressAsync(TermCode, ClinicalImportMode.AddNewOnly, modifiedBy: 1,
+                Channel.CreateUnbounded<ClinicalImportProgressEvent>().Writer, ct)
+            : _service.ExecuteImportAsync(TermCode, ClinicalImportMode.AddNewOnly, modifiedBy: 1, ct);
+
+    private const string DisplacedMothraId = "INST0030";
+    private const int DisplacedPersonId = 30;
+    private const int Dvm463CourseId = 2;
+    private const int Dvm478CourseId = 3;
+
+    /// <summary>
+    /// One instructor on DVM 463 and DVM 478 in the same weeks (plus DVM 478 alone for
+    /// soloWeeks), holding a DVM 478 record that counts every one of those weeks.
+    /// </summary>
+    /// <returns>The ID of the existing DVM 478 record.</returns>
+    private async Task<int> SeedDisplacedScenarioAsync(int sharedWeeks, int soloWeeks, bool seedAaud = true)
+    {
+        await SeedTermAndCourseAsync();
+        foreach (var (id, crseNumb) in new[] { (Dvm463CourseId, "463"), (Dvm478CourseId, "478") })
+        {
+            _context.Courses.Add(new EffortCourse
+            {
+                Id = id,
+                TermCode = TermCode,
+                SubjCode = "DVM",
+                CrseNumb = crseNumb,
+                SeqNumb = "001",
+                Crn = $"CRN{crseNumb}",
+                Enrollment = 20,
+                Units = 1,
+                CustDept = "DVM"
+            });
+        }
+        await _context.SaveChangesAsync();
+
+        await SeedSourceDataAsync(DisplacedMothraId, "DVM", "478", weekCount: sharedWeeks + soloWeeks, seedAaud);
+
+        // Put DVM 463 on the first sharedWeeks of those same weeks
+        var rows = await _viperContext.InstructorSchedules.AsNoTracking()
+            .Where(s => s.MothraId == DisplacedMothraId)
+            .OrderBy(s => s.WeekId)
+            .Take(sharedWeeks)
+            .ToListAsync();
+        foreach (var row in rows)
+        {
+            row.InstructorScheduleId = 0;
+            row.CrseNumb = "463";
+            _viperContext.InstructorSchedules.Add(row);
+        }
+        await _viperContext.SaveChangesAsync();
+
+        await SeedExistingClinicalRecordAsync(DisplacedMothraId, DisplacedPersonId, Dvm478CourseId, weeks: sharedWeeks + soloWeeks);
+        return await _context.Records.Where(r => r.CourseId == Dvm478CourseId).Select(r => r.Id).SingleAsync();
     }
 
     #endregion
