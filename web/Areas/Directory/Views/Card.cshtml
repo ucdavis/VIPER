@@ -31,7 +31,7 @@
     <q-spinner v-if="spinner" color="primary" size="2em" style="margin-left: 2em;"></q-spinner>
 </q-form>
     <div class="row q-pa-sm q-gutter-sm" id="directoryResults">
-        <q-card v-for="user in results" class="col-2 col-xs-8 col-sm-5 col-md-8 col-lg-3 col-xl-2 block directory">
+        <q-card v-for="user in results" flat bordered class="col-2 col-xs-8 col-sm-5 col-md-8 col-lg-3 col-xl-2 block directory">
             <q-card-section class="grid row card_header" :class="[user.svm ? 'SVM' : '']">
                 <a v-if="user.svm && user.iamId && user.mothraId" :href="'@HttpHelper.GetRootURL()/UserInfo/' + user.mothraId" @@click="onLinkClick($event, 'Loading user profile...')" :aria-label="'User information for ' + user.name" class="userinfo_button top_button">
                     <q-icon name="person" size="xs"></q-icon>
