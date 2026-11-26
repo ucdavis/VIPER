@@ -236,9 +236,9 @@ public class EvaluationReportService : BaseReportService, IEvaluationReportServi
         var sql = @"
             SELECT
                 people_MothraID AS MothraId,
-                RTRIM(p.LastName) + ', ' + RTRIM(p.FirstName) AS Instructor,
+                CONCAT_WS(', ', TRIM(p.LastName), TRIM(p.FirstName)) AS Instructor,
                 p.EffortDept AS Department,
-                RTRIM(course_subj_code) + ' ' + RTRIM(course_crse_numb) AS Course,
+                CONCAT_WS(' ', TRIM(course_subj_code), TRIM(course_crse_numb)) AS Course,
                 CAST(course_CRN AS VARCHAR(6)) AS CRN,
                 CAST(course_TermCode AS INT) AS TermCode,
                 quant_mean AS QuantMean,
