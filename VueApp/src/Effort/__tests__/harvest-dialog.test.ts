@@ -35,6 +35,7 @@ function createMockPreview(overrides: Partial<HarvestPreviewDto> = {}): HarvestP
         clinicalInstructors: [],
         clinicalCourses: [],
         clinicalEffort: [],
+        crossListLinks: [],
         removedInstructors: [],
         removedCourses: [],
         summary: {

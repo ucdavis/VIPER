@@ -47,7 +47,8 @@ public sealed class CourseServiceTests : IDisposable
         _auditServiceMock
             .AddCourseChangeAudit(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<string>(), Arg.Any<object?>(), Arg.Any<object?>());
 
-        _courseService = new CourseService(_context, _coursesContext, _auditServiceMock, _classificationService, _loggerMock);
+        _courseService = new CourseService(_context, _coursesContext, _auditServiceMock, _classificationService,
+            new CrossListService(_context, _coursesContext, _auditServiceMock, Substitute.For<ILogger<CrossListService>>()), _loggerMock);
     }
 
     public void Dispose()

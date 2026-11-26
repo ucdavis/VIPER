@@ -152,6 +152,10 @@
                         name="clinical"
                         label="Clinical"
                     />
+                    <q-tab
+                        name="crosslist"
+                        :label="`Cross-Lists (${preview.crossListLinks.length})`"
+                    />
                 </q-tabs>
 
                 <q-separator />
@@ -166,121 +170,24 @@
                         name="crest"
                         class="q-pa-none q-pt-md"
                     >
-                        <div class="row items-center justify-between q-mb-sm">
-                            <div class="text-subtitle2">Instructors ({{ preview.crestInstructors.length }})</div>
-                            <q-input
-                                v-model="crestInstructorFilter"
-                                placeholder="Search..."
-                                dense
-                                outlined
-                                clearable
-                                class="compact-search"
-                            >
-                                <template #prepend>
-                                    <q-icon
-                                        name="search"
-                                        size="xs"
-                                    />
-                                </template>
-                            </q-input>
-                        </div>
-                        <q-table
+                        <HarvestPreviewTable
+                            title="Instructors"
                             :rows="preview.crestInstructors"
                             :columns="instructorColumns"
                             row-key="personId"
-                            :filter="crestInstructorFilter"
-                            dense
-                            flat
-                            bordered
-                            v-model:pagination="crestInstructorPagination"
-                            class="q-mb-md"
-                        >
-                            <template #body-cell-status="slotProps">
-                                <q-td :props="slotProps">
-                                    <StatusBadge
-                                        :color="getStatusColor(slotProps.value)"
-                                        :label="slotProps.value"
-                                    />
-                                </q-td>
-                            </template>
-                        </q-table>
-
-                        <div class="row items-center justify-between q-mb-sm">
-                            <div class="text-subtitle2">Courses ({{ preview.crestCourses.length }})</div>
-                            <q-input
-                                v-model="crestCourseFilter"
-                                placeholder="Search..."
-                                dense
-                                outlined
-                                clearable
-                                class="compact-search"
-                            >
-                                <template #prepend>
-                                    <q-icon
-                                        name="search"
-                                        size="xs"
-                                    />
-                                </template>
-                            </q-input>
-                        </div>
-                        <q-table
+                        />
+                        <HarvestPreviewTable
+                            title="Courses"
                             :rows="preview.crestCourses"
                             :columns="courseColumns"
                             row-key="crn"
-                            :filter="crestCourseFilter"
-                            dense
-                            flat
-                            bordered
-                            v-model:pagination="crestCoursePagination"
-                            class="q-mb-md"
-                        >
-                            <template #body-cell-status="slotProps">
-                                <q-td :props="slotProps">
-                                    <StatusBadge
-                                        :color="getStatusColor(slotProps.value)"
-                                        :label="slotProps.value"
-                                    />
-                                </q-td>
-                            </template>
-                        </q-table>
-
-                        <div class="row items-center justify-between q-mb-sm">
-                            <div class="text-subtitle2">Effort Records ({{ preview.crestEffort.length }})</div>
-                            <q-input
-                                v-model="crestEffortFilter"
-                                placeholder="Search..."
-                                dense
-                                outlined
-                                clearable
-                                class="compact-search"
-                            >
-                                <template #prepend>
-                                    <q-icon
-                                        name="search"
-                                        size="xs"
-                                    />
-                                </template>
-                            </q-input>
-                        </div>
-                        <q-table
+                        />
+                        <HarvestPreviewTable
+                            title="Effort Records"
                             :rows="preview.crestEffort"
                             :columns="effortColumns"
                             :row-key="(row) => `${row.mothraId}-${row.crn}-${row.effortType}`"
-                            :filter="crestEffortFilter"
-                            dense
-                            flat
-                            bordered
-                            v-model:pagination="crestEffortPagination"
-                        >
-                            <template #body-cell-status="slotProps">
-                                <q-td :props="slotProps">
-                                    <StatusBadge
-                                        :color="getStatusColor(slotProps.value)"
-                                        :label="slotProps.value"
-                                    />
-                                </q-td>
-                            </template>
-                        </q-table>
+                        />
                     </q-tab-panel>
 
                     <!-- Non-CREST Tab -->
@@ -288,121 +195,24 @@
                         name="noncrest"
                         class="q-pa-none q-pt-md"
                     >
-                        <div class="row items-center justify-between q-mb-sm">
-                            <div class="text-subtitle2">Instructors ({{ preview.nonCrestInstructors.length }})</div>
-                            <q-input
-                                v-model="nonCrestInstructorFilter"
-                                placeholder="Search..."
-                                dense
-                                outlined
-                                clearable
-                                class="compact-search"
-                            >
-                                <template #prepend>
-                                    <q-icon
-                                        name="search"
-                                        size="xs"
-                                    />
-                                </template>
-                            </q-input>
-                        </div>
-                        <q-table
+                        <HarvestPreviewTable
+                            title="Instructors"
                             :rows="preview.nonCrestInstructors"
                             :columns="instructorColumns"
                             row-key="personId"
-                            :filter="nonCrestInstructorFilter"
-                            dense
-                            flat
-                            bordered
-                            v-model:pagination="nonCrestInstructorPagination"
-                            class="q-mb-md"
-                        >
-                            <template #body-cell-status="slotProps">
-                                <q-td :props="slotProps">
-                                    <StatusBadge
-                                        :color="getStatusColor(slotProps.value)"
-                                        :label="slotProps.value"
-                                    />
-                                </q-td>
-                            </template>
-                        </q-table>
-
-                        <div class="row items-center justify-between q-mb-sm">
-                            <div class="text-subtitle2">Courses ({{ preview.nonCrestCourses.length }})</div>
-                            <q-input
-                                v-model="nonCrestCourseFilter"
-                                placeholder="Search..."
-                                dense
-                                outlined
-                                clearable
-                                class="compact-search"
-                            >
-                                <template #prepend>
-                                    <q-icon
-                                        name="search"
-                                        size="xs"
-                                    />
-                                </template>
-                            </q-input>
-                        </div>
-                        <q-table
+                        />
+                        <HarvestPreviewTable
+                            title="Courses"
                             :rows="preview.nonCrestCourses"
                             :columns="courseColumns"
                             row-key="crn"
-                            :filter="nonCrestCourseFilter"
-                            dense
-                            flat
-                            bordered
-                            v-model:pagination="nonCrestCoursePagination"
-                            class="q-mb-md"
-                        >
-                            <template #body-cell-status="slotProps">
-                                <q-td :props="slotProps">
-                                    <StatusBadge
-                                        :color="getStatusColor(slotProps.value)"
-                                        :label="slotProps.value"
-                                    />
-                                </q-td>
-                            </template>
-                        </q-table>
-
-                        <div class="row items-center justify-between q-mb-sm">
-                            <div class="text-subtitle2">Effort Records ({{ preview.nonCrestEffort.length }})</div>
-                            <q-input
-                                v-model="nonCrestEffortFilter"
-                                placeholder="Search..."
-                                dense
-                                outlined
-                                clearable
-                                class="compact-search"
-                            >
-                                <template #prepend>
-                                    <q-icon
-                                        name="search"
-                                        size="xs"
-                                    />
-                                </template>
-                            </q-input>
-                        </div>
-                        <q-table
+                        />
+                        <HarvestPreviewTable
+                            title="Effort Records"
                             :rows="preview.nonCrestEffort"
                             :columns="effortColumns"
                             :row-key="(row) => `${row.mothraId}-${row.crn}-${row.effortType}`"
-                            :filter="nonCrestEffortFilter"
-                            dense
-                            flat
-                            bordered
-                            v-model:pagination="nonCrestEffortPagination"
-                        >
-                            <template #body-cell-status="slotProps">
-                                <q-td :props="slotProps">
-                                    <StatusBadge
-                                        :color="getStatusColor(slotProps.value)"
-                                        :label="slotProps.value"
-                                    />
-                                </q-td>
-                            </template>
-                        </q-table>
+                        />
                     </q-tab-panel>
 
                     <!-- Clinical Tab -->
@@ -410,89 +220,46 @@
                         name="clinical"
                         class="q-pa-none q-pt-md"
                     >
-                        <div class="row items-center justify-between q-mb-sm">
-                            <div class="text-subtitle2">Instructors ({{ preview.clinicalInstructors.length }})</div>
-                            <q-input
-                                v-model="clinicalInstructorFilter"
-                                placeholder="Search..."
-                                dense
-                                outlined
-                                clearable
-                                class="compact-search"
-                            >
-                                <template #prepend>
-                                    <q-icon
-                                        name="search"
-                                        size="xs"
-                                    />
-                                </template>
-                            </q-input>
-                        </div>
-                        <q-table
+                        <HarvestPreviewTable
+                            title="Instructors"
                             :rows="preview.clinicalInstructors"
                             :columns="instructorColumns"
                             row-key="mothraId"
-                            :filter="clinicalInstructorFilter"
-                            dense
-                            flat
-                            bordered
-                            v-model:pagination="clinicalInstructorPagination"
-                            class="q-mb-md"
-                        >
-                            <template #body-cell-status="slotProps">
-                                <q-td :props="slotProps">
-                                    <StatusBadge
-                                        :color="getStatusColor(slotProps.value)"
-                                        :label="slotProps.value"
-                                    />
-                                </q-td>
-                            </template>
-                        </q-table>
-
-                        <div class="row items-center justify-between q-mb-sm">
-                            <div class="text-subtitle2">Courses ({{ preview.clinicalCourses.length }})</div>
-                            <q-input
-                                v-model="clinicalCourseFilter"
-                                placeholder="Search..."
-                                dense
-                                outlined
-                                clearable
-                                class="compact-search"
-                            >
-                                <template #prepend>
-                                    <q-icon
-                                        name="search"
-                                        size="xs"
-                                    />
-                                </template>
-                            </q-input>
-                        </div>
-                        <q-table
+                        />
+                        <HarvestPreviewTable
+                            title="Courses"
                             :rows="preview.clinicalCourses"
                             :columns="courseColumns"
                             :row-key="(row) => `${row.subjCode}-${row.crseNumb}-${row.seqNumb}`"
-                            :filter="clinicalCourseFilter"
-                            dense
-                            flat
-                            bordered
-                            v-model:pagination="clinicalCoursePagination"
-                            class="q-mb-md"
-                        >
-                            <template #body-cell-status="slotProps">
-                                <q-td :props="slotProps">
-                                    <StatusBadge
-                                        :color="getStatusColor(slotProps.value)"
-                                        :label="slotProps.value"
-                                    />
-                                </q-td>
-                            </template>
-                        </q-table>
+                        />
 
                         <ClinicalEffortPreviewTable
                             :rows="preview.clinicalEffort"
                             title="Effort Records"
                             show-status
                             :pagination="{ rowsPerPage: 5 }"
+                        />
+                    </q-tab-panel>
+
+                    <!-- Cross-Lists Tab -->
+                    <q-tab-panel
+                        name="crosslist"
+                        class="q-pa-none q-pt-md"
+                    >
+                        <div class="text-caption text-grey-7 q-mb-sm">
+                            Cross-listed courses from Banner are linked automatically. Effort is entered on the parent
+                            course only, so effort harvested onto a child course moves to its parent. Links added by
+                            hand are removed by a harvest.
+                        </div>
+                        <q-table
+                            :rows="preview.crossListLinks"
+                            :columns="crossListColumns"
+                            row-key="childCourse"
+                            dense
+                            flat
+                            bordered
+                            no-data-label="Banner lists no cross-listed courses for this term"
+                            v-model:pagination="crossListPagination"
                         />
                     </q-tab-panel>
                 </q-tab-panels>
@@ -525,7 +292,7 @@ import { useQuasar } from "quasar"
 import { harvestService } from "../services/harvest-service"
 import type { HarvestPreviewDto } from "../types"
 import type { QTableColumn } from "quasar"
-import StatusBadge from "@/components/StatusBadge.vue"
+import HarvestPreviewTable from "./HarvestPreviewTable.vue"
 import StatusBanner from "@/components/StatusBanner.vue"
 import AsyncOperationDialog from "./AsyncOperationDialog.vue"
 import { inflect } from "inflection"
@@ -563,25 +330,7 @@ const harvestProgress = ref(0)
 const harvestPhase = ref("")
 const harvestDetail = ref("")
 
-// Each table needs its own pagination object to avoid shared state
-const crestInstructorPagination = ref({ rowsPerPage: 5 })
-const crestCoursePagination = ref({ rowsPerPage: 5 })
-const crestEffortPagination = ref({ rowsPerPage: 5 })
-const nonCrestInstructorPagination = ref({ rowsPerPage: 5 })
-const nonCrestCoursePagination = ref({ rowsPerPage: 5 })
-const nonCrestEffortPagination = ref({ rowsPerPage: 5 })
-const clinicalInstructorPagination = ref({ rowsPerPage: 5 })
-const clinicalCoursePagination = ref({ rowsPerPage: 5 })
-
-// Table filters
-const crestInstructorFilter = ref("")
-const crestCourseFilter = ref("")
-const crestEffortFilter = ref("")
-const nonCrestInstructorFilter = ref("")
-const nonCrestCourseFilter = ref("")
-const nonCrestEffortFilter = ref("")
-const clinicalInstructorFilter = ref("")
-const clinicalCourseFilter = ref("")
+const crossListPagination = ref({ rowsPerPage: 10 })
 
 // Computed for removed items warning
 const hasRemovedItems = computed(
@@ -638,18 +387,18 @@ const effortColumns: QTableColumn[] = [
     },
 ]
 
-function getStatusColor(status: string): string {
-    switch (status) {
-        case "New":
-            return "positive"
-        case "Exists":
-            return "grey-6"
-        case "In CREST":
-            return "info"
-        default:
-            return "grey"
-    }
-}
+const crossListColumns: QTableColumn[] = [
+    { name: "parentCourse", label: "Parent", field: "parentCourse", align: "left", sortable: true },
+    { name: "childCourse", label: "Child", field: "childCourse", align: "left", sortable: true },
+    {
+        name: "relationshipType",
+        label: "Type",
+        field: (row) => (row.relationshipType === "CrossList" ? "Cross-List" : row.relationshipType),
+        align: "left",
+        sortable: true,
+    },
+    { name: "reason", label: "Parent chosen by", field: "reason", align: "left" },
+]
 
 // Load preview when dialog opens
 watch(
@@ -795,30 +544,3 @@ function resetCommitState() {
     harvestDetail.value = ""
 }
 </script>
-
-<style scoped>
-.compact-search {
-    width: 10rem;
-}
-
-.compact-search :deep(.q-field__control) {
-    height: 1.75rem;
-    min-height: 1.75rem;
-}
-
-.compact-search :deep(.q-field__native) {
-    font-size: 0.75rem;
-    padding: 0;
-}
-
-.compact-search :deep(.q-field__prepend) {
-    height: 1.75rem;
-    padding-left: 0;
-    padding-right: 0.25rem;
-}
-
-.compact-search :deep(.q-field__append) {
-    height: 1.75rem;
-    padding: 0 0.25rem;
-}
-</style>

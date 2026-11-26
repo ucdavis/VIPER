@@ -41,6 +41,13 @@ type HarvestRecordPreview = {
     isNew: boolean
 }
 
+type HarvestCrossListPreview = {
+    parentCourse: string
+    childCourse: string
+    relationshipType: string
+    reason: string
+}
+
 type HarvestSummary = {
     totalInstructors: number
     totalCourses: number
@@ -101,6 +108,7 @@ type HarvestPreviewDto = {
     clinicalInstructors: HarvestPersonPreview[]
     clinicalCourses: HarvestCoursePreview[]
     clinicalEffort: HarvestRecordPreview[]
+    crossListLinks: HarvestCrossListPreview[]
     removedInstructors: HarvestPersonPreview[]
     removedCourses: HarvestCoursePreview[]
     summary: HarvestSummary

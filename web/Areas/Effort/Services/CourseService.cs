@@ -20,6 +20,7 @@ public class CourseService : ICourseService
     private readonly CoursesContext _coursesContext;
     private readonly IEffortAuditService _auditService;
     private readonly ICourseClassificationService _classificationService;
+    private readonly ICrossListService _crossListService;
     private readonly ILogger<CourseService> _logger;
 
     // Department resolution delegated to CustodialDepartmentResolver
@@ -29,12 +30,14 @@ public class CourseService : ICourseService
         CoursesContext coursesContext,
         IEffortAuditService auditService,
         ICourseClassificationService classificationService,
+        ICrossListService crossListService,
         ILogger<CourseService> logger)
     {
         _context = context;
         _coursesContext = coursesContext;
         _auditService = auditService;
         _classificationService = classificationService;
+        _crossListService = crossListService;
         _logger = logger;
     }
 
@@ -244,10 +247,14 @@ public class CourseService : ICourseService
 
         await PersistNewCourseAsync(course, ct);
 
+        // A course imported after the harvest still needs its cross-list link.
+        var crossLists = await _crossListService.ApplyAsync(course.TermCode, course.Crn.Trim(), ct);
+        var parentCourseId = crossLists.Links.Find(l => l.Child.Id == course.Id)?.Parent.Id;
+
         _logger.LogInformation("Imported course {SubjCode} {CrseNumb}-{SeqNumb} (CRN: {Crn}) for term {TermCode}",
             LogSanitizer.SanitizeId(course.SubjCode), LogSanitizer.SanitizeId(course.CrseNumb), LogSanitizer.SanitizeId(course.SeqNumb), LogSanitizer.SanitizeId(course.Crn), course.TermCode);
 
-        return ToDto(course);
+        return ToDto(course, parentCourseId);
     }
 
     public async Task<CourseDto> CreateCourseAsync(CreateCourseRequest request, CancellationToken ct = default)
@@ -547,7 +554,12 @@ public class CourseService : ICourseService
         _logger.LogInformation("Self-imported course {Crn} for term {TermCode}",
             LogSanitizer.SanitizeId(crnTrimmed), termCode);
 
-        return ImportCourseForSelfResult.SuccessNew(importedCourse);
+        // Effort goes on the parent, so hand back the parent when the import became a cross-list child.
+        var effortCourse = importedCourse.ParentCourseId is { } parentId
+            ? await GetCourseAsync(parentId, ct) ?? importedCourse
+            : importedCourse;
+
+        return ImportCourseForSelfResult.SuccessNew(effortCourse);
     }
 
     /// <inheritdoc />
