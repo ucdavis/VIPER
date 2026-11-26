@@ -1,4 +1,6 @@
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Options;
 using Web.Authorization;
 
 namespace Viper.test.Classes
@@ -8,8 +10,39 @@ namespace Viper.test.Classes
     // negative here leaves a session alive for up to 12 hours after the user signed out.
     public class EntraSessionRevocationStoreTests
     {
-        private static EntraSessionRevocationStore Store() =>
-            new(new MemoryCache(new MemoryCacheOptions()), TimeSpan.FromHours(12));
+        private static IDistributedCache SharedCache() =>
+            new MemoryDistributedCache(Options.Create(new MemoryDistributedCacheOptions()));
+
+        // Each store gets its own memory cache, the way each blue/green slot is its own process.
+        private static EntraSessionRevocationStore Store(IDistributedCache? shared = null) =>
+            new(new MemoryCache(new MemoryCacheOptions()), shared ?? SharedCache(), TimeSpan.FromHours(12));
+
+        // The logout can reach a slot that has never served the session, and the slot that has
+        // must then stop honouring the cookie.
+        [Fact]
+        public void Revoke_OnAnotherInstance_IsSeenByTheInstanceThatServedTheSession()
+        {
+            var shared = SharedCache();
+            var servingSlot = Store(shared);
+            var otherSlot = Store(shared);
+            servingSlot.NoteActive("session-a");
+
+            otherSlot.Revoke("session-a");
+
+            Assert.True(servingSlot.IsRevoked("session-a"));
+        }
+
+        // What a slot flip or restart does: the process is new, the shared store is not.
+        [Fact]
+        public void IsRevoked_OnAFreshInstance_StillSeesAnEarlierRevocation()
+        {
+            var shared = SharedCache();
+            var before = Store(shared);
+            before.NoteActive("session-a");
+            before.Revoke("session-a");
+
+            Assert.True(Store(shared).IsRevoked("session-a"));
+        }
 
         // Only ids a live cookie has presented are revocable, so a test that expects a revocation
         // to stick has to establish the session first.
