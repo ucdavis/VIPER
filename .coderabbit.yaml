@@ -48,17 +48,135 @@ reviews:
     docstrings:
       mode: "off"
 
+  # No "Fix comments" or "Fix failing CI" auto-fix offers.
+  finishing_touches:
+    autofix:
+      enabled: false
+    fix_ci:
+      enabled: false
+
+  # Only tools CI does not already cover; github-checks reads CI results. Every
+  # tool defaults to on, so each is listed; recheck the schema for new tools.
   tools:
     github-checks:
       enabled: true
-      timeout_ms: 90000
+    semgrep:
+      enabled: true
+    skillspector:
+      enabled: true
+    actionlint:
+      enabled: true
+    zizmor:
+      enabled: true
+    gitleaks:
+      enabled: true
+    osvScanner:
+      enabled: true
+    blinter:
+      enabled: true
+    presidio:
+      enabled: true
     languagetool:
       enabled: true
       level: default
-    # Biome's strict JSON parser can't read appsettings*.json (ASP.NET parses those as
-    # JSON-with-comments by design), so it warned on every review touching them. Its lint
-    # coverage is already provided by CI (oxlint/oxfmt, JSCPD, Fallow, ReSharper, CodeQL).
+    markdownlint:
+      enabled: true
+    # Off: noisy, irrelevant to this repo, or duplicates CI.
+    ast-grep:
+      enabled: false
+    shellcheck:
+      enabled: false
+    ruff:
+      enabled: false
     biome:
+      enabled: false
+    hadolint:
+      enabled: false
+    swiftlint:
+      enabled: false
+    phpstan:
+      enabled: false
+    phpmd:
+      enabled: false
+    phpcs:
+      enabled: false
+    golangci-lint:
+      enabled: false
+    yamllint:
+      enabled: false
+    trufflehog:
+      enabled: false
+    checkov:
+      enabled: false
+    tflint:
+      enabled: false
+    detekt:
+      enabled: false
+    eslint:
+      enabled: false
+    flake8:
+      enabled: false
+    fbinfer:
+      enabled: false
+    fortitudeLint:
+      enabled: false
+    rubocop:
+      enabled: false
+    buf:
+      enabled: false
+    regal:
+      enabled: false
+    pmd:
+      enabled: false
+    clang:
+      enabled: false
+    cppcheck:
+      enabled: false
+    vale:
+      enabled: false
+    verilator:
+      enabled: false
+    opengrep:
+      enabled: false
+    circleci:
+      enabled: false
+    clippy:
+      enabled: false
+    sqlfluff:
+      enabled: false
+    squawk:
+      enabled: false
+    trivy:
+      enabled: false
+    prismaLint:
+      enabled: false
+    pylint:
+      enabled: false
+    oxc:
+      enabled: false
+    shopifyThemeCheck:
+      enabled: false
+    luacheck:
+      enabled: false
+    brakeman:
+      enabled: false
+    dotenvLint:
+      enabled: false
+    htmlhint:
+      enabled: false
+    stylelint:
+      enabled: false
+    checkmake:
+      enabled: false
+    oasdiff:
+      enabled: false
+    reactDoctor:
+      enabled: false
+    smartyLint:
+      enabled: false
+    emberTemplateLint:
+      enabled: false
+    psscriptanalyzer:
       enabled: false
 
 chat:

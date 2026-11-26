@@ -10,8 +10,9 @@ name: Development Merge Check
 #
 # "In Development" is detected by ancestry, because the team merges into
 # Development with a direct `git merge` + push (`npm run merge`), not a PR, so the
-# PR head becomes an ancestor of Development. A merged-PR lookup is kept as a
-# squash-merge fallback.
+# PR head becomes an ancestor of Development. If not, `git cherry` checks for
+# equivalent patches so a clean rebase onto main stays green. A merged-PR
+# lookup is kept as a squash-merge fallback.
 #
 # Triggers:
 #   pull_request      - evaluate this PR's head on every commit (this is the verdict).
@@ -41,6 +42,15 @@ jobs:
     name: Development merge check (advisory)
     runs-on: ubuntu-latest
     steps:
+      # Full history so `git cherry` can match rebased commits by patch-id.
+      - name: Checkout
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
       - name: Check Development merge status
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
@@ -50,7 +60,7 @@ jobs:
             const { owner, repo } = context.repo;
 
             // Detail string if the head is in Development, else null.
-            async function mergedDetail(headRef, headSha, headOwner) {
+            async function mergedDetail(headRef, headSha, headOwner, baseRef) {
               // Direct merge: npm run merge makes a real merge commit, so the head
               // is contained in Development ("behind" or "identical").
               try {
@@ -62,6 +72,21 @@ jobs:
                 }
               } catch (e) {
                 core.info(`compare ${DEV_BRANCH}...${headSha} failed: ${e.message}`);
+              }
+              // Rebased: new SHAs, but every commit's patch is already in Development.
+              // git cherry ignores merge commits (and any conflict fix in them), so only trust linear branches.
+              const merges = await exec.getExecOutput(
+                'git', ['rev-list', '--merges', `origin/${baseRef}..${headSha}`],
+                { ignoreReturnCode: true, silent: true },
+              );
+              const linear = merges.exitCode === 0 && merges.stdout.trim() === '';
+              const cherry = await exec.getExecOutput(
+                'git', ['cherry', `origin/${DEV_BRANCH}`, headSha, `origin/${baseRef}`],
+                { ignoreReturnCode: true, silent: true },
+              );
+              const lines = cherry.stdout.split('\n').filter(Boolean);
+              if (linear && cherry.exitCode === 0 && lines.length > 0 && lines.every((l) => l.startsWith('-'))) {
+                return `Branch "${headRef}" is on ${DEV_BRANCH} by content: all ${lines.length} commit(s) match patches already in ${DEV_BRANCH} (rebased).`;
               }
               // Fallback: a PR/squash merge into Development.
               const devPulls = await github.paginate(github.rest.pulls.list, {
@@ -78,7 +103,7 @@ jobs:
             if (context.eventName === 'pull_request') {
               const pr = context.payload.pull_request;
               const headOwner = pr.head.repo ? pr.head.repo.owner.login : owner;
-              const detail = await mergedDetail(pr.head.ref, pr.head.sha, headOwner);
+              const detail = await mergedDetail(pr.head.ref, pr.head.sha, headOwner, pr.base.ref);
               if (detail) {
                 core.info(detail);
               } else {
