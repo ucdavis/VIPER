@@ -64,11 +64,12 @@ namespace Web.Authorization
         /// a stranger write one lasting entry per distinct id into a cache shared with roles,
         /// permissions and photos, so only ids a live cookie has presented are admitted.
         /// </remarks>
-        // In-process, so a restart drops both the revocations and the active markers that
-        // gate them, leaving surviving cookies unrevocable until each makes its next request. That
-        // is sound only because VIPER 2 runs one instance per environment
-        // (AddDataProtection() keeps its key ring locally, so a second node could not read the
-        // first's cookies anyway). Move this to IDistributedCache if either fact changes.
+        // In-process, so a restart or a blue/green slot flip drops both the revocations and the
+        // active markers that gate them: surviving cookies are unrevocable until each makes its
+        // next request, and a cookie revoked before the flip is accepted again. The slots share
+        // one Data Protection key ring, so the incoming slot reads the outgoing slot's cookies.
+        // Tolerable only while a single slot serves traffic at a time. Move this to a shared
+        // store before both slots serve concurrently.
         public void Revoke(string? sessionId)
         {
             if (string.IsNullOrWhiteSpace(sessionId))
