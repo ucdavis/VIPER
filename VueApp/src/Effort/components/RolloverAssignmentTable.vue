@@ -4,21 +4,7 @@
             v-if="showSearch"
             class="row justify-end q-mb-sm"
         >
-            <q-input
-                v-model="localFilter"
-                placeholder="Search..."
-                dense
-                outlined
-                clearable
-                class="compact-search"
-            >
-                <template #prepend>
-                    <q-icon
-                        name="search"
-                        size="xs"
-                    />
-                </template>
-            </q-input>
+            <CompactSearch v-model="localFilter" />
         </div>
         <q-table
             :rows="rows"
@@ -48,6 +34,7 @@ import type { QTableColumn } from "quasar"
 import type { PercentRolloverItemPreview } from "../types"
 import { formatTypeWithModifier, getTypeClassColor } from "../utils/format"
 import StatusBadge from "@/components/StatusBadge.vue"
+import CompactSearch from "./CompactSearch.vue"
 
 const props = withDefaults(
     defineProps<{
@@ -111,30 +98,3 @@ const columns: QTableColumn[] = [
     },
 ]
 </script>
-
-<style scoped>
-.compact-search {
-    width: 10rem;
-}
-
-.compact-search :deep(.q-field__control) {
-    height: 1.75rem;
-    min-height: 1.75rem;
-}
-
-.compact-search :deep(.q-field__native) {
-    font-size: 0.75rem;
-    padding: 0;
-}
-
-.compact-search :deep(.q-field__prepend) {
-    height: 1.75rem;
-    padding-left: 0;
-    padding-right: 0.25rem;
-}
-
-.compact-search :deep(.q-field__append) {
-    height: 1.75rem;
-    padding: 0 0.25rem;
-}
-</style>

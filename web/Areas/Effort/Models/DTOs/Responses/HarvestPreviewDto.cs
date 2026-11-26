@@ -23,6 +23,9 @@ public class HarvestPreviewDto
     public List<HarvestCoursePreview> ClinicalCourses { get; set; } = [];
     public List<HarvestRecordPreview> ClinicalEffort { get; set; } = [];
 
+    // Phase 4: Cross-listed course links from Banner
+    public List<HarvestCrossListPreview> CrossListLinks { get; set; } = [];
+
     // Items that exist but won't be re-imported (will be deleted)
     public List<HarvestPersonPreview> RemovedInstructors { get; set; } = [];
     public List<HarvestCoursePreview> RemovedCourses { get; set; } = [];
@@ -127,6 +130,17 @@ public class HarvestRecordPreview
     /// False if a matching record (same person, course, effort type) already exists.
     /// </summary>
     public bool IsNew { get; set; }
+}
+
+/// <summary>
+/// A parent/child course link the harvest will create, and why that parent was chosen.
+/// </summary>
+public class HarvestCrossListPreview
+{
+    public string ParentCourse { get; set; } = string.Empty;
+    public string ChildCourse { get; set; } = string.Empty;
+    public string RelationshipType { get; set; } = string.Empty;
+    public string Reason { get; set; } = string.Empty;
 }
 
 /// <summary>
